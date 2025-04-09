@@ -8,6 +8,7 @@ import {
   LogOut,
   Menu,
   User,
+  Utensils,
   X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
   const menuItems = [
     { icon: <Home size={24} />, label: "Dashboard", path: "/dashboard" },
     { icon: <CalendarDays size={24} />, label: "Workouts", path: "/workouts" },
+    { icon: <Utensils size={24} />, label: "Meal Plan", path: "/meal-plan" },
     { icon: <BarChart3 size={24} />, label: "Progress", path: "/progress" },
     { icon: <User size={24} />, label: "Profile", path: "/profile" },
   ];

@@ -1,12 +1,15 @@
 
 import React from "react";
-import { Activity, Dumbbell, Utensils, Weight } from "lucide-react";
+import { Activity, ChevronRight, Dumbbell, Utensils, Weight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import WorkoutCard from "@/components/dashboard/WorkoutCard";
 import NutritionCard from "@/components/dashboard/NutritionCard";
 import StatsCard from "@/components/dashboard/StatsCard";
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
+  
   // Mock user data - would normally come from API/store
   const userProfile = JSON.parse(localStorage.getItem("userProfile") || "{}");
   const goalToWorkout = {
@@ -90,6 +93,7 @@ const Dashboard: React.FC = () => {
           exercises={8}
           date="Today"
           image={selectedWorkout.image}
+          onClick={() => navigate('/workouts')}
         />
 
         <NutritionCard
@@ -103,11 +107,21 @@ const Dashboard: React.FC = () => {
             carbs: 200,
             fat: 60
           }}
+          onClick={() => navigate('/meal-plan')}
         />
       </div>
 
       {/* Upcoming Workouts */}
-      <h2 className="text-xl font-semibold mb-4">Upcoming Workouts</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold">Upcoming Workouts</h2>
+        <button 
+          className="text-fitness-primary flex items-center text-sm font-medium"
+          onClick={() => navigate('/workouts')}
+        >
+          View All
+          <ChevronRight size={16} className="ml-1" />
+        </button>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <WorkoutCard
           title="Core Strength"
@@ -116,6 +130,7 @@ const Dashboard: React.FC = () => {
           exercises={6}
           date="Tomorrow"
           image="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+          onClick={() => navigate('/workouts')}
         />
         <WorkoutCard
           title="Mobility & Flexibility"
@@ -124,6 +139,7 @@ const Dashboard: React.FC = () => {
           exercises={8}
           date="Wed, Apr 11"
           image="https://images.unsplash.com/photo-1518611012118-696072aa579a?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+          onClick={() => navigate('/workouts')}
         />
         <WorkoutCard
           title="Active Recovery"
@@ -132,6 +148,7 @@ const Dashboard: React.FC = () => {
           exercises={5}
           date="Thu, Apr 12"
           image="https://images.unsplash.com/photo-1603287681836-b174ce5074c2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1471&q=80"
+          onClick={() => navigate('/workouts')}
         />
       </div>
     </DashboardLayout>

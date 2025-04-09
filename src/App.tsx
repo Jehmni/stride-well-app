@@ -9,6 +9,10 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
+import WorkoutPlan from "./pages/WorkoutPlan";
+import MealPlan from "./pages/MealPlan";
+import Progress from "./pages/Progress";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
@@ -61,7 +65,15 @@ const App = () => (
             path="/workouts" 
             element={
               <ProtectedRoute requiresOnboarding={true}>
-                <Dashboard />
+                <WorkoutPlan />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/meal-plan" 
+            element={
+              <ProtectedRoute requiresOnboarding={true}>
+                <MealPlan />
               </ProtectedRoute>
             } 
           />
@@ -69,7 +81,7 @@ const App = () => (
             path="/progress" 
             element={
               <ProtectedRoute requiresOnboarding={true}>
-                <Dashboard />
+                <Progress />
               </ProtectedRoute>
             } 
           />
@@ -77,7 +89,7 @@ const App = () => (
             path="/profile" 
             element={
               <ProtectedRoute requiresOnboarding={true}>
-                <Dashboard />
+                <Profile />
               </ProtectedRoute>
             } 
           />
