@@ -48,7 +48,7 @@ const LoginForm: React.FC = () => {
   return (
     <AuthLayout 
       title="Welcome Back" 
-      subtitle="Login to your StrideWell account"
+      subtitle="Login to your CorePilot account"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
