@@ -1,158 +1,130 @@
 
-import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/ui/use-toast";
-import AuthLayout from "./AuthLayout";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
-const SignupForm: React.FC = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+const SignupForm = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (password !== confirmPassword) {
-      toast({
-        title: "Passwords don't match",
-        description: "Please ensure both passwords match.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     setIsLoading(true);
 
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      // For demo purposes - would normally connect to backend
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast({
-        title: "Account created!",
-        description: "Your account has been successfully created.",
+      const { error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
       });
-      
+
+      if (error) throw error;
+
+      toast.success("Account created successfully!");
       navigate("/onboarding");
-    } catch (error) {
-      toast({
-        title: "Signup Failed",
-        description: "An error occurred during signup.",
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      toast.error(error.message);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <AuthLayout 
-      title="Create Your Account" 
-      subtitle="Sign up to start your fitness journey"
-    >
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Email
-          </label>
-          <div className="mt-1">
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="fitness-input"
-              placeholder="your@email.com"
-            />
-          </div>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8 dark:bg-gray-900">
+      <div className="w-full max-w-md space-y-8">
+        <div className="text-center">
+          <h2 className="mt-6 text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+            Create your CorePilot account
+          </h2>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Start your fitness journey today
+          </p>
         </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-4 rounded-md shadow-sm">
+            <div>
+              <label htmlFor="email" className="sr-only">
+                Email address
+              </label>
+              <Input
+                id="email"
+                type="email"
+                required
+                placeholder="Email address"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="sr-only">
+                Password
+              </label>
+              <Input
+                id="password"
+                type="password"
+                required
+                placeholder="Password"
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <label htmlFor="confirmPassword" className="sr-only">
+                Confirm Password
+              </label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                required
+                placeholder="Confirm Password"
+                value={formData.confirmPassword}
+                onChange={(e) =>
+                  setFormData({ ...formData, confirmPassword: e.target.value })
+                }
+              />
+            </div>
+          </div>
 
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Password
-          </label>
-          <div className="mt-1">
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="fitness-input"
-              placeholder="At least 8 characters"
-            />
-          </div>
-        </div>
-        
-        <div>
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Confirm Password
-          </label>
-          <div className="mt-1">
-            <Input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              required
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="fitness-input"
-              placeholder="Confirm your password"
-            />
-          </div>
-        </div>
-
-        <div>
           <Button
             type="submit"
+            className="w-full"
             disabled={isLoading}
-            className="w-full fitness-button-primary"
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating account...
-              </>
-            ) : (
-              <>
-                Create Account
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </>
-            )}
+            {isLoading ? "Creating account..." : "Sign up"}
           </Button>
-        </div>
-      </form>
 
-      <div className="mt-6">
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300"></div>
+          <div className="text-center text-sm">
+            <p className="text-gray-600 dark:text-gray-400">
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={() => navigate("/login")}
+                className="font-medium text-primary hover:text-primary/80"
+              >
+                Log in
+              </button>
+            </p>
           </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">
-              Or
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-6 text-center">
-          <Link
-            to="/login"
-            className="text-fitness-primary hover:text-blue-700 font-medium"
-          >
-            Already have an account? Log in
-          </Link>
-        </div>
+        </form>
       </div>
-    </AuthLayout>
+    </div>
   );
 };
 
