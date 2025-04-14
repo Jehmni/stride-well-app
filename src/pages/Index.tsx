@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, CheckCircle } from "lucide-react";
@@ -10,7 +9,7 @@ const Index: React.FC = () => {
       {/* Hero Section */}
       <header className="bg-gradient-to-br from-fitness-primary to-fitness-secondary text-white">
         <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="text-2xl font-bold">StrideWell</div>
+          <div className="text-2xl font-bold">CorePilot</div>
           <div className="hidden md:flex space-x-4 items-center">
             <Link to="/login" className="text-white hover:text-gray-200 transition-colors">
               Login
@@ -32,7 +31,7 @@ const Index: React.FC = () => {
               Your Personalized Fitness Journey Begins Here
             </h1>
             <p className="text-xl mb-8 opacity-90 animate-slide-up">
-              StrideWell creates customized workout and nutrition plans tailored to your body and goals.
+              CorePilot creates customized workout and nutrition plans tailored to your body and goals.
             </p>
             <Button asChild size="lg" className="bg-white text-fitness-primary hover:bg-gray-100 animate-slide-up">
               <Link to="/signup">
@@ -143,7 +142,7 @@ const Index: React.FC = () => {
             {[
               {
                 name: "Sarah M.",
-                text: "StrideWell helped me lose 15kg in 6 months with workouts I can actually stick to!",
+                text: "CorePilot helped me lose 15kg in 6 months with workouts I can actually stick to!",
                 image: "https://randomuser.me/api/portraits/women/44.jpg"
               },
               {
@@ -187,7 +186,7 @@ const Index: React.FC = () => {
         <div className="container mx-auto px-6 text-center">
           <h2 className="text-3xl font-bold mb-6">Ready to Transform Your Fitness?</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Join thousands of users who have already achieved their fitness goals with StrideWell.
+            Join thousands of users who have already achieved their fitness goals with CorePilot.
           </p>
           
           <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
@@ -210,7 +209,7 @@ const Index: React.FC = () => {
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-xl font-bold mb-4 text-white">StrideWell</h3>
+              <h3 className="text-xl font-bold mb-4 text-white">CorePilot</h3>
               <p className="mb-4">Your personalized fitness journey.</p>
               <div className="flex space-x-4">
                 <a href="#" className="hover:text-white transition-colors">
@@ -265,7 +264,7 @@ const Index: React.FC = () => {
           </div>
           
           <div className="border-t border-gray-700 mt-8 pt-8 text-center">
-            <p>© 2025 StrideWell. All rights reserved.</p>
+            <p>© 2025 CorePilot. All rights reserved.</p>
           </div>
         </div>
       </footer>

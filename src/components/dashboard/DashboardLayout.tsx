@@ -1,4 +1,3 @@
-
 import React, { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -41,7 +40,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
       {/* Desktop Sidebar */}
       <aside className="fixed inset-y-0 left-0 hidden w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 md:flex flex-col z-10">
         <div className="h-16 flex items-center px-6 bg-fitness-primary">
-          <h2 className="text-2xl font-bold text-white">StrideWell</h2>
+          <h2 className="text-2xl font-bold text-white">CorePilot</h2>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
@@ -73,7 +72,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
       {/* Mobile Header */}
       <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
         <div className="h-16 px-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold">StrideWell</h2>
+          <h2 className="text-xl font-bold">CorePilot</h2>
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -82,7 +81,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
               <div className="h-16 flex items-center justify-between px-6 bg-fitness-primary">
-                <h2 className="text-xl font-bold text-white">StrideWell</h2>
+                <h2 className="text-xl font-bold text-white">CorePilot</h2>
                 <Button 
                   variant="ghost" 
                   size="icon" 
