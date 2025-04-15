@@ -5,38 +5,108 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Eye, EyeOff } from "lucide-react";
 
 const SignupForm = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     confirmPassword: "",
   });
+  const [formErrors, setFormErrors] = useState({
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+
+  const validateForm = () => {
+    const errors = {
+      email: "",
+      password: "",
+      confirmPassword: "",
+    };
+    let isValid = true;
+
+    // Email validation
+    if (!formData.email) {
+      errors.email = "Email is required";
+      isValid = false;
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = "Email is invalid";
+      isValid = false;
+    }
+
+    // Password validation
+    if (!formData.password) {
+      errors.password = "Password is required";
+      isValid = false;
+    } else if (formData.password.length < 6) {
+      errors.password = "Password must be at least 6 characters";
+      isValid = false;
+    }
+
+    // Confirm password validation
+    if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = "Passwords do not match";
+      isValid = false;
+    }
+
+    setFormErrors(errors);
+    return isValid;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-
-    if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
-      setIsLoading(false);
+    
+    if (!validateForm()) {
       return;
     }
 
+    setIsLoading(true);
+
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
+        options: {
+          data: {
+            // Default user data that will be passed to the handle_new_user trigger
+            age: 30,
+            sex: 'other',
+            height: 170,
+            weight: 70,
+            fitness_goal: 'general-fitness',
+          }
+        }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Signup error:", error);
+        throw error;
+      }
 
-      toast.success("Account created successfully!");
-      navigate("/onboarding");
+      if (data.user) {
+        toast.success("Account created successfully!");
+        
+        // Some email providers may require email verification
+        if (data.user.identities && data.user.identities.length === 0) {
+          toast.info("Please check your email to verify your account");
+        }
+        
+        navigate("/onboarding");
+      }
     } catch (error: any) {
-      toast.error(error.message);
+      let errorMessage = error.message || "An error occurred during signup";
+      
+      // Make error messages more user-friendly
+      if (errorMessage.includes("User already registered")) {
+        errorMessage = "This email is already registered. Try logging in instead.";
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +126,7 @@ const SignupForm = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4 rounded-md shadow-sm">
             <div>
-              <label htmlFor="email" className="sr-only">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Email address
               </label>
               <Input
@@ -68,37 +138,69 @@ const SignupForm = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
                 }
+                className={formErrors.email ? "border-red-500" : ""}
               />
+              {formErrors.email && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>
+              )}
             </div>
             <div>
-              <label htmlFor="password" className="sr-only">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Password
               </label>
-              <Input
-                id="password"
-                type="password"
-                required
-                placeholder="Password"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  placeholder="Password (min. 6 characters)"
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                  className={formErrors.password ? "border-red-500" : ""}
+                />
+                <button 
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              {formErrors.password && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.password}</p>
+              )}
             </div>
             <div>
-              <label htmlFor="confirmPassword" className="sr-only">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Confirm Password
               </label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                required
-                placeholder="Confirm Password"
-                value={formData.confirmPassword}
-                onChange={(e) =>
-                  setFormData({ ...formData, confirmPassword: e.target.value })
-                }
-              />
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  placeholder="Confirm Password"
+                  value={formData.confirmPassword}
+                  onChange={(e) =>
+                    setFormData({ ...formData, confirmPassword: e.target.value })
+                  }
+                  className={formErrors.confirmPassword ? "border-red-500" : ""}
+                />
+                <button 
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              {formErrors.confirmPassword && (
+                <p className="mt-1 text-sm text-red-500">
+                  {formErrors.confirmPassword}
+                </p>
+              )}
             </div>
           </div>
 
