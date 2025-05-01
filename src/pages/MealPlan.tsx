@@ -1,12 +1,15 @@
-
-import React from "react";
-import { Apple, ChevronRight, Cookie, CreditCard, Search, Utensils } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Apple, ChevronRight, Cookie, CreditCard, Loader2, Search, Utensils } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 type Meal = {
+  id: string;
   name: string;
   calories: number;
   protein: number;
@@ -24,574 +27,531 @@ type DailyPlan = {
 };
 
 const MealPlan: React.FC = () => {
-  // Get user profile from localStorage
-  const userProfile = JSON.parse(localStorage.getItem("userProfile") || "{}");
-  const fitnessGoal = userProfile.fitnessGoal || "general-fitness";
+  const { profile } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [mealPlan, setMealPlan] = useState<DailyPlan | null>(null);
+  const [dailyCalories, setDailyCalories] = useState(0);
+  const [dailyProtein, setDailyProtein] = useState(0);
+  const [dailyCarbs, setDailyCarbs] = useState(0);
+  const [dailyFat, setDailyFat] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
   
-  // Calculate base calories based on user data
-  const calculateBMR = (): number => {
-    const weight = userProfile.weight || 70; // kg
-    const height = userProfile.height || 170; // cm
-    const age = userProfile.age || 30; // years
-    const isMale = userProfile.sex === "male";
+  // Calculate nutrition needs based on user profile
+  const calculateNutrition = () => {
+    if (!profile) return;
     
-    // Harris-Benedict equation
-    if (isMale) {
-      return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
-    } else {
-      return 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
-    }
+    // Calculate base calories based on user data
+    const calculateBMR = (): number => {
+      const weight = profile.weight || 70; // kg
+      const height = profile.height || 170; // cm
+      const age = profile.age || 30; // years
+      const isMale = profile.sex === "male";
+      
+      // Harris-Benedict equation
+      if (isMale) {
+        return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
+      } else {
+        return 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
+      }
+    };
+    
+    // Adjust calories based on fitness goal
+    const calculateTDEE = (): number => {
+      const bmr = calculateBMR();
+      const activityMultiplier = 1.375; // Moderate activity
+      let tdee = bmr * activityMultiplier;
+      
+      switch (profile.fitness_goal) {
+        case "weight-loss":
+          return Math.round(tdee * 0.85); // 15% deficit
+        case "muscle-gain":
+          return Math.round(tdee * 1.1); // 10% surplus
+        default:
+          return Math.round(tdee); // Maintenance
+      }
+    };
+    
+    const calories = calculateTDEE();
+    setDailyCalories(calories);
+    
+    // Set macronutrient targets
+    const protein = Math.round((profile.weight || 70) * (profile.fitness_goal === "muscle-gain" ? 1.8 : 1.6));
+    const fat = Math.round(calories * 0.25 / 9); // 25% of calories from fat, 9 cal per gram
+    const carbs = Math.round((calories - (protein * 4) - (fat * 9)) / 4); // Remaining calories from carbs
+    
+    setDailyProtein(protein);
+    setDailyFat(fat);
+    setDailyCarbs(carbs);
   };
   
-  // Adjust calories based on fitness goal
-  const calculateTDEE = (): number => {
-    const bmr = calculateBMR();
-    const activityMultiplier = 1.375; // Moderate activity
-    let tdee = bmr * activityMultiplier;
+  // Fetch meal plan from database
+  const fetchMealPlan = async () => {
+    if (!profile) return;
     
-    switch (fitnessGoal) {
-      case "weight-loss":
-        return Math.round(tdee * 0.85); // 15% deficit
-      case "muscle-gain":
-        return Math.round(tdee * 1.1); // 10% surplus
-      default:
-        return Math.round(tdee); // Maintenance
-    }
-  };
-  
-  const dailyCalories = calculateTDEE();
-  const dailyProtein = Math.round((userProfile.weight || 70) * (fitnessGoal === "muscle-gain" ? 1.8 : 1.6)); // g
-  const dailyFat = Math.round(dailyCalories * 0.25 / 9); // 25% of calories from fat, 9 cal per gram
-  const dailyCarbs = Math.round((dailyCalories - (dailyProtein * 4) - (dailyFat * 9)) / 4); // Remaining calories from carbs, 4 cal per gram
-  
-  // Sample meal plans based on fitness goals
-  const mealPlans: Record<string, DailyPlan> = {
-    "weight-loss": {
-      breakfast: {
-        name: "Greek Yogurt with Berries",
-        calories: 290,
-        protein: 20,
-        carbs: 30,
-        fat: 8,
-        recipe: [
-          "1 cup Greek yogurt (0% fat)",
-          "1/2 cup mixed berries",
-          "1 tbsp honey",
-          "2 tbsp sliced almonds"
-        ],
-        image: "https://images.unsplash.com/photo-1542691457-cbe4df041eb2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-      },
-      lunch: {
-        name: "Grilled Chicken Salad",
-        calories: 350,
-        protein: 35,
-        carbs: 20,
-        fat: 12,
-        recipe: [
-          "120g grilled chicken breast",
-          "2 cups mixed greens",
-          "1/4 cup cherry tomatoes",
-          "1/4 cucumber, sliced",
-          "1 tbsp olive oil",
-          "1 tbsp balsamic vinegar"
-        ],
-        image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-      },
-      dinner: {
-        name: "Baked Salmon with Vegetables",
-        calories: 420,
-        protein: 30,
-        carbs: 25,
-        fat: 18,
-        recipe: [
-          "150g salmon fillet",
-          "1 cup roasted broccoli",
-          "1/2 cup quinoa",
-          "1 tsp olive oil",
-          "Lemon juice, salt, and pepper to taste"
-        ],
-        image: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-      },
-      snacks: [
-        {
-          name: "Apple with Almond Butter",
-          calories: 200,
-          protein: 5,
-          carbs: 25,
-          fat: 10,
-          recipe: [
-            "1 medium apple",
-            "1 tbsp almond butter"
-          ],
-          image: "https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-        }
-      ]
-    },
-    "muscle-gain": {
-      breakfast: {
-        name: "High-Protein Oatmeal",
-        calories: 450,
-        protein: 30,
-        carbs: 50,
-        fat: 12,
-        recipe: [
-          "1 cup oats",
-          "1 scoop protein powder",
-          "1 banana",
-          "1 tbsp peanut butter",
-          "1/2 cup milk"
-        ],
-        image: "https://images.unsplash.com/photo-1517673400267-0251440c45dc?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-      },
-      lunch: {
-        name: "Turkey and Avocado Wrap",
-        calories: 550,
-        protein: 40,
-        carbs: 45,
-        fat: 20,
-        recipe: [
-          "150g turkey breast",
-          "1 whole wheat wrap",
-          "1/2 avocado",
-          "Lettuce, tomato, red onion",
-          "1 tbsp light mayo"
-        ],
-        image: "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-      },
-      dinner: {
-        name: "Steak with Sweet Potato",
-        calories: 650,
-        protein: 45,
-        carbs: 50,
-        fat: 25,
-        recipe: [
-          "200g lean steak",
-          "1 large sweet potato",
-          "2 cups steamed vegetables",
-          "2 tsp olive oil",
-          "Herbs and spices to taste"
-        ],
-        image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-      },
-      snacks: [
-        {
-          name: "Protein Smoothie",
-          calories: 300,
+    try {
+      setIsLoading(true);
+      
+      // First check if the user has a saved meal plan
+      const { data: savedMealPlan, error: savedError } = await supabase
+        .from('user_meal_plans')
+        .select('meal_plan_data')
+        .eq('user_id', profile.id)
+        .maybeSingle();
+      
+      if (savedError) throw savedError;
+      
+      // If user has a saved meal plan, use it
+      if (savedMealPlan?.meal_plan_data) {
+        setMealPlan(savedMealPlan.meal_plan_data as DailyPlan);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Otherwise fetch a meal plan for their fitness goal
+      const { data: mealPlanData, error: mealPlanError } = await supabase
+        .from('meal_plans')
+        .select('*')
+        .eq('fitness_goal', profile.fitness_goal)
+        .single();
+      
+      if (mealPlanError) throw mealPlanError;
+      
+      if (mealPlanData) {
+        setMealPlan(mealPlanData.meal_plan_data as DailyPlan);
+      }
+    } catch (error: any) {
+      console.error("Error fetching meal plan:", error);
+      toast.error("Failed to load your meal plan");
+      
+      // Fallback to a basic meal plan
+      setMealPlan({
+        breakfast: {
+          id: "default-breakfast",
+          name: "Balanced Breakfast",
+          calories: 400,
           protein: 25,
-          carbs: 30,
-          fat: 5,
-          recipe: [
-            "1 scoop protein powder",
-            "1 cup milk",
-            "1 banana",
-            "1/2 cup frozen berries",
-            "Ice cubes"
-          ],
-          image: "https://images.unsplash.com/photo-1525385133512-2f3bdd039054?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-        },
-        {
-          name: "Greek Yogurt with Honey",
-          calories: 200,
-          protein: 15,
-          carbs: 20,
-          fat: 5,
-          recipe: [
-            "1 cup Greek yogurt",
-            "1 tbsp honey",
-            "1/4 cup granola"
-          ],
-          image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-        }
-      ]
-    },
-    "general-fitness": {
-      breakfast: {
-        name: "Avocado Toast with Eggs",
-        calories: 380,
-        protein: 20,
-        carbs: 35,
-        fat: 15,
-        recipe: [
-          "2 slices whole grain bread",
-          "1/2 avocado",
-          "2 eggs (poached or fried)",
-          "Salt, pepper, and red pepper flakes to taste"
-        ],
-        image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=1480&q=80"
-      },
-      lunch: {
-        name: "Quinoa Bowl",
-        calories: 420,
-        protein: 25,
-        carbs: 45,
-        fat: 14,
-        recipe: [
-          "1 cup cooked quinoa",
-          "100g grilled chicken",
-          "1/2 cup roasted vegetables",
-          "1/4 avocado",
-          "1 tbsp olive oil",
-          "Lemon juice, salt, and pepper to taste"
-        ],
-        image: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-      },
-      dinner: {
-        name: "Fish Tacos",
-        calories: 480,
-        protein: 30,
-        carbs: 40,
-        fat: 18,
-        recipe: [
-          "150g white fish (grilled)",
-          "2 corn tortillas",
-          "1/2 cup cabbage slaw",
-          "1/4 avocado",
-          "Cilantro, lime, and hot sauce to taste"
-        ],
-        image: "https://images.unsplash.com/photo-1551504734-5ee1c4a3479b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-      },
-      snacks: [
-        {
-          name: "Mixed Nuts and Dried Fruit",
-          calories: 250,
-          protein: 8,
-          carbs: 20,
+          carbs: 40,
           fat: 15,
           recipe: [
-            "1/4 cup mixed nuts",
-            "2 tbsp dried fruits"
+            "2 eggs, scrambled",
+            "1 slice whole wheat toast",
+            "1/2 avocado",
+            "1 cup spinach"
           ],
-          image: "https://images.unsplash.com/photo-1599599810769-bcde5a160d32?ixlib=rb-4.0.3&auto=format&fit=crop&w=1496&q=80"
-        }
-      ]
-    },
-    "endurance": {
-      breakfast: {
-        name: "Overnight Oats",
-        calories: 400,
-        protein: 15,
-        carbs: 60,
-        fat: 10,
-        recipe: [
-          "1 cup rolled oats",
-          "1 cup almond milk",
-          "1 banana, sliced",
-          "1 tbsp chia seeds",
-          "1 tbsp maple syrup",
-          "Cinnamon to taste"
-        ],
-        image: "https://images.unsplash.com/photo-1556103255-4443dbae8e5a?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-      },
-      lunch: {
-        name: "Mediterranean Pasta Salad",
-        calories: 480,
-        protein: 20,
-        carbs: 65,
-        fat: 15,
-        recipe: [
-          "1.5 cups whole wheat pasta",
-          "1/2 cup cherry tomatoes",
-          "1/4 cup cucumber",
-          "1/4 cup olives",
-          "50g feta cheese",
-          "1 tbsp olive oil",
-          "Balsamic vinegar and herbs to taste"
-        ],
-        image: "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-      },
-      dinner: {
-        name: "Sweet Potato and Black Bean Bowl",
-        calories: 520,
-        protein: 25,
-        carbs: 70,
-        fat: 12,
-        recipe: [
-          "1 large sweet potato, cubed and roasted",
-          "1/2 cup black beans",
-          "1/2 cup brown rice",
-          "1/4 cup corn",
-          "Avocado, cilantro, and lime to garnish"
-        ],
-        image: "https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1764&q=80"
-      },
-      snacks: [
-        {
-          name: "Banana with Peanut Butter",
-          calories: 250,
-          protein: 8,
-          carbs: 35,
-          fat: 10,
-          recipe: [
-            "1 banana",
-            "2 tbsp peanut butter"
-          ],
-          image: "https://images.unsplash.com/photo-1526630588889-56ade2a5b730?ixlib=rb-4.0.3&auto=format&fit=crop&w=1364&q=80"
+          image: "https://images.unsplash.com/photo-1533089860892-a9b9ac6cd6b4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
         },
-        {
-          name: "Energy Balls",
-          calories: 200,
-          protein: 6,
-          carbs: 25,
-          fat: 8,
+        lunch: {
+          id: "default-lunch",
+          name: "Protein Bowl",
+          calories: 550,
+          protein: 35,
+          carbs: 45,
+          fat: 20,
           recipe: [
-            "1/2 cup oats",
-            "2 tbsp peanut butter",
-            "1 tbsp honey",
-            "1 tbsp chia seeds",
-            "2 tbsp dark chocolate chips"
+            "120g grilled chicken breast",
+            "1/2 cup brown rice",
+            "1 cup mixed vegetables",
+            "1 tbsp olive oil",
+            "Herbs and spices to taste"
           ],
-          image: "https://images.unsplash.com/photo-1533765908890-b54ab771e9c5?ixlib=rb-4.0.3&auto=format&fit=crop&w=1374&q=80"
-        }
-      ]
+          image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+        },
+        dinner: {
+          id: "default-dinner",
+          name: "Balanced Dinner",
+          calories: 500,
+          protein: 30,
+          carbs: 40,
+          fat: 20,
+          recipe: [
+            "150g baked fish",
+            "1 cup roasted vegetables",
+            "1/2 cup quinoa",
+            "1 tsp olive oil",
+            "Lemon juice and herbs"
+          ],
+          image: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+        },
+        snacks: [
+          {
+            id: "default-snack",
+            name: "Healthy Snack",
+            calories: 200,
+            protein: 10,
+            carbs: 20,
+            fat: 8,
+            recipe: [
+              "1 apple",
+              "2 tbsp natural peanut butter"
+            ],
+            image: "https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+          }
+        ]
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
   
-  const selectedPlan = mealPlans[fitnessGoal as keyof typeof mealPlans] || mealPlans["general-fitness"];
+  // Save the current meal plan as favorite
+  const saveMealPlan = async () => {
+    if (!profile || !mealPlan) return;
+    
+    try {
+      const { error } = await supabase
+        .from('user_meal_plans')
+        .upsert({
+          user_id: profile.id,
+          meal_plan_data: mealPlan,
+          updated_at: new Date().toISOString()
+        });
+      
+      if (error) throw error;
+      
+      toast.success("Meal plan saved successfully!");
+    } catch (error: any) {
+      console.error("Error saving meal plan:", error);
+      toast.error("Failed to save meal plan");
+    }
+  };
   
-  // Calculate daily totals
+  // Log a meal as eaten
+  const logMeal = async (mealType: string, meal: Meal) => {
+    if (!profile) return;
+    
+    try {
+      const { error } = await supabase
+        .from('meal_logs')
+        .insert({
+          user_id: profile.id,
+          meal_type: mealType,
+          meal_name: meal.name,
+          calories: meal.calories,
+          protein: meal.protein,
+          carbs: meal.carbs,
+          fat: meal.fat,
+          logged_at: new Date().toISOString()
+        });
+      
+      if (error) throw error;
+      
+      toast.success(`${meal.name} logged successfully!`);
+    } catch (error: any) {
+      console.error("Error logging meal:", error);
+      toast.error("Failed to log meal");
+    }
+  };
+  
+  // Initialize component
+  useEffect(() => {
+    if (profile) {
+      calculateNutrition();
+      fetchMealPlan();
+    }
+  }, [profile]);
+  
+  // Handle meal plan search
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+  
+  const filterMeals = (meal: Meal) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      meal.name.toLowerCase().includes(term) ||
+      meal.recipe.some(ingredient => ingredient.toLowerCase().includes(term))
+    );
+  };
+  
+  // Helper functions for UI
   const calculateMealTotal = (meal: Meal): number => meal.calories;
+  
   const calculateDailyTotal = (): number => {
-    let total = calculateMealTotal(selectedPlan.breakfast);
-    total += calculateMealTotal(selectedPlan.lunch);
-    total += calculateMealTotal(selectedPlan.dinner);
-    selectedPlan.snacks.forEach(snack => {
-      total += calculateMealTotal(snack);
-    });
-    return total;
+    if (!mealPlan) return 0;
+    
+    return (
+      calculateMealTotal(mealPlan.breakfast) +
+      calculateMealTotal(mealPlan.lunch) +
+      calculateMealTotal(mealPlan.dinner) +
+      mealPlan.snacks.reduce((total, snack) => total + calculateMealTotal(snack), 0)
+    );
   };
   
-  const dailyTotalCalories = calculateDailyTotal();
+  // Calculate current daily macros
+  const currentMacros = () => {
+    if (!mealPlan) return { protein: 0, carbs: 0, fat: 0 };
+    
+    const protein = 
+      mealPlan.breakfast.protein + 
+      mealPlan.lunch.protein + 
+      mealPlan.dinner.protein + 
+      mealPlan.snacks.reduce((total, snack) => total + snack.protein, 0);
+      
+    const carbs = 
+      mealPlan.breakfast.carbs + 
+      mealPlan.lunch.carbs + 
+      mealPlan.dinner.carbs + 
+      mealPlan.snacks.reduce((total, snack) => total + snack.carbs, 0);
+      
+    const fat = 
+      mealPlan.breakfast.fat + 
+      mealPlan.lunch.fat + 
+      mealPlan.dinner.fat + 
+      mealPlan.snacks.reduce((total, snack) => total + snack.fat, 0);
+      
+    return { protein, carbs, fat };
+  };
   
-  // Mock data for nearby grocery stores
-  const nearbyStores = [
-    {
-      name: "Whole Foods Market",
-      distance: "0.8 miles",
-      address: "123 Organic Street"
-    },
-    {
-      name: "Trader Joe's",
-      distance: "1.2 miles",
-      address: "456 Healthy Avenue"
-    },
-    {
-      name: "Farmers Market",
-      distance: "2.1 miles",
-      address: "789 Fresh Produce Lane"
-    }
-  ];
-
-  // Render a meal card
-  const renderMealCard = (meal: Meal, title: string) => (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-      <div 
-        className="h-40 bg-cover bg-center" 
-        style={{ backgroundImage: `url(${meal.image})` }}
-      />
-      <CardContent className="p-6">
-        <div className="flex justify-between items-start mb-4">
-          <h4 className="text-xl font-medium">{title}</h4>
-          <span className="text-sm bg-fitness-primary bg-opacity-10 text-fitness-primary px-2 py-1 rounded-full">
-            {meal.calories} kcal
-          </span>
+  const dailyMacros = currentMacros();
+  
+  const renderMealCard = (meal: Meal, title: string, mealType: string) => (
+    <Card className="overflow-hidden">
+      <div className="relative h-48">
+        <img 
+          src={meal.image} 
+          alt={meal.name}
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+          {meal.calories} kcal
         </div>
-        <h5 className="font-medium mb-2">{meal.name}</h5>
-        
-        <div className="flex space-x-4 mb-4 text-sm">
+      </div>
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start mb-2">
           <div>
-            <span className="font-medium block">Protein</span>
-            <span>{meal.protein}g</span>
+            <h3 className="font-semibold text-lg">{meal.name}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
           </div>
-          <div>
-            <span className="font-medium block">Carbs</span>
-            <span>{meal.carbs}g</span>
-          </div>
-          <div>
-            <span className="font-medium block">Fat</span>
-            <span>{meal.fat}g</span>
+          <div className="flex space-x-1">
+            <div className="flex items-center text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
+              <span>P: {meal.protein}g</span>
+            </div>
+            <div className="flex items-center text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded">
+              <span>C: {meal.carbs}g</span>
+            </div>
+            <div className="flex items-center text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded">
+              <span>F: {meal.fat}g</span>
+            </div>
           </div>
         </div>
         
-        <h6 className="font-medium mb-2">Ingredients:</h6>
-        <ul className="list-disc pl-5 text-sm text-gray-600 dark:text-gray-400">
-          {meal.recipe.map((item, idx) => (
-            <li key={idx}>{item}</li>
-          ))}
-        </ul>
+        <div className="mt-4">
+          <h4 className="text-sm font-medium mb-2">Ingredients:</h4>
+          <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+            {meal.recipe.map((item, index) => (
+              <li key={index} className="flex items-start">
+                <span className="mr-2">•</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </CardContent>
-      <CardFooter className="p-6 pt-0">
-        <Button 
-          variant="outline"
-          className="w-full"
-        >
-          See Full Recipe
-          <ChevronRight size={16} className="ml-2" />
+      <CardFooter className="p-4 pt-0 flex justify-end">
+        <Button size="sm" variant="outline" onClick={() => logMeal(mealType, meal)}>
+          Log Meal
         </Button>
       </CardFooter>
     </Card>
   );
+  
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Meal Plan">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-fitness-primary" />
+          <span className="ml-2">Loading your meal plan...</span>
+        </div>
+      </DashboardLayout>
+    );
+  }
+  
+  if (!mealPlan) {
+    return (
+      <DashboardLayout title="Meal Plan">
+        <div className="text-center py-12">
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            No meal plan found for your fitness goal.
+          </p>
+          <Button onClick={() => navigate("/profile")}>
+            Update Your Fitness Goal
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
-    <DashboardLayout title="Meal Plans">
+    <DashboardLayout title="Meal Plan">
       <div className="mb-8">
-        <h2 className="text-2xl font-semibold mb-4">Your Personalized Meal Plan</h2>
+        <h2 className="text-xl font-semibold mb-2">Your Nutrition Plan</h2>
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Based on your {fitnessGoal === "weight-loss" ? "weight loss" : fitnessGoal === "muscle-gain" ? "muscle building" : fitnessGoal === "endurance" ? "endurance training" : "general fitness"} goals
+          Personalized meal recommendations based on your fitness goals and body metrics.
         </p>
         
-        {/* Nutrition Summary */}
-        <div className="bg-fitness-primary bg-opacity-10 p-6 rounded-lg mb-8">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <Utensils className="mr-2 h-5 w-5" />
-            Daily Nutrition Targets
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
-              <p className="text-sm text-gray-500">Daily Calories</p>
-              <p className="text-2xl font-bold">{dailyCalories} <span className="text-sm font-normal">kcal</span></p>
-              <p className="text-xs text-gray-500 mt-1">Plan: {dailyTotalCalories} kcal</p>
+        {/* Nutrition Overview */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold flex items-center">
+              <Utensils className="mr-2 h-5 w-5" />
+              Daily Nutrition
+            </h3>
+            <Button size="sm" variant="outline" onClick={saveMealPlan}>
+              Save Meal Plan
+            </Button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <div className="mb-4">
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">Calories</span>
+                  <span className="text-sm text-gray-500">{calculateDailyTotal()}/{dailyCalories} kcal</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                  <div 
+                    className="bg-fitness-primary h-2.5 rounded-full" 
+                    style={{ width: `${Math.min(100, (calculateDailyTotal() / dailyCalories) * 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              <div className="mb-4">
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">Protein</span>
+                  <span className="text-sm text-gray-500">{dailyMacros.protein}/{dailyProtein}g</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                  <div 
+                    className="bg-blue-500 h-2.5 rounded-full" 
+                    style={{ width: `${Math.min(100, (dailyMacros.protein / dailyProtein) * 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              <div className="mb-4">
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">Carbs</span>
+                  <span className="text-sm text-gray-500">{dailyMacros.carbs}/{dailyCarbs}g</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                  <div 
+                    className="bg-green-500 h-2.5 rounded-full" 
+                    style={{ width: `${Math.min(100, (dailyMacros.carbs / dailyCarbs) * 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">Fat</span>
+                  <span className="text-sm text-gray-500">{dailyMacros.fat}/{dailyFat}g</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                  <div 
+                    className="bg-yellow-500 h-2.5 rounded-full" 
+                    style={{ width: `${Math.min(100, (dailyMacros.fat / dailyFat) * 100)}%` }}
+                  ></div>
+                </div>
+              </div>
             </div>
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
-              <p className="text-sm text-gray-500">Protein</p>
-              <p className="text-2xl font-bold">{dailyProtein} <span className="text-sm font-normal">g</span></p>
-              <p className="text-xs text-gray-500 mt-1">{Math.round(dailyProtein * 4 / dailyCalories * 100)}% of calories</p>
-            </div>
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
-              <p className="text-sm text-gray-500">Carbs</p>
-              <p className="text-2xl font-bold">{dailyCarbs} <span className="text-sm font-normal">g</span></p>
-              <p className="text-xs text-gray-500 mt-1">{Math.round(dailyCarbs * 4 / dailyCalories * 100)}% of calories</p>
-            </div>
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
-              <p className="text-sm text-gray-500">Fat</p>
-              <p className="text-2xl font-bold">{dailyFat} <span className="text-sm font-normal">g</span></p>
-              <p className="text-xs text-gray-500 mt-1">{Math.round(dailyFat * 9 / dailyCalories * 100)}% of calories</p>
+            
+            <div className="flex flex-col justify-center">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                  <span className="text-sm">Protein: {Math.round((dailyMacros.protein * 4 / calculateDailyTotal()) * 100)}%</span>
+                </div>
+                <span className="text-sm text-gray-500">{dailyMacros.protein * 4} kcal</span>
+              </div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center">
+                  <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                  <span className="text-sm">Carbs: {Math.round((dailyMacros.carbs * 4 / calculateDailyTotal()) * 100)}%</span>
+                </div>
+                <span className="text-sm text-gray-500">{dailyMacros.carbs * 4} kcal</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
+                  <span className="text-sm">Fat: {Math.round((dailyMacros.fat * 9 / calculateDailyTotal()) * 100)}%</span>
+                </div>
+                <span className="text-sm text-gray-500">{dailyMacros.fat * 9} kcal</span>
+              </div>
             </div>
           </div>
+        </div>
+        
+        {/* Meal Search */}
+        <div className="relative mb-6">
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400" />
+          </div>
+          <Input
+            type="search"
+            placeholder="Search meals or ingredients..."
+            value={searchTerm}
+            onChange={handleSearch}
+            className="pl-10"
+          />
         </div>
         
         {/* Meals */}
-        <div className="mb-8">
-          <h3 className="text-xl font-semibold mb-4">Today's Meals</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {renderMealCard(selectedPlan.breakfast, "Breakfast")}
-            {renderMealCard(selectedPlan.lunch, "Lunch")}
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {renderMealCard(selectedPlan.dinner, "Dinner")}
+        <div className="space-y-8">
+          {/* Breakfast */}
+          {filterMeals(mealPlan.breakfast) && (
             <div>
-              <h4 className="text-xl font-semibold mb-4">Snacks</h4>
-              <div className="space-y-4">
-                {selectedPlan.snacks.map((snack, index) => (
-                  <Card key={index} className="overflow-hidden">
-                    <div className="flex">
-                      <div 
-                        className="w-24 bg-cover bg-center" 
-                        style={{ backgroundImage: `url(${snack.image})` }}
-                      />
-                      <div className="p-4 flex-1">
-                        <div className="flex justify-between items-start">
-                          <h5 className="font-medium">{snack.name}</h5>
-                          <span className="text-xs bg-fitness-primary bg-opacity-10 text-fitness-primary px-2 py-1 rounded-full">
-                            {snack.calories} kcal
-                          </span>
-                        </div>
-                        <div className="flex space-x-3 mt-2 text-xs text-gray-500">
-                          <span>P: {snack.protein}g</span>
-                          <span>C: {snack.carbs}g</span>
-                          <span>F: {snack.fat}g</span>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
+              <h3 className="text-lg font-semibold mb-4 flex items-center">
+                <Apple className="mr-2 h-5 w-5" />
+                Breakfast
+              </h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {renderMealCard(mealPlan.breakfast, "Breakfast", "breakfast")}
+              </div>
+            </div>
+          )}
+          
+          {/* Lunch */}
+          {filterMeals(mealPlan.lunch) && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4 flex items-center">
+                <Utensils className="mr-2 h-5 w-5" />
+                Lunch
+              </h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {renderMealCard(mealPlan.lunch, "Lunch", "lunch")}
+              </div>
+            </div>
+          )}
+          
+          {/* Dinner */}
+          {filterMeals(mealPlan.dinner) && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4 flex items-center">
+                <Utensils className="mr-2 h-5 w-5" />
+                Dinner
+              </h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {renderMealCard(mealPlan.dinner, "Dinner", "dinner")}
+              </div>
+            </div>
+          )}
+          
+          {/* Snacks */}
+          {mealPlan.snacks.some(filterMeals) && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4 flex items-center">
+                <Cookie className="mr-2 h-5 w-5" />
+                Snacks
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {mealPlan.snacks.filter(filterMeals).map((snack, index) => (
+                  renderMealCard(snack, "Snack", "snack")
                 ))}
               </div>
             </div>
-          </div>
-        </div>
-        
-        {/* Grocery Stores */}
-        <div className="mb-8">
-          <h3 className="text-xl font-semibold mb-4 flex items-center">
-            <CreditCard className="mr-2 h-5 w-5" />
-            Nearby Grocery Stores
-          </h3>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <Input 
-                  placeholder="Search for stores near you..." 
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div className="space-y-4">
-              {nearbyStores.map((store, index) => (
-                <div key={index} className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-fitness-primary bg-opacity-10 rounded-full">
-                      <Apple className="h-5 w-5 text-fitness-primary" />
-                    </div>
-                    <div className="ml-3">
-                      <h4 className="font-medium">{store.name}</h4>
-                      <p className="text-sm text-gray-500">{store.address}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="text-sm">{store.distance}</span>
-                    <ChevronRight size={16} className="ml-2 text-gray-400" />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <Button variant="outline" className="w-full mt-4">
-              View More Stores
-            </Button>
-          </div>
-        </div>
-        
-        {/* Shopping List */}
-        <div className="mb-8">
-          <h3 className="text-xl font-semibold mb-4 flex items-center">
-            <Cookie className="mr-2 h-5 w-5" />
-            Weekly Shopping List
-          </h3>
-          <Card className="p-6">
-            <p className="mb-4">Here's what you need for your meal plan this week:</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div>
-                <h4 className="font-medium mb-2">Proteins</h4>
-                <ul className="list-disc pl-5 text-gray-600 dark:text-gray-400">
-                  <li>Chicken breast (300g)</li>
-                  <li>Salmon fillets (300g)</li>
-                  <li>Greek yogurt (500g)</li>
-                  <li>Eggs (12)</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-medium mb-2">Fruits & Vegetables</h4>
-                <ul className="list-disc pl-5 text-gray-600 dark:text-gray-400">
-                  <li>Mixed berries (200g)</li>
-                  <li>Bananas (5)</li>
-                  <li>Avocados (2)</li>
-                  <li>Sweet potatoes (3)</li>
-                  <li>Broccoli (1 head)</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-medium mb-2">Grains & Other</h4>
-                <ul className="list-disc pl-5 text-gray-600 dark:text-gray-400">
-                  <li>Quinoa (500g)</li>
-                  <li>Rolled oats (500g)</li>
-                  <li>Almond butter (1 jar)</li>
-                  <li>Olive oil (1 bottle)</li>
-                </ul>
-              </div>
-            </div>
-            <Button className="w-full mt-6">
-              Generate Complete Shopping List
-            </Button>
-          </Card>
+          )}
         </div>
       </div>
     </DashboardLayout>
