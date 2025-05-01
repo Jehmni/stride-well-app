@@ -1,20 +1,26 @@
+import React, { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import Onboarding from "./pages/Onboarding";
-import Dashboard from "./pages/Dashboard";
-import WorkoutPlan from "./pages/WorkoutPlan";
-import MealPlan from "./pages/MealPlan";
-import Progress from "./pages/Progress";
-import Profile from "./pages/Profile";
-import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import LoadingSpinner from "./components/ui/LoadingSpinner";
+
+// Lazy load page components
+const Index = lazy(() => import("./pages/Index"));
+const Login = lazy(() => import("./pages/Login"));
+const Signup = lazy(() => import("./pages/Signup"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const WorkoutPlan = lazy(() => import("./pages/WorkoutPlan"));
+const MealPlan = lazy(() => import("./pages/MealPlan"));
+const Progress = lazy(() => import("./pages/Progress"));
+const Profile = lazy(() => import("./pages/Profile"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Friends = lazy(() => import("./pages/Friends"));
+const Challenges = lazy(() => import("./pages/Challenges"));
 
 const queryClient = new QueryClient();
 
@@ -25,79 +31,99 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Index />} />
-            <Route 
-              path="/login" 
-              element={
-                <ProtectedRoute requiresAuth={false}>
-                  <Login />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/signup" 
-              element={
-                <ProtectedRoute requiresAuth={false}>
-                  <Signup />
-                </ProtectedRoute>
-              } 
-            />
+          <Suspense fallback={<LoadingSpinner />}>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<Index />} />
+              <Route 
+                path="/login" 
+                element={
+                  <ProtectedRoute requiresAuth={false}>
+                    <Login />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/signup" 
+                element={
+                  <ProtectedRoute requiresAuth={false}>
+                    <Signup />
+                  </ProtectedRoute>
+                } 
+              />
 
-            {/* Protected Routes */}
-            <Route 
-              path="/onboarding/*" 
-              element={
-                <ProtectedRoute>
-                  <Onboarding />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/dashboard" 
-              element={
-                <ProtectedRoute requiresOnboarding={true}>
-                  <Dashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/workouts" 
-              element={
-                <ProtectedRoute requiresOnboarding={true}>
-                  <WorkoutPlan />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/meal-plan" 
-              element={
-                <ProtectedRoute requiresOnboarding={true}>
-                  <MealPlan />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/progress" 
-              element={
-                <ProtectedRoute requiresOnboarding={true}>
-                  <Progress />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/profile" 
-              element={
-                <ProtectedRoute requiresOnboarding={true}>
-                  <Profile />
-                </ProtectedRoute>
-              } 
-            />
+              {/* Protected Routes */}
+              <Route 
+                path="/onboarding/*" 
+                element={
+                  <ProtectedRoute>
+                    <Onboarding />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/dashboard" 
+                element={
+                  <ProtectedRoute requiresOnboarding={true}>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/workouts" 
+                element={
+                  <ProtectedRoute requiresOnboarding={true}>
+                    <WorkoutPlan />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/meal-plan" 
+                element={
+                  <ProtectedRoute requiresOnboarding={true}>
+                    <MealPlan />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/progress" 
+                element={
+                  <ProtectedRoute requiresOnboarding={true}>
+                    <Progress />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/profile" 
+                element={
+                  <ProtectedRoute requiresOnboarding={true}>
+                    <Profile />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* New social routes */}
+              <Route 
+                path="/friends/*" 
+                element={
+                  <ProtectedRoute requiresOnboarding={true}>
+                    <Friends />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/challenges/*" 
+                element={
+                  <ProtectedRoute requiresOnboarding={true}>
+                    <Challenges />
+                  </ProtectedRoute>
+                } 
+              />
 
-            {/* Catch-all route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              {/* Catch-all route */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
