@@ -1,5 +1,7 @@
 
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: JSX.Element;
@@ -12,23 +14,32 @@ const ProtectedRoute = ({
   requiresAuth = true,
   requiresOnboarding = false 
 }: ProtectedRouteProps) => {
-  const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
-  const isOnboarded = localStorage.getItem("isOnboarded") === "true";
+  const { user, profile, isLoading } = useAuth();
+  const location = useLocation();
+  
+  // Show loading spinner while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
   
   // If authentication is required and user is not authenticated
-  if (requiresAuth && !isAuthenticated) {
-    return <Navigate to="/login" />;
+  if (requiresAuth && !user) {
+    return <Navigate to="/login" state={{ from: location.pathname }} />;
   }
   
   // If user is authenticated but not onboarded and the route requires onboarding
-  if (isAuthenticated && !isOnboarded && requiresOnboarding) {
+  if (user && !profile && requiresOnboarding) {
     return <Navigate to="/onboarding" />;
   }
   
   // If user is authenticated and trying to access auth pages
-  if (isAuthenticated && !requiresAuth) {
+  if (user && !requiresAuth) {
     // If user is onboarded, go to dashboard, otherwise to onboarding
-    if (isOnboarded) {
+    if (profile) {
       return <Navigate to="/dashboard" />;
     } else {
       return <Navigate to="/onboarding" />;

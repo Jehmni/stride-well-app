@@ -1,14 +1,19 @@
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Eye, EyeOff } from "lucide-react";
 
 const LoginForm = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { refreshProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -26,18 +31,37 @@ const LoginForm = () => {
 
       if (error) throw error;
 
+      // Get redirect path or default to dashboard
+      const from = location.state?.from || '/dashboard';
+      
+      // Refresh the profile data
+      await refreshProfile();
+      
+      // Check if user has completed onboarding
       const { data: profile } = await supabase
         .from("user_profiles")
         .select("*")
         .single();
 
-      if (!profile) {
+      toast.success("Successfully signed in!");
+      
+      if (!profile || !profile.fitness_goal) {
         navigate("/onboarding");
       } else {
-        navigate("/dashboard");
+        navigate(from);
       }
     } catch (error: any) {
-      toast.error(error.message);
+      let errorMessage = "Failed to sign in";
+      
+      if (error.message) {
+        if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password. Please try again.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +81,7 @@ const LoginForm = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4 rounded-md shadow-sm">
             <div>
-              <label htmlFor="email" className="sr-only">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Email address
               </label>
               <Input
@@ -72,19 +96,28 @@ const LoginForm = () => {
               />
             </div>
             <div>
-              <label htmlFor="password" className="sr-only">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Password
               </label>
-              <Input
-                id="password"
-                type="password"
-                required
-                placeholder="Password"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                />
+                <button 
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
           </div>
 

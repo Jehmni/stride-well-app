@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const SignupForm = () => {
   const navigate = useNavigate();
+  const { refreshProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -94,9 +96,11 @@ const SignupForm = () => {
         // Some email providers may require email verification
         if (data.user.identities && data.user.identities.length === 0) {
           toast.info("Please check your email to verify your account");
+        } else {
+          // Ensure profile data is loaded
+          await refreshProfile();
+          navigate("/onboarding");
         }
-        
-        navigate("/onboarding");
       }
     } catch (error: any) {
       let errorMessage = error.message || "An error occurred during signup";

@@ -1,31 +1,73 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import OnboardingLayout from "./OnboardingLayout";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const PersonalInfoForm: React.FC = () => {
-  const [age, setAge] = useState("");
-  const [sex, setSex] = useState("");
-  const [height, setHeight] = useState("");
-  const [weight, setWeight] = useState("");
+  const { user, profile, refreshProfile } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    age: "",
+    sex: "",
+    height: "",
+    weight: ""
+  });
   const navigate = useNavigate();
 
-  const handleNext = (e: React.FormEvent) => {
+  useEffect(() => {
+    // Pre-fill form with existing profile data if available
+    if (profile) {
+      setFormData({
+        age: profile.age.toString(),
+        sex: profile.sex,
+        height: profile.height.toString(),
+        weight: profile.weight.toString()
+      });
+    }
+  }, [profile]);
+
+  const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     
-    // Save to localStorage for demo purposes
-    localStorage.setItem("userProfile", JSON.stringify({
-      age,
-      sex,
-      height,
-      weight
-    }));
-    
-    navigate("/onboarding/goals");
+    try {
+      if (!user) {
+        toast.error("You must be logged in to continue");
+        return;
+      }
+      
+      // Update user profile in database
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          age: parseInt(formData.age),
+          sex: formData.sex,
+          height: parseFloat(formData.height),
+          weight: parseFloat(formData.weight),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      // Refresh profile data in context
+      await refreshProfile();
+      
+      toast.success("Personal information saved successfully");
+      navigate("/onboarding/goals");
+    } catch (error: any) {
+      console.error("Error saving personal info:", error);
+      toast.error(error.message || "Failed to save personal information");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -45,8 +87,8 @@ const PersonalInfoForm: React.FC = () => {
               id="age"
               type="number"
               required
-              value={age}
-              onChange={(e) => setAge(e.target.value)}
+              value={formData.age}
+              onChange={(e) => setFormData({...formData, age: e.target.value})}
               className="fitness-input"
               placeholder="Your age"
               min="16"
@@ -60,7 +102,11 @@ const PersonalInfoForm: React.FC = () => {
             Sex
           </label>
           <div className="mt-1">
-            <Select value={sex} onValueChange={setSex} required>
+            <Select 
+              value={formData.sex} 
+              onValueChange={(value) => setFormData({...formData, sex: value})} 
+              required
+            >
               <SelectTrigger className="fitness-input">
                 <SelectValue placeholder="Select" />
               </SelectTrigger>
@@ -82,12 +128,13 @@ const PersonalInfoForm: React.FC = () => {
               id="height"
               type="number"
               required
-              value={height}
-              onChange={(e) => setHeight(e.target.value)}
+              value={formData.height}
+              onChange={(e) => setFormData({...formData, height: e.target.value})}
               className="fitness-input"
               placeholder="Your height in cm"
               min="100"
               max="250"
+              step="0.1"
             />
           </div>
         </div>
@@ -101,8 +148,8 @@ const PersonalInfoForm: React.FC = () => {
               id="weight"
               type="number"
               required
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
+              value={formData.weight}
+              onChange={(e) => setFormData({...formData, weight: e.target.value})}
               className="fitness-input"
               placeholder="Your weight in kg"
               min="30"
@@ -116,9 +163,10 @@ const PersonalInfoForm: React.FC = () => {
           <Button
             type="submit"
             className="w-full fitness-button-primary"
+            disabled={isLoading}
           >
-            Next
-            <ArrowRight className="ml-2 h-4 w-4" />
+            {isLoading ? "Saving..." : "Next"}
+            {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
           </Button>
         </div>
       </form>

@@ -1,10 +1,13 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import OnboardingLayout from "./OnboardingLayout";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface GoalOption {
   id: string;
@@ -14,7 +17,9 @@ interface GoalOption {
 }
 
 const FitnessGoalsForm: React.FC = () => {
+  const { user, profile, refreshProfile } = useAuth();
   const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const goals: GoalOption[] = [
@@ -62,24 +67,44 @@ const FitnessGoalsForm: React.FC = () => {
       )
     }
   ];
+  
+  useEffect(() => {
+    // Pre-select the goal if user already has one
+    if (profile?.fitness_goal) {
+      setSelectedGoal(profile.fitness_goal);
+    }
+  }, [profile]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedGoal) return;
+    if (!selectedGoal || !user) return;
     
-    // Get existing user profile data
-    const userProfileString = localStorage.getItem("userProfile");
-    const userProfile = userProfileString ? JSON.parse(userProfileString) : {};
+    setIsLoading(true);
     
-    // Add fitness goal to user profile
-    localStorage.setItem("userProfile", JSON.stringify({
-      ...userProfile,
-      fitnessGoal: selectedGoal
-    }));
-    
-    localStorage.setItem("isOnboarded", "true");
-    navigate("/dashboard");
+    try {
+      // Update user profile in database
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          fitness_goal: selectedGoal,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      // Refresh profile data in context
+      await refreshProfile();
+      
+      toast.success("Fitness goal saved successfully!");
+      navigate("/dashboard");
+    } catch (error: any) {
+      console.error("Error saving fitness goal:", error);
+      toast.error(error.message || "Failed to save fitness goal");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -132,11 +157,11 @@ const FitnessGoalsForm: React.FC = () => {
         <div>
           <Button
             type="submit"
-            disabled={!selectedGoal}
+            disabled={!selectedGoal || isLoading}
             className="w-full fitness-button-primary"
           >
-            Complete Setup
-            <ArrowRight className="ml-2 h-4 w-4" />
+            {isLoading ? "Saving..." : "Complete Setup"}
+            {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
           </Button>
         </div>
       </form>
