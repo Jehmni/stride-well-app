@@ -405,7 +405,7 @@ const WorkoutPlan: React.FC = () => {
     return days[dayNumber];
   };
 
-  // Fix the insertWorkoutPlan function to properly format the data for Supabase
+  // Fixed function to properly format the data for Supabase
   const insertWorkoutPlan = async (workoutPlans: any[]) => {
     try {
       // Insert one plan at a time to avoid array insertion issues
