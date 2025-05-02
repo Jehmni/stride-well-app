@@ -412,7 +412,7 @@ const WorkoutPlan: React.FC = () => {
   };
 
   // Fix the insertWorkoutPlan function to properly format the data for Supabase
-  const insertWorkoutPlan = async (workoutPlans) => {
+  const insertWorkoutPlan = async (workoutPlans: any[]) => {
     try {
       // Insert one plan at a time to avoid array insertion issues
       for (const plan of workoutPlans) {
@@ -421,8 +421,8 @@ const WorkoutPlan: React.FC = () => {
           title: plan.title,
           description: plan.description,
           fitness_goal: plan.fitness_goal,
-          weekly_structure: plan.weekly_structure as Json,
-          exercises: plan.exercises as Json
+          weekly_structure: plan.weekly_structure as unknown as Json,
+          exercises: plan.exercises as unknown as Json
         };
 
         const { error } = await supabase
