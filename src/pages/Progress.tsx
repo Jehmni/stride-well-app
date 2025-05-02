@@ -132,28 +132,65 @@ const Progress: React.FC = () => {
         if (goalsError) throw goalsError;
         setGoals(goalsData || []);
         
-        // Use mock data for workout logs since the table doesn't exist
-        // This would be replaced with real data once the workout_logs table is created
-        const mockWorkoutLogs: WorkoutLog[] = [
-          {
-            id: '1',
-            user_id: profile.id,
-            workout_id: 'workout-1',
-            completed_at: new Date().toISOString(),
-            duration: 45,
-            calories_burned: 300
-          },
-          {
-            id: '2',
-            user_id: profile.id,
-            workout_id: 'workout-2',
-            completed_at: subDays(new Date(), 2).toISOString(),
-            duration: 60,
-            calories_burned: 400
+        // Fetch workout logs from the new workout_logs table
+        try {
+          const { data: workoutLogsData, error: workoutLogsError } = await supabase
+            .from('workout_logs')
+            .select('*')
+            .eq('user_id', profile.id)
+            .order('completed_at', { ascending: false });
+            
+          if (workoutLogsError) throw workoutLogsError;
+          
+          if (workoutLogsData && workoutLogsData.length > 0) {
+            setWorkoutLogs(workoutLogsData as WorkoutLog[]);
+          } else {
+            // Use mock data if no logs exist yet
+            const mockWorkoutLogs: WorkoutLog[] = [
+              {
+                id: '1',
+                user_id: profile.id,
+                workout_id: 'workout-1',
+                completed_at: new Date().toISOString(),
+                duration: 45,
+                calories_burned: 300
+              },
+              {
+                id: '2',
+                user_id: profile.id,
+                workout_id: 'workout-2',
+                completed_at: subDays(new Date(), 2).toISOString(),
+                duration: 60,
+                calories_burned: 400
+              }
+            ];
+            
+            setWorkoutLogs(mockWorkoutLogs);
           }
-        ];
-        
-        setWorkoutLogs(mockWorkoutLogs);
+        } catch (error) {
+          console.error("Error fetching workout logs:", error);
+          // Fall back to mock data
+          const mockWorkoutLogs: WorkoutLog[] = [
+            {
+              id: '1',
+              user_id: profile.id,
+              workout_id: 'workout-1',
+              completed_at: new Date().toISOString(),
+              duration: 45,
+              calories_burned: 300
+            },
+            {
+              id: '2',
+              user_id: profile.id,
+              workout_id: 'workout-2',
+              completed_at: subDays(new Date(), 2).toISOString(),
+              duration: 60,
+              calories_burned: 400
+            }
+          ];
+          
+          setWorkoutLogs(mockWorkoutLogs);
+        }
       } catch (error) {
         console.error("Error fetching progress data:", error);
         toast.error("Failed to load progress data");

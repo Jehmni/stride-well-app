@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,110 +24,117 @@ const Challenges = lazy(() => import("./pages/Challenges"));
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Suspense fallback={<LoadingSpinner />}>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Index />} />
-              <Route 
-                path="/login" 
-                element={
-                  <ProtectedRoute requiresAuth={false}>
-                    <Login />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/signup" 
-                element={
-                  <ProtectedRoute requiresAuth={false}>
-                    <Signup />
-                  </ProtectedRoute>
-                } 
-              />
+function App() {
+  useEffect(() => {
+    // Seed store data on app initialization
+    seedGroceryStores();
+  }, []);
+  
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<Index />} />
+                <Route 
+                  path="/login" 
+                  element={
+                    <ProtectedRoute requiresAuth={false}>
+                      <Login />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/signup" 
+                  element={
+                    <ProtectedRoute requiresAuth={false}>
+                      <Signup />
+                    </ProtectedRoute>
+                  } 
+                />
 
-              {/* Protected Routes */}
-              <Route 
-                path="/onboarding/*" 
-                element={
-                  <ProtectedRoute>
-                    <Onboarding />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ProtectedRoute requiresOnboarding={true}>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/workouts" 
-                element={
-                  <ProtectedRoute requiresOnboarding={true}>
-                    <WorkoutPlan />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/meal-plan" 
-                element={
-                  <ProtectedRoute requiresOnboarding={true}>
-                    <MealPlan />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/progress" 
-                element={
-                  <ProtectedRoute requiresOnboarding={true}>
-                    <Progress />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/profile" 
-                element={
-                  <ProtectedRoute requiresOnboarding={true}>
-                    <Profile />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              {/* New social routes */}
-              <Route 
-                path="/friends/*" 
-                element={
-                  <ProtectedRoute requiresOnboarding={true}>
-                    <Friends />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/challenges/*" 
-                element={
-                  <ProtectedRoute requiresOnboarding={true}>
-                    <Challenges />
-                  </ProtectedRoute>
-                } 
-              />
+                {/* Protected Routes */}
+                <Route 
+                  path="/onboarding/*" 
+                  element={
+                    <ProtectedRoute>
+                      <Onboarding />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/dashboard" 
+                  element={
+                    <ProtectedRoute requiresOnboarding={true}>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/workouts" 
+                  element={
+                    <ProtectedRoute requiresOnboarding={true}>
+                      <WorkoutPlan />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/meal-plan" 
+                  element={
+                    <ProtectedRoute requiresOnboarding={true}>
+                      <MealPlan />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/progress" 
+                  element={
+                    <ProtectedRoute requiresOnboarding={true}>
+                      <Progress />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/profile" 
+                  element={
+                    <ProtectedRoute requiresOnboarding={true}>
+                      <Profile />
+                    </ProtectedRoute>
+                  } 
+                />
+                
+                {/* New social routes */}
+                <Route 
+                  path="/friends/*" 
+                  element={
+                    <ProtectedRoute requiresOnboarding={true}>
+                      <Friends />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/challenges/*" 
+                  element={
+                    <ProtectedRoute requiresOnboarding={true}>
+                      <Challenges />
+                    </ProtectedRoute>
+                  } 
+                />
 
-              {/* Catch-all route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+                {/* Catch-all route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;

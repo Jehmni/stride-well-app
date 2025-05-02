@@ -81,6 +81,45 @@ export type Database = {
         }
         Relationships: []
       }
+      grocery_stores: {
+        Row: {
+          address: string
+          coordinates: Json
+          created_at: string | null
+          hours: Json | null
+          id: string
+          image_url: string | null
+          items: string[]
+          name: string
+          phone: string | null
+          rating: number | null
+        }
+        Insert: {
+          address: string
+          coordinates: Json
+          created_at?: string | null
+          hours?: Json | null
+          id?: string
+          image_url?: string | null
+          items: string[]
+          name: string
+          phone?: string | null
+          rating?: number | null
+        }
+        Update: {
+          address?: string
+          coordinates?: Json
+          created_at?: string | null
+          hours?: Json | null
+          id?: string
+          image_url?: string | null
+          items?: string[]
+          name?: string
+          phone?: string | null
+          rating?: number | null
+        }
+        Relationships: []
+      }
       meal_plans: {
         Row: {
           calories: number
@@ -301,6 +340,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      workout_logs: {
+        Row: {
+          calories_burned: number | null
+          completed_at: string | null
+          duration: number | null
+          id: string
+          notes: string | null
+          rating: number | null
+          user_id: string
+          workout_id: string
+        }
+        Insert: {
+          calories_burned?: number | null
+          completed_at?: string | null
+          duration?: number | null
+          id?: string
+          notes?: string | null
+          rating?: number | null
+          user_id: string
+          workout_id: string
+        }
+        Update: {
+          calories_burned?: number | null
+          completed_at?: string | null
+          duration?: number | null
+          id?: string
+          notes?: string | null
+          rating?: number | null
+          user_id?: string
+          workout_id?: string
+        }
+        Relationships: []
+      }
+      workout_plans: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          exercises: Json
+          fitness_goal: string
+          id: string
+          title: string
+          updated_at: string | null
+          weekly_structure: Json
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          exercises: Json
+          fitness_goal: string
+          id?: string
+          title: string
+          updated_at?: string | null
+          weekly_structure: Json
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          exercises?: Json
+          fitness_goal?: string
+          id?: string
+          title?: string
+          updated_at?: string | null
+          weekly_structure?: Json
+        }
+        Relationships: []
       }
       workouts: {
         Row: {

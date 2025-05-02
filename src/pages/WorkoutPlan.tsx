@@ -132,37 +132,64 @@ const WorkoutPlan: React.FC = () => {
       try {
         setIsLoading(true);
         
-        // Use a default workout plan since the table doesn't exist
-        // This would be replaced with a real query once the workout_plans table is created
-        const defaultPlan: WorkoutPlan = {
-          id: "default",
-          title: "General Fitness Program",
-          description: "Well-rounded approach to improve overall fitness and health",
-          fitness_goal: profile.fitness_goal || "general-fitness",
-          weekly_structure: [
-            { day: "Monday", focus: "Full Body Strength", duration: 45 },
-            { day: "Tuesday", focus: "Cardio & Mobility", duration: 40 },
-            { day: "Wednesday", focus: "Core & Balance", duration: 30 },
-            { day: "Thursday", focus: "Rest or Light Activity", duration: 20 },
-            { day: "Friday", focus: "Full Body Circuit", duration: 45 },
-            { day: "Saturday", focus: "Cardio & Flexibility", duration: 40 },
-            { day: "Sunday", focus: "Rest Day", duration: 0 }
-          ],
-          exercises: [
-            { name: "Dumbbell Squat", sets: 3, reps: "12-15", muscle: "Legs" },
-            { name: "Push-ups", sets: 3, reps: "10-15", muscle: "Chest" },
-            { name: "Dumbbell Row", sets: 3, reps: "12 each arm", muscle: "Back" },
-            { name: "Plank", sets: 3, reps: "30-60 seconds", muscle: "Core" },
-            { name: "Walking Lunges", sets: 2, reps: "10 each leg", muscle: "Legs" },
-            { name: "Jumping Jacks", sets: 3, reps: "45 seconds", muscle: "Cardio" }
-          ]
-        };
+        // Fetch workout plan from the workout_plans table
+        const { data: workoutPlansData, error: workoutPlansError } = await supabase
+          .from('workout_plans')
+          .select('*')
+          .eq('fitness_goal', profile.fitness_goal || 'general-fitness')
+          .limit(1);
         
-        setWorkoutPlan(defaultPlan);
+        if (workoutPlansError) throw workoutPlansError;
+        
+        let plan: WorkoutPlan;
+        
+        if (workoutPlansData && workoutPlansData.length > 0) {
+          plan = workoutPlansData[0] as unknown as WorkoutPlan;
+        } else {
+          // Use a default workout plan if none found in the database
+          plan = {
+            id: "default",
+            title: "General Fitness Program",
+            description: "Well-rounded approach to improve overall fitness and health",
+            fitness_goal: profile.fitness_goal || "general-fitness",
+            weekly_structure: [
+              { day: "Monday", focus: "Full Body Strength", duration: 45 },
+              { day: "Tuesday", focus: "Cardio & Mobility", duration: 40 },
+              { day: "Wednesday", focus: "Core & Balance", duration: 30 },
+              { day: "Thursday", focus: "Rest or Light Activity", duration: 20 },
+              { day: "Friday", focus: "Full Body Circuit", duration: 45 },
+              { day: "Saturday", focus: "Cardio & Flexibility", duration: 40 },
+              { day: "Sunday", focus: "Rest Day", duration: 0 }
+            ],
+            exercises: [
+              { name: "Dumbbell Squat", sets: 3, reps: "12-15", muscle: "Legs" },
+              { name: "Push-ups", sets: 3, reps: "10-15", muscle: "Chest" },
+              { name: "Dumbbell Row", sets: 3, reps: "12 each arm", muscle: "Back" },
+              { name: "Plank", sets: 3, reps: "30-60 seconds", muscle: "Core" },
+              { name: "Walking Lunges", sets: 2, reps: "10 each leg", muscle: "Legs" },
+              { name: "Jumping Jacks", sets: 3, reps: "45 seconds", muscle: "Cardio" }
+            ]
+          };
+          
+          // Optionally save this default plan to the database
+          try {
+            await supabase.from('workout_plans').insert([{
+              title: plan.title,
+              description: plan.description,
+              fitness_goal: plan.fitness_goal,
+              weekly_structure: plan.weekly_structure,
+              exercises: plan.exercises
+            }]);
+          } catch (insertError) {
+            console.error("Error saving default workout plan:", insertError);
+          }
+        }
+        
+        setWorkoutPlan(plan);
         
         // Set today's workout based on day of week
         const today = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
-        const todayWorkoutData = defaultPlan.weekly_structure[today];
+        const todayWorkoutData = plan.weekly_structure[today];
         
         setTodayWorkout({
           title: todayWorkoutData.focus,
@@ -213,11 +240,22 @@ const WorkoutPlan: React.FC = () => {
   
   // Function to mark a workout as completed
   const completeWorkout = async () => {
-    if (!profile) return;
+    if (!profile || !user) return;
     
     try {
-      // Since workout_logs table doesn't exist, we'll just show a success toast
-      // In a real implementation, this would insert into the workout_logs table
+      // Insert into workout_logs table
+      const { data, error } = await supabase
+        .from('workout_logs')
+        .insert({
+          user_id: user.id,
+          workout_id: todayWorkout ? 'today-workout' : 'custom-workout',
+          duration: todayWorkout ? todayWorkout.duration : 30,
+          calories_burned: Math.floor(Math.random() * 200) + 200 // Random calories between 200-400
+        })
+        .select();
+        
+      if (error) throw error;
+      
       toast.success("Workout marked as completed!");
     } catch (error: any) {
       console.error("Error saving completed workout:", error);
