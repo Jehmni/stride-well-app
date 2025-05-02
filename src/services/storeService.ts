@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export type Store = {
@@ -37,7 +36,7 @@ type StoreFilterOptions = {
  * Fetch nearby stores based on user location
  * 
  * In a real implementation, this would use a service like Google Places API
- * For this demo, we'll simulate it with mock data stored in Supabase
+ * For this demo, we'll simulate it with mock data
  */
 export const getNearbyStores = async (
   latitude: number, 
@@ -46,30 +45,66 @@ export const getNearbyStores = async (
   options?: StoreFilterOptions
 ): Promise<Store[]> => {
   try {
-    // In a real implementation, this would call an external API
-    // For demo, we'll fetch mock data from Supabase
-    const { data, error } = await supabase
-      .from('grocery_stores')
-      .select('*');
-    
-    if (error) throw error;
+    // Use mock data instead of querying a non-existent table
+    const mockStores: Store[] = [
+      {
+        id: '1',
+        name: 'Healthy Foods Market',
+        address: '123 Main St, Anytown',
+        distance: 0.8,
+        coordinates: {
+          latitude: latitude + 0.01,
+          longitude: longitude - 0.01
+        },
+        items: ['Chicken Breast', 'Brown Rice', 'Broccoli', 'Protein Powder'],
+        phone: '555-123-4567',
+        hours: {
+          open: '08:00',
+          close: '21:00'
+        },
+        rating: 4.5,
+        image_url: 'https://images.unsplash.com/photo-1534723452862-4c874018d8d4'
+      },
+      {
+        id: '2',
+        name: 'Fitness Nutrition Center',
+        address: '456 Oak St, Anytown',
+        distance: 1.5,
+        coordinates: {
+          latitude: latitude - 0.02,
+          longitude: longitude + 0.01
+        },
+        items: ['Protein Powder', 'Eggs', 'Greek Yogurt', 'Nuts'],
+        phone: '555-987-6543',
+        hours: {
+          open: '07:00',
+          close: '20:00'
+        },
+        rating: 4.2,
+        image_url: 'https://images.unsplash.com/photo-1579113800032-c38bd7635818'
+      },
+      {
+        id: '3',
+        name: 'Fresh Produce Market',
+        address: '789 Maple St, Anytown',
+        distance: 2.3,
+        coordinates: {
+          latitude: latitude + 0.03,
+          longitude: longitude + 0.02
+        },
+        items: ['Spinach', 'Berries', 'Sweet Potatoes', 'Avocado'],
+        phone: '555-567-8901',
+        hours: {
+          open: '09:00',
+          close: '18:00'
+        },
+        rating: 4.7,
+        image_url: 'https://images.unsplash.com/photo-1488459716781-31db52582fe9'
+      }
+    ];
 
     // Filter and sort by distance (simulated)
-    const stores = (data || []) as Store[];
-    
-    // Calculate distance (using a simplified version of the Haversine formula)
-    const storesWithDistance = stores.map(store => {
-      const distance = calculateDistance(
-        latitude, 
-        longitude, 
-        store.coordinates.latitude, 
-        store.coordinates.longitude
-      );
-      return { ...store, distance };
-    });
-
-    // Apply filters
-    let filteredStores = storesWithDistance;
+    let filteredStores = mockStores;
     
     // Filter by radius
     filteredStores = filteredStores.filter(store => 
