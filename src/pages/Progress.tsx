@@ -1,157 +1,147 @@
+
 import React, { useState, useEffect } from "react";
-import { 
-  ArrowDown, 
+import { useNavigate } from "react-router-dom";
+import {
+  ArrowDown,
   ArrowUp,
-  Award, 
-  BarChart3, 
-  Calendar, 
-  Dumbbell, 
-  Loader2,
+  BarChart3,
+  Calendar,
+  Plus,
   Scale,
   Target,
-  TrendingUp 
+  TrendingUp
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { format, subDays } from "date-fns";
+import { toast } from "sonner";
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer 
+} from "recharts";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import StatsCard from "@/components/dashboard/StatsCard";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
 
-// Define types for our progress data
-interface WeightRecord {
+interface ProgressRecord {
   id: string;
-  recorded_at: string;
-  weight: number;
   user_id: string;
+  weight?: number;
+  muscle_mass?: number;
+  body_fat_percentage?: number;
+  created_at: string;
+  notes?: string;
 }
 
-interface WorkoutRecord {
+interface Goal {
   id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  goal_type: string;
+  target_value: number;
+  current_value: number;
+  target_date?: string;
+  completed: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface WorkoutLog {
+  id: string;
+  user_id: string;
+  workout_id: string;
   completed_at: string;
-  workout_title: string;
-  duration: number;
-  user_id: string;
+  duration?: number;
+  calories_burned?: number;
+  notes?: string;
+  rating?: number;
 }
 
-interface StrengthRecord {
-  id: string;
-  recorded_at: string;
-  exercise: string;
-  weight: number;
-  reps: number;
-  user_id: string;
-}
-
-interface Measurement {
-  id: string;
-  recorded_at: string;
-  chest: number;
-  waist: number;
-  hips: number;
-  arms: number;
-  thighs: number;
-  user_id: string;
-}
-
-interface Achievement {
-  id: number;
-  title: string;
-  description: string;
-  date: string;
-  icon: React.ReactNode;
-}
-
-const ProgressPage: React.FC = () => {
+const Progress: React.FC = () => {
+  const navigate = useNavigate();
   const { profile } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
-  const [weightData, setWeightData] = useState<WeightRecord[]>([]);
-  const [strengthData, setStrengthData] = useState<StrengthRecord[]>([]);
-  const [measurementData, setMeasurementData] = useState<Measurement | null>(null);
-  const [workoutData, setWorkoutData] = useState<WorkoutRecord[]>([]);
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [activeTab, setActiveTab] = useState("weight");
   
-  // Fetch all progress data
+  // Progress tracking state
+  const [progressRecords, setProgressRecords] = useState<ProgressRecord[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // New record dialog
+  const [showAddProgress, setShowAddProgress] = useState(false);
+  const [newProgress, setNewProgress] = useState({
+    weight: "",
+    muscle_mass: "",
+    body_fat_percentage: "",
+    notes: ""
+  });
+  
+  // New goal dialog
+  const [showAddGoal, setShowAddGoal] = useState(false);
+  const [newGoal, setNewGoal] = useState({
+    name: "",
+    description: "",
+    goal_type: "weight",
+    target_value: "",
+    target_date: ""
+  });
+
   useEffect(() => {
     const fetchProgressData = async () => {
       if (!profile) return;
       
       setIsLoading(true);
+      
       try {
-        // Fetch weight records
-        const { data: weightRecords, error: weightError } = await supabase
-          .from('weight_records')
+        // Fetch progress records
+        const { data: progressData, error: progressError } = await supabase
+          .from('progress_tracking')
           .select('*')
           .eq('user_id', profile.id)
-          .order('recorded_at', { ascending: true });
+          .order('created_at', { ascending: false });
           
-        if (weightError) throw weightError;
+        if (progressError) throw progressError;
+        setProgressRecords(progressData || []);
         
-        if (weightRecords && weightRecords.length > 0) {
-          setWeightData(weightRecords);
-        } else {
-          // If no data, create mock data for demo purposes
-          const mockWeightData = [
-            { id: 'mock1', user_id: profile.id, recorded_at: '2023-07-01', weight: profile.weight },
-            { id: 'mock2', user_id: profile.id, recorded_at: '2023-07-08', weight: profile.weight - 0.5 },
-            { id: 'mock3', user_id: profile.id, recorded_at: '2023-07-15', weight: profile.weight - 0.8 },
-            { id: 'mock4', user_id: profile.id, recorded_at: '2023-07-22', weight: profile.weight - 1.2 },
-            { id: 'mock5', user_id: profile.id, recorded_at: '2023-07-29', weight: profile.weight - 1.7 }
-          ];
-          setWeightData(mockWeightData);
-        }
-        
-        // Fetch completed workouts
-        const { data: workouts, error: workoutError } = await supabase
-          .from('completed_workouts')
+        // Fetch goals
+        const { data: goalsData, error: goalsError } = await supabase
+          .from('goals')
           .select('*')
           .eq('user_id', profile.id)
-          .order('completed_at', { ascending: true });
+          .order('created_at', { ascending: false });
           
-        if (workoutError) throw workoutError;
-        setWorkoutData(workouts || []);
+        if (goalsError) throw goalsError;
+        setGoals(goalsData || []);
         
-        // Fetch strength records
-        const { data: strengthRecords, error: strengthError } = await supabase
-          .from('strength_records')
+        // Fetch workout logs
+        const { data: logsData, error: logsError } = await supabase
+          .from('workout_logs')
           .select('*')
           .eq('user_id', profile.id)
-          .order('recorded_at', { ascending: true });
+          .order('completed_at', { ascending: false });
           
-        if (strengthError) throw strengthError;
-        setStrengthData(strengthRecords || []);
-        
-        // Fetch latest body measurements
-        const { data: measurements, error: measurementError } = await supabase
-          .from('body_measurements')
-          .select('*')
-          .eq('user_id', profile.id)
-          .order('recorded_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-          
-        if (measurementError) throw measurementError;
-        setMeasurementData(measurements);
-        
-        // Generate achievements based on the data
-        const userAchievements = generateAchievements(workouts || [], weightRecords || []);
-        setAchievements(userAchievements);
-        
-      } catch (error: any) {
+        if (logsError) throw logsError;
+        setWorkoutLogs(logsData || []);
+      } catch (error) {
         console.error("Error fetching progress data:", error);
         toast.error("Failed to load progress data");
       } finally {
@@ -162,446 +152,684 @@ const ProgressPage: React.FC = () => {
     fetchProgressData();
   }, [profile]);
   
-  // Generate achievements based on user data
-  const generateAchievements = (workouts: WorkoutRecord[], weightRecords: WeightRecord[]): Achievement[] => {
-    const result: Achievement[] = [];
+  // Add a new progress record
+  const addProgressRecord = async () => {
+    if (!profile) return;
     
-    // First workout achievement
-    if (workouts.length > 0) {
-      const firstWorkoutDate = new Date(workouts[0].completed_at);
-      result.push({
-        id: 1,
-        title: "First Workout Completed",
-        description: "You completed your first workout. Great start!",
-        date: firstWorkoutDate.toLocaleDateString(),
-        icon: <Calendar className="h-10 w-10 p-2 bg-blue-100 text-blue-600 rounded-full" />
-      });
-    }
-    
-    // Workout streak achievement (5 workouts)
-    if (workouts.length >= 5) {
-      result.push({
-        id: 2,
-        title: "5 Workouts Completed",
-        description: "You've completed 5 workouts. Keep going!",
-        date: new Date(workouts[4].completed_at).toLocaleDateString(),
-        icon: <Award className="h-10 w-10 p-2 bg-yellow-100 text-yellow-600 rounded-full" />
-      });
-    }
-    
-    // Weight loss achievement (if applicable)
-    if (weightRecords.length >= 2) {
-      const firstWeight = weightRecords[0].weight;
-      const latestWeight = weightRecords[weightRecords.length - 1].weight;
-      const weightDiff = firstWeight - latestWeight;
+    try {
+      const record: any = {
+        user_id: profile.id,
+        notes: newProgress.notes || null,
+      };
       
-      if (weightDiff >= 2) {
-        result.push({
-          id: 3,
-          title: "Weight Milestone",
-          description: `You've lost ${weightDiff.toFixed(1)} kg. Amazing progress!`,
-          date: new Date(weightRecords[weightRecords.length - 1].recorded_at).toLocaleDateString(),
-          icon: <Scale className="h-10 w-10 p-2 bg-green-100 text-green-600 rounded-full" />
-        });
+      if (newProgress.weight) record.weight = parseFloat(newProgress.weight);
+      if (newProgress.muscle_mass) record.muscle_mass = parseFloat(newProgress.muscle_mass);
+      if (newProgress.body_fat_percentage) record.body_fat_percentage = parseFloat(newProgress.body_fat_percentage);
+      
+      const { data, error } = await supabase
+        .from('progress_tracking')
+        .insert([record])
+        .select();
+        
+      if (error) throw error;
+      
+      toast.success("Progress record added successfully!");
+      setProgressRecords([...(data || []), ...progressRecords]);
+      setShowAddProgress(false);
+      setNewProgress({
+        weight: "",
+        muscle_mass: "",
+        body_fat_percentage: "",
+        notes: ""
+      });
+      
+      // Update user profile weight if recorded
+      if (newProgress.weight && profile) {
+        await supabase
+          .from('user_profiles')
+          .update({ weight: parseFloat(newProgress.weight) })
+          .eq('id', profile.id);
       }
+      
+      // Update goal progress if applicable
+      if (goals.length > 0 && newProgress.weight) {
+        const weightGoals = goals.filter(g => g.goal_type === 'weight' && !g.completed);
+        
+        if (weightGoals.length > 0) {
+          await Promise.all(weightGoals.map(async (goal) => {
+            const weight = parseFloat(newProgress.weight);
+            const completed = goal.target_value >= weight;
+            
+            await supabase
+              .from('goals')
+              .update({ 
+                current_value: weight,
+                completed
+              })
+              .eq('id', goal.id);
+          }));
+          
+          // Refresh goals
+          const { data: updatedGoals } = await supabase
+            .from('goals')
+            .select('*')
+            .eq('user_id', profile.id)
+            .order('created_at', { ascending: false });
+            
+          if (updatedGoals) {
+            setGoals(updatedGoals);
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.error("Error adding progress record:", error);
+      toast.error("Failed to add progress record");
     }
-    
-    return result;
   };
   
-  // Format weight data for chart
-  const formatWeightData = () => {
-    return weightData.map(record => ({
-      date: new Date(record.recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+  // Add a new goal
+  const addGoal = async () => {
+    if (!profile) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('goals')
+        .insert([
+          {
+            user_id: profile.id,
+            name: newGoal.name,
+            description: newGoal.description || null,
+            goal_type: newGoal.goal_type,
+            target_value: parseFloat(newGoal.target_value),
+            current_value: profile.weight || 0,
+            target_date: newGoal.target_date || null,
+            completed: false
+          }
+        ])
+        .select();
+        
+      if (error) throw error;
+      
+      toast.success("Goal added successfully!");
+      setGoals([...(data || []), ...goals]);
+      setShowAddGoal(false);
+      setNewGoal({
+        name: "",
+        description: "",
+        goal_type: "weight",
+        target_value: "",
+        target_date: ""
+      });
+    } catch (error) {
+      console.error("Error adding goal:", error);
+      toast.error("Failed to add goal");
+    }
+  };
+  
+  // Format dates for charts
+  const formatDate = (dateString: string) => {
+    return format(new Date(dateString), 'MMM d');
+  };
+  
+  // Data for weight chart
+  const getWeightChartData = () => {
+    const sortedRecords = [...progressRecords]
+      .filter(record => record.weight)
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    
+    if (sortedRecords.length === 0) return [];
+    
+    return sortedRecords.map(record => ({
+      date: formatDate(record.created_at),
       weight: record.weight
     }));
   };
   
-  // Format strength data for chart
-  const formatStrengthData = () => {
-    const exercises = [...new Set(strengthData.map(record => record.exercise))];
-    const dataByWeek: Record<string, Record<string, number>> = {};
+  // Data for body composition chart
+  const getBodyCompChartData = () => {
+    const sortedRecords = [...progressRecords]
+      .filter(record => record.muscle_mass || record.body_fat_percentage)
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     
-    strengthData.forEach(record => {
-      const date = new Date(record.recorded_at);
-      const weekStart = new Date(date.setDate(date.getDate() - date.getDay()));
-      const weekKey = `Week ${weekStart.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}`;
-      
-      if (!dataByWeek[weekKey]) {
-        dataByWeek[weekKey] = {};
-      }
-      
-      // Use the one-rep max formula: weight * (1 + 0.0333 * reps)
-      const oneRepMax = record.weight * (1 + 0.0333 * record.reps);
-      dataByWeek[weekKey][record.exercise] = Math.round(oneRepMax);
-    });
+    if (sortedRecords.length === 0) return [];
     
-    // Convert the grouped data into chart format
-    return Object.entries(dataByWeek).map(([week, values]) => {
-      const result: Record<string, any> = { date: week };
-      exercises.forEach(exercise => {
-        result[exercise] = values[exercise] || null;
-      });
-      return result;
-    });
+    return sortedRecords.map(record => ({
+      date: formatDate(record.created_at),
+      "Muscle Mass": record.muscle_mass || 0,
+      "Body Fat %": record.body_fat_percentage || 0
+    }));
   };
   
-  // Add a new weight record
-  const addWeightRecord = async (weight: number) => {
-    if (!profile) return;
+  // Data for workout frequency chart
+  const getWorkoutFrequencyData = () => {
+    if (workoutLogs.length === 0) return [];
     
-    try {
-      const { error } = await supabase
-        .from('weight_records')
-        .insert({
-          user_id: profile.id,
-          weight: weight,
-          recorded_at: new Date().toISOString()
-        });
-        
-      if (error) throw error;
+    // Get last 30 days
+    const data = [];
+    for (let i = 30; i >= 0; i--) {
+      const date = subDays(new Date(), i);
+      const dateStr = format(date, 'yyyy-MM-dd');
       
-      toast.success("Weight record added successfully!");
+      // Count workouts on this date
+      const count = workoutLogs.filter(log => 
+        log.completed_at.split('T')[0] === dateStr
+      ).length;
       
-      // Refresh weight data
-      const { data, error: fetchError } = await supabase
-        .from('weight_records')
-        .select('*')
-        .eq('user_id', profile.id)
-        .order('recorded_at', { ascending: true });
-        
-      if (fetchError) throw fetchError;
-      setWeightData(data || []);
-      
-    } catch (error: any) {
-      console.error("Error adding weight record:", error);
-      toast.error("Failed to add weight record");
+      data.push({
+        date: format(date, 'MMM d'),
+        workouts: count
+      });
+    }
+    
+    return data;
+  };
+  
+  // Get latest record value
+  const getLatestValue = (field: 'weight' | 'muscle_mass' | 'body_fat_percentage'): string => {
+    for (const record of progressRecords) {
+      if (record[field]) {
+        return record[field]!.toString();
+      }
+    }
+    return profile?.[field]?.toString() || '-';
+  };
+  
+  // Get value change since last record
+  const getValueChange = (field: 'weight' | 'muscle_mass' | 'body_fat_percentage'): { value: number, isPositive: boolean } | null => {
+    const recordsWithField = progressRecords.filter(r => r[field]);
+    
+    if (recordsWithField.length < 2) return null;
+    
+    const latest = recordsWithField[0][field]!;
+    const previous = recordsWithField[1][field]!;
+    
+    const change = latest - previous;
+    return {
+      value: Math.abs(change),
+      isPositive: field === 'muscle_mass' ? change > 0 : change < 0
+    };
+  };
+  
+  // Get goal progress percentage
+  const getGoalProgress = (goal: Goal): number => {
+    if (goal.completed) return 100;
+    
+    const start = profile?.[goal.goal_type as 'weight'] || 0;
+    const current = goal.current_value;
+    const target = goal.target_value;
+    
+    // If goal is to decrease (weight loss)
+    if (start > target) {
+      if (current <= target) return 100;
+      return Math.min(100, ((start - current) / (start - target)) * 100);
+    } 
+    // If goal is to increase (muscle gain)
+    else {
+      if (current >= target) return 100;
+      return Math.min(100, ((current - start) / (target - start)) * 100);
     }
   };
-  
-  // Render progress card with arrow indicator
-  const renderProgressCard = (title: string, current: number, previous: number, unit: string) => {
-    const isPositive = current > previous;
-    const isNeutral = current === previous;
-    const difference = Math.abs(current - previous);
-    const percentChange = previous > 0 ? Math.round((difference / previous) * 100) : 0;
-    
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
-          <div className="flex items-baseline mt-1">
-            <p className="text-2xl font-bold">{current}{unit}</p>
-            {!isNeutral && (
-              <p className={`ml-2 text-sm flex items-center ${
-                (isPositive && title.includes("Weight") || !isPositive && !title.includes("Weight")) 
-                  ? "text-red-500" 
-                  : "text-green-500"
-              }`}>
-                {isPositive ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />}
-                {difference}{unit} ({percentChange}%)
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  if (isLoading) {
-    return (
-      <DashboardLayout title="Progress Tracking">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-fitness-primary" />
-          <span className="ml-2">Loading your progress data...</span>
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   return (
     <DashboardLayout title="Progress Tracking">
       <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-2">Your Fitness Journey</h2>
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Track your progress towards your {profile?.fitness_goal === "weight-loss" ? "weight loss" : profile?.fitness_goal === "muscle-gain" ? "muscle building" : profile?.fitness_goal === "endurance" ? "endurance" : "fitness"} goals
+          Track your fitness journey and monitor your progress towards your goals.
         </p>
         
-        {/* Key Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {weightData.length > 0 && renderProgressCard(
-            "Current Weight", 
-            weightData[weightData.length - 1].weight, 
-            weightData[0].weight, 
-            "kg"
-          )}
-          {renderProgressCard("Workouts Completed", workoutData.length, 0, "")}
-          
-          {/* Current streak calculation (simplified) */}
-          {workoutData.length > 0 && renderProgressCard(
-            "Current Streak", 
-            1, // This would need more complex logic to calculate actual streak
-            0, 
-            " days"
-          )}
-          
-          {/* Calories burned (estimated) */}
-          {renderProgressCard(
-            "Calories Burned", 
-            workoutData.reduce((total, workout) => total + (workout.duration * 8), 0), // Rough estimate: 8 calories per minute
-            0, 
-            " kcal"
-          )}
+          <StatsCard
+            title="Current Weight"
+            value={`${getLatestValue('weight')} kg`}
+            icon={<Scale className="h-6 w-6 text-fitness-primary" />}
+            change={getValueChange('weight')}
+          />
+          <StatsCard
+            title="Body Fat %"
+            value={getLatestValue('body_fat_percentage') + '%'}
+            icon={<TrendingUp className="h-6 w-6 text-fitness-primary" />}
+            change={getValueChange('body_fat_percentage')}
+          />
+          <StatsCard
+            title="Muscle Mass"
+            value={`${getLatestValue('muscle_mass')} kg`}
+            icon={<BarChart3 className="h-6 w-6 text-fitness-primary" />}
+            change={getValueChange('muscle_mass')}
+          />
+          <StatsCard
+            title="Workouts Completed"
+            value={workoutLogs.length.toString()}
+            icon={<Calendar className="h-6 w-6 text-fitness-primary" />}
+            description="Total"
+          />
         </div>
         
-        <Tabs defaultValue="weight" className="mb-8">
-          <TabsList>
-            <TabsTrigger value="weight" className="flex items-center">
-              <Scale className="h-4 w-4 mr-2" />
-              Weight
-            </TabsTrigger>
-            <TabsTrigger value="strength" className="flex items-center">
-              <Dumbbell className="h-4 w-4 mr-2" />
-              Strength
-            </TabsTrigger>
-            <TabsTrigger value="measurements" className="flex items-center">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Measurements
-            </TabsTrigger>
-            <TabsTrigger value="achievements" className="flex items-center">
-              <Award className="h-4 w-4 mr-2" />
-              Achievements
-            </TabsTrigger>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-semibold">Tracking</h3>
+          <Dialog open={showAddProgress} onOpenChange={setShowAddProgress}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                New Record
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Progress Record</DialogTitle>
+                <DialogDescription>
+                  Record your latest measurements to track your progress.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="weight">Weight (kg)</Label>
+                  <Input
+                    id="weight"
+                    type="number"
+                    step="0.1"
+                    placeholder="Enter your current weight"
+                    value={newProgress.weight}
+                    onChange={(e) => setNewProgress({...newProgress, weight: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="muscle_mass">Muscle Mass (kg)</Label>
+                  <Input
+                    id="muscle_mass"
+                    type="number"
+                    step="0.1"
+                    placeholder="Enter your muscle mass"
+                    value={newProgress.muscle_mass}
+                    onChange={(e) => setNewProgress({...newProgress, muscle_mass: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="body_fat">Body Fat Percentage (%)</Label>
+                  <Input
+                    id="body_fat"
+                    type="number"
+                    step="0.1"
+                    placeholder="Enter your body fat percentage"
+                    value={newProgress.body_fat_percentage}
+                    onChange={(e) => setNewProgress({
+                      ...newProgress, 
+                      body_fat_percentage: e.target.value
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notes (optional)</Label>
+                  <Input
+                    id="notes"
+                    placeholder="Any additional notes"
+                    value={newProgress.notes}
+                    onChange={(e) => setNewProgress({...newProgress, notes: e.target.value})}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowAddProgress(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={addProgressRecord} disabled={
+                  !newProgress.weight && 
+                  !newProgress.muscle_mass && 
+                  !newProgress.body_fat_percentage
+                }>
+                  Save Record
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+        
+        <Tabs 
+          value={activeTab} 
+          onValueChange={setActiveTab} 
+          className="w-full mb-8"
+        >
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="weight">Weight</TabsTrigger>
+            <TabsTrigger value="composition">Body Composition</TabsTrigger>
+            <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="weight" className="mt-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-semibold flex items-center">
-                    <TrendingUp className="mr-2 h-5 w-5" />
-                    Weight Progress
-                  </h3>
-                  <div className="flex items-center space-x-2">
+          <TabsContent value="weight">
+            <div className="border rounded-lg p-6 bg-white dark:bg-gray-800">
+              <h4 className="font-medium mb-4">Weight Tracking</h4>
+              <div className="h-[300px]">
+                {getWeightChartData().length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={getWeightChartData()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis domain={['dataMin - 1', 'dataMax + 1']} />
+                      <Tooltip />
+                      <Line 
+                        type="monotone" 
+                        dataKey="weight" 
+                        stroke="#8884d8" 
+                        activeDot={{ r: 8 }}
+                        name="Weight (kg)"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full">
+                    <Scale className="h-12 w-12 text-gray-400 mb-2" />
+                    <p className="text-gray-500">No weight data recorded yet</p>
                     <Button 
                       variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        const weight = prompt("Enter your current weight in kg:");
-                        if (weight && !isNaN(parseFloat(weight))) {
-                          addWeightRecord(parseFloat(weight));
-                        } else if (weight !== null) {
-                          toast.error("Please enter a valid number");
-                        }
-                      }}
+                      className="mt-4"
+                      onClick={() => setShowAddProgress(true)}
                     >
-                      Add Weight Record
+                      Add Your First Record
                     </Button>
                   </div>
-                </div>
-                
-                {weightData.length > 0 ? (
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart
-                        data={formatWeightData()}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis domain={['dataMin - 2', 'dataMax + 2']} />
-                        <Tooltip />
-                        <Legend />
-                        <Line 
-                          type="monotone" 
-                          dataKey="weight" 
-                          stroke="#3b82f6" 
-                          strokeWidth={2} 
-                          dot={{ r: 5 }} 
-                          activeDot={{ r: 7 }} 
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="composition">
+            <div className="border rounded-lg p-6 bg-white dark:bg-gray-800">
+              <h4 className="font-medium mb-4">Body Composition</h4>
+              <div className="h-[300px]">
+                {getBodyCompChartData().length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={getBodyCompChartData()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line 
+                        type="monotone" 
+                        dataKey="Muscle Mass" 
+                        stroke="#82ca9d" 
+                        activeDot={{ r: 8 }}
+                        name="Muscle Mass (kg)"
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="Body Fat %" 
+                        stroke="#ff7300" 
+                        activeDot={{ r: 8 }}
+                        name="Body Fat %"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
                 ) : (
-                  <div className="text-center py-12">
-                    <p className="text-gray-500 mb-4">No weight data recorded yet.</p>
+                  <div className="flex flex-col items-center justify-center h-full">
+                    <BarChart3 className="h-12 w-12 text-gray-400 mb-2" />
+                    <p className="text-gray-500">No body composition data recorded yet</p>
                     <Button 
-                      onClick={() => {
-                        const weight = prompt("Enter your current weight in kg:");
-                        if (weight && !isNaN(parseFloat(weight))) {
-                          addWeightRecord(parseFloat(weight));
-                        } else if (weight !== null) {
-                          toast.error("Please enter a valid number");
-                        }
-                      }}
+                      variant="outline" 
+                      className="mt-4"
+                      onClick={() => setShowAddProgress(true)}
                     >
-                      Record Your Weight
+                      Add Your First Record
                     </Button>
                   </div>
                 )}
-                
-                {weightData.length > 0 && (
-                  <div className="mt-6 flex justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500">Starting weight</p>
-                      <p className="font-medium">{weightData[0].weight} kg</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Current weight</p>
-                      <p className="font-medium">{weightData[weightData.length - 1].weight} kg</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Total change</p>
-                      <p className={`font-medium ${weightData[0].weight > weightData[weightData.length - 1].weight ? "text-green-500" : "text-red-500"}`}>
-                        {(weightData[0].weight - weightData[weightData.length - 1].weight).toFixed(1)} kg
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </TabsContent>
           
-          <TabsContent value="strength" className="mt-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-semibold flex items-center">
-                    <Dumbbell className="mr-2 h-5 w-5" />
-                    Strength Progress
-                  </h3>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => navigate("/workouts")}
-                  >
-                    Log Workout
-                  </Button>
-                </div>
-                
-                {strengthData.length > 0 ? (
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={formatStrengthData()}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        {[...new Set(strengthData.map(record => record.exercise))].map((exercise, index) => (
-                          <Bar 
-                            key={exercise} 
-                            dataKey={exercise} 
-                            fill={`hsl(${index * 40}, 70%, 50%)`} 
-                          />
-                        ))}
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+          <TabsContent value="activity">
+            <div className="border rounded-lg p-6 bg-white dark:bg-gray-800">
+              <h4 className="font-medium mb-4">Workout Frequency (Last 30 Days)</h4>
+              <div className="h-[300px]">
+                {workoutLogs.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={getWorkoutFrequencyData()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis allowDecimals={false} domain={[0, 'auto']} />
+                      <Tooltip />
+                      <Line 
+                        type="monotone" 
+                        dataKey="workouts" 
+                        stroke="#8884d8" 
+                        activeDot={{ r: 8 }}
+                        name="Workouts"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
                 ) : (
-                  <div className="text-center py-12">
-                    <p className="text-gray-500 mb-4">No strength data recorded yet.</p>
-                    <Button onClick={() => navigate("/workouts")}>
-                      Record Your Lifts
+                  <div className="flex flex-col items-center justify-center h-full">
+                    <Calendar className="h-12 w-12 text-gray-400 mb-2" />
+                    <p className="text-gray-500">No workout activity recorded yet</p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-4"
+                      onClick={() => navigate('/workouts')}
+                    >
+                      Start Your First Workout
                     </Button>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </TabsContent>
+        </Tabs>
+        
+        {/* Goals Section */}
+        <div className="mt-8">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-semibold flex items-center">
+              <Target className="mr-2 h-5 w-5" />
+              Fitness Goals
+            </h3>
+            <Dialog open={showAddGoal} onOpenChange={setShowAddGoal}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Goal
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Goal</DialogTitle>
+                  <DialogDescription>
+                    Set a new fitness goal to work towards.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="goal-name">Goal Name</Label>
+                    <Input
+                      id="goal-name"
+                      placeholder="e.g., Reach target weight"
+                      value={newGoal.name}
+                      onChange={(e) => setNewGoal({...newGoal, name: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="goal-description">Description (optional)</Label>
+                    <Input
+                      id="goal-description"
+                      placeholder="Describe your goal..."
+                      value={newGoal.description}
+                      onChange={(e) => setNewGoal({...newGoal, description: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="goal-type">Goal Type</Label>
+                    <select
+                      id="goal-type"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={newGoal.goal_type}
+                      onChange={(e) => setNewGoal({...newGoal, goal_type: e.target.value})}
+                    >
+                      <option value="weight">Weight</option>
+                      <option value="body_fat_percentage">Body Fat Percentage</option>
+                      <option value="muscle_mass">Muscle Mass</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="target-value">Target Value</Label>
+                    <Input
+                      id="target-value"
+                      type="number"
+                      step="0.1"
+                      placeholder="Enter your target value"
+                      value={newGoal.target_value}
+                      onChange={(e) => setNewGoal({...newGoal, target_value: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="target-date">Target Date (optional)</Label>
+                    <Input
+                      id="target-date"
+                      type="date"
+                      value={newGoal.target_date}
+                      onChange={(e) => setNewGoal({...newGoal, target_date: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowAddGoal(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={addGoal}
+                    disabled={!newGoal.name || !newGoal.target_value}
+                  >
+                    Create Goal
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
           
-          <TabsContent value="measurements" className="mt-6">
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-6 flex items-center">
-                  <BarChart3 className="mr-2 h-5 w-5" />
-                  Body Measurements
-                </h3>
-                
-                {measurementData ? (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {goals.length === 0 ? (
+            <div className="text-center py-10 bg-white dark:bg-gray-800 rounded-lg shadow">
+              <Target className="h-12 w-12 mx-auto text-gray-400" />
+              <h3 className="mt-4 text-lg font-medium">No Goals Set</h3>
+              <p className="mt-2 text-gray-500 max-w-sm mx-auto">
+                Set your first fitness goal to help track and stay motivated on your journey.
+              </p>
+              <Button 
+                className="mt-4" 
+                onClick={() => setShowAddGoal(true)}
+              >
+                Set Your First Goal
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {goals.map((goal) => {
+                const progress = getGoalProgress(goal);
+                const targetDate = goal.target_date 
+                  ? format(new Date(goal.target_date), 'MMM d, yyyy')
+                  : null;
+                  
+                return (
+                  <div 
+                    key={goal.id} 
+                    className="border rounded-lg p-6 bg-white dark:bg-gray-800"
+                  >
+                    <div className="flex justify-between items-start mb-2">
                       <div>
-                        <p className="text-sm text-gray-500 mb-1">Chest</p>
-                        <p className="text-2xl font-bold">{measurementData.chest} cm</p>
+                        <h4 className="font-medium">{goal.name}</h4>
+                        {goal.description && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {goal.description}
+                          </p>
+                        )}
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Waist</p>
-                        <p className="text-2xl font-bold">{measurementData.waist} cm</p>
+                      {goal.completed && (
+                        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                          Completed
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="mt-4">
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>Progress</span>
+                        <span>{Math.round(progress)}%</span>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Hips</p>
-                        <p className="text-2xl font-bold">{measurementData.hips} cm</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Arms</p>
-                        <p className="text-2xl font-bold">{measurementData.arms} cm</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Thighs</p>
-                        <p className="text-2xl font-bold">{measurementData.thighs} cm</p>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                        <div 
+                          className="bg-fitness-primary h-2.5 rounded-full" 
+                          style={{ width: `${progress}%` }}
+                        ></div>
                       </div>
                     </div>
                     
-                    <div className="flex justify-end">
-                      <Button variant="outline" size="sm">
-                        Update Measurements
-                      </Button>
+                    <div className="mt-4 flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                      <div>
+                        <div className="font-medium">Current</div>
+                        <div>{goal.current_value} {goal.goal_type === 'body_fat_percentage' ? '%' : 'kg'}</div>
+                      </div>
+                      <div>
+                        <div className="font-medium">Target</div>
+                        <div>{goal.target_value} {goal.goal_type === 'body_fat_percentage' ? '%' : 'kg'}</div>
+                      </div>
+                      {targetDate && (
+                        <div>
+                          <div className="font-medium">Target Date</div>
+                          <div>{targetDate}</div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="mt-4 flex items-center">
+                      {goal.target_value < goal.current_value ? (
+                        <ArrowDown className="text-green-500 h-4 w-4 mr-1" />
+                      ) : (
+                        <ArrowUp className="text-green-500 h-4 w-4 mr-1" />
+                      )}
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {Math.abs(goal.target_value - goal.current_value).toFixed(1)} {goal.goal_type === 'body_fat_percentage' ? '%' : 'kg'} to go
+                      </span>
                     </div>
                   </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <p className="text-gray-500 mb-4">No body measurements recorded yet.</p>
-                    <Button>
-                      Record Measurements
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        
+        {/* Progress History */}
+        <div className="mt-8">
+          <h3 className="text-xl font-semibold mb-4">Progress History</h3>
           
-          <TabsContent value="achievements" className="mt-6">
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-6 flex items-center">
-                  <Award className="mr-2 h-5 w-5" />
-                  Your Achievements
-                </h3>
-                
-                {achievements.length > 0 ? (
-                  <div className="space-y-4">
-                    {achievements.map((achievement) => (
-                      <div key={achievement.id} className="flex items-start p-4 border rounded-lg">
-                        {achievement.icon}
-                        <div className="ml-4">
-                          <h4 className="font-semibold">{achievement.title}</h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {achievement.description}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Achieved on {achievement.date}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <p className="text-gray-500">Complete workouts and track your progress to earn achievements!</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          {progressRecords.length === 0 ? (
+            <div className="text-center py-8 bg-white dark:bg-gray-800 rounded-lg">
+              <p className="text-gray-500">No progress records yet. Add your first record to start tracking.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                <thead className="bg-gray-100 dark:bg-gray-700">
+                  <tr>
+                    <th className="py-3 px-4 text-left">Date</th>
+                    <th className="py-3 px-4 text-left">Weight</th>
+                    <th className="py-3 px-4 text-left">Body Fat %</th>
+                    <th className="py-3 px-4 text-left">Muscle Mass</th>
+                    <th className="py-3 px-4 text-left">Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {progressRecords.map((record) => (
+                    <tr key={record.id}>
+                      <td className="py-3 px-4">{formatDate(record.created_at)}</td>
+                      <td className="py-3 px-4">{record.weight ? `${record.weight} kg` : '-'}</td>
+                      <td className="py-3 px-4">{record.body_fat_percentage ? `${record.body_fat_percentage}%` : '-'}</td>
+                      <td className="py-3 px-4">{record.muscle_mass ? `${record.muscle_mass} kg` : '-'}</td>
+                      <td className="py-3 px-4">{record.notes || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );
 };
 
-export default ProgressPage;
+export default Progress;

@@ -1,638 +1,758 @@
-import React, { useEffect, useState } from "react";
-import { Route, Routes, useNavigate } from "react-router-dom";
-import { Search, UserPlus, Users, Share2, Check, X } from "lucide-react";
+
+import React, { useState, useEffect } from "react";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import {
+  Check,
+  Loader2,
+  MessageSquare,
+  Search,
+  UserPlus,
+  UserX,
+  X
+} from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { Friend, UserProfile, ActivityFeed as ActivityFeedType } from "@/models/models";
 
-type FriendProfile = {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-  fitness_goal: string | null;
-  workouts_count: number;
-  avatar_url: string | null;
-  email: string;
-};
-
-type FriendRequest = {
-  id: string;
-  sender_id: string;
-  receiver_id: string;
-  created_at: string;
-  sender: FriendProfile;
-};
-
-type Friend = {
-  id: string;
-  user_id: string;
-  friend_id: string;
-  created_at: string;
-  friend: FriendProfile;
-};
-
-const Friends: React.FC = () => {
-  const navigate = useNavigate();
-  const { profile, user } = useAuth();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<FriendProfile[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+const FriendsList: React.FC = () => {
+  const { user } = useAuth();
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [showAddFriend, setShowAddFriend] = useState(false);
+  const [email, setEmail] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch friends and friend requests
   useEffect(() => {
-    const fetchFriendsData = async () => {
-      if (!profile) return;
+    const fetchFriends = async () => {
+      if (!user) return;
       
-      setIsLoading(true);
+      setLoading(true);
+      
       try {
-        // Fetch established friends
-        const { data: friendsData, error: friendsError } = await supabase
+        // Fetch accepted friends where user is the initiator
+        const { data: initiatedFriends, error: initiatedError } = await supabase
           .from('friends')
           .select(`
-            id,
-            user_id,
-            friend_id,
-            created_at,
-            friend:friend_id(
-              id,
-              first_name,
-              last_name,
-              fitness_goal,
-              avatar_url
-            )
+            *,
+            profile:friend_id(*)
           `)
-          .eq('user_id', profile.id);
+          .eq('user_id', user.id)
+          .eq('status', 'accepted');
           
-        if (friendsError) throw friendsError;
+        if (initiatedError) throw initiatedError;
         
-        // Enhance friends data with email and workout count
-        const enhancedFriends = await Promise.all((friendsData || []).map(async (friend) => {
-          // Get email from auth.users
-          const { data: userData } = await supabase
-            .from('auth_users_view')
-            .select('email')
-            .eq('id', friend.friend_id)
-            .single();
-            
-          // Get workout count
-          const { count } = await supabase
-            .from('completed_workouts')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', friend.friend_id);
-            
-          return {
-            ...friend,
-            friend: {
-              ...friend.friend,
-              email: userData?.email || '',
-              workouts_count: count || 0
-            }
-          };
-        }));
-        
-        setFriends(enhancedFriends);
-        
-        // Fetch friend requests
-        const { data: requestsData, error: requestsError } = await supabase
-          .from('friend_requests')
+        // Fetch accepted friends where user is the receiver
+        const { data: receivedFriends, error: receivedError } = await supabase
+          .from('friends')
           .select(`
-            id,
-            sender_id,
-            receiver_id,
-            created_at,
-            sender:sender_id(
-              id,
-              first_name,
-              last_name,
-              fitness_goal,
-              avatar_url
-            )
+            *,
+            profile:user_id(*)
           `)
-          .eq('receiver_id', profile.id)
-          .is('accepted', null);
+          .eq('friend_id', user.id)
+          .eq('status', 'accepted');
           
-        if (requestsError) throw requestsError;
+        if (receivedError) throw receivedError;
         
-        // Enhance requests data with email and workout count
-        const enhancedRequests = await Promise.all((requestsData || []).map(async (request) => {
-          // Get email from auth.users
-          const { data: userData } = await supabase
-            .from('auth_users_view')
-            .select('email')
-            .eq('id', request.sender_id)
-            .single();
-            
-          // Get workout count
-          const { count } = await supabase
-            .from('completed_workouts')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', request.sender_id);
-            
-          return {
-            ...request,
-            sender: {
-              ...request.sender,
-              email: userData?.email || '',
-              workouts_count: count || 0
-            }
-          };
-        }));
+        // Combine and format friends
+        const allFriends: Friend[] = [
+          ...(initiatedFriends || []).map(friend => ({
+            ...friend,
+            profile: friend.profile as UserProfile
+          })),
+          ...(receivedFriends || []).map(friend => ({
+            ...friend,
+            // Swap the user_id and friend_id for consistency in the UI
+            user_id: friend.friend_id,
+            friend_id: friend.user_id,
+            profile: friend.profile as UserProfile
+          }))
+        ];
         
-        setFriendRequests(enhancedRequests);
-        
-      } catch (error: any) {
-        console.error("Error fetching friends data:", error);
-        toast.error("Failed to load friends data");
+        setFriends(allFriends);
+      } catch (error) {
+        console.error("Error fetching friends:", error);
+        toast.error("Failed to load friends list");
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
     
-    fetchFriendsData();
-  }, [profile]);
+    fetchFriends();
+  }, [user]);
   
-  // Search for users
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-    
-    setIsSearching(true);
-    try {
-      // Search in user_profiles table
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select(`
-          id,
-          first_name,
-          last_name,
-          fitness_goal,
-          avatar_url
-        `)
-        .or(`
-          first_name.ilike.%${searchQuery}%,
-          last_name.ilike.%${searchQuery}%
-        `)
-        .neq('id', profile?.id || '');
-        
-      if (error) throw error;
-      
-      // Filter out users who are already friends
-      const friendIds = friends.map(f => f.friend_id);
-      const filteredResults = data?.filter(user => !friendIds.includes(user.id)) || [];
-      
-      // Enhance with email
-      const enhancedResults = await Promise.all(filteredResults.map(async (user) => {
-        // Get email from auth.users
-        const { data: userData } = await supabase
-          .from('auth_users_view')
-          .select('email')
-          .eq('id', user.id)
-          .single();
-          
-        // Get workout count
-        const { count } = await supabase
-          .from('completed_workouts')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id);
-          
-        return {
-          ...user,
-          email: userData?.email || '',
-          workouts_count: count || 0
-        };
-      }));
-      
-      setSearchResults(enhancedResults);
-      
-    } catch (error: any) {
-      console.error("Error searching users:", error);
-      toast.error("Failed to search users");
-    } finally {
-      setIsSearching(false);
+  const addFriend = async () => {
+    if (!user || !email || email === user.email) {
+      toast.error("Please enter a valid email address");
+      return;
     }
-  };
-  
-  // Send friend request
-  const sendFriendRequest = async (userId: string) => {
-    if (!profile) return;
     
     try {
-      // Check if request already exists
-      const { data: existingRequest, error: checkError } = await supabase
-        .from('friend_requests')
-        .select('*')
-        .eq('sender_id', profile.id)
-        .eq('receiver_id', userId)
-        .maybeSingle();
+      // Check if user exists
+      const { data: userData, error: userError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
         
-      if (checkError) throw checkError;
+      if (userError) throw userError;
       
-      if (existingRequest) {
-        toast.info("Friend request already sent");
+      // Find the user by email
+      const { data: friendData, error: friendError } = await supabase
+        .from('auth')
+        .select('id')
+        .eq('email', email)
+        .single();
+        
+      if (friendError || !friendData) {
+        toast.error("User not found with that email address");
         return;
       }
       
-      // Create new request
-      const { error } = await supabase
-        .from('friend_requests')
-        .insert({
-          sender_id: profile.id,
-          receiver_id: userId
-        });
+      // Check if friend request already exists
+      const { data: existingRequest, error: existingError } = await supabase
+        .from('friends')
+        .select('*')
+        .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
+        .or(`user_id.eq.${friendData.id},friend_id.eq.${friendData.id}`)
+        .single();
         
-      if (error) throw error;
+      if (existingRequest) {
+        toast.error("A friend request already exists with this user");
+        return;
+      }
       
-      toast.success("Friend request sent!");
+      // Create friend request
+      const { error: requestError } = await supabase
+        .from('friends')
+        .insert([
+          {
+            user_id: user.id,
+            friend_id: friendData.id,
+            status: 'pending'
+          }
+        ]);
+        
+      if (requestError) throw requestError;
       
-      // Update search results to show pending
-      setSearchResults(prev => 
-        prev.filter(user => user.id !== userId)
-      );
-      
-    } catch (error: any) {
-      console.error("Error sending friend request:", error);
+      toast.success("Friend request sent successfully!");
+      setShowAddFriend(false);
+      setEmail("");
+    } catch (error) {
+      console.error("Error adding friend:", error);
       toast.error("Failed to send friend request");
     }
   };
   
-  // Accept friend request
-  const acceptFriendRequest = async (requestId: string, senderId: string) => {
-    if (!profile) return;
+  const removeFriend = async (friendId: string) => {
+    if (!user) return;
     
     try {
-      // Mark request as accepted
-      const { error: updateError } = await supabase
-        .from('friend_requests')
-        .update({ accepted: true })
+      const { error } = await supabase
+        .from('friends')
+        .delete()
+        .or(`and(user_id.eq.${user.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${user.id})`);
+        
+      if (error) throw error;
+      
+      toast.success("Friend removed successfully");
+      setFriends(friends.filter(f => f.friend_id !== friendId));
+    } catch (error) {
+      console.error("Error removing friend:", error);
+      toast.error("Failed to remove friend");
+    }
+  };
+  
+  const filteredFriends = searchQuery 
+    ? friends.filter(friend => 
+        (friend.profile?.first_name && friend.profile.first_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (friend.profile?.last_name && friend.profile.last_name.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : friends;
+  
+  const getUserInitials = (profile?: UserProfile): string => {
+    if (!profile) return "?";
+    
+    if (profile.first_name || profile.last_name) {
+      const first = profile.first_name ? profile.first_name[0] : "";
+      const last = profile.last_name ? profile.last_name[0] : "";
+      return (first + last).toUpperCase();
+    }
+    
+    return "?";
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-fitness-primary" />
+        <span className="ml-2">Loading friends...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center">
+          <Input
+            placeholder="Search friends..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
+        <Dialog open={showAddFriend} onOpenChange={setShowAddFriend}>
+          <DialogTrigger asChild>
+            <Button>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add Friend
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Friend</DialogTitle>
+              <DialogDescription>
+                Send a friend request by email address.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label htmlFor="email" className="block text-sm font-medium">
+                  Email Address
+                </label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="friend@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddFriend(false)}>
+                Cancel
+              </Button>
+              <Button onClick={addFriend} disabled={!email}>
+                Send Request
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+      
+      {filteredFriends.length === 0 ? (
+        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <UserPlus className="h-12 w-12 mx-auto text-gray-400" />
+          <h3 className="mt-4 text-lg font-medium">No Friends Yet</h3>
+          <p className="mt-2 text-gray-500 max-w-sm mx-auto">
+            {searchQuery 
+              ? `No friends found matching "${searchQuery}"`
+              : "Get started by adding friends to connect with other fitness enthusiasts."
+            }
+          </p>
+          {!searchQuery && (
+            <Button 
+              className="mt-4" 
+              onClick={() => setShowAddFriend(true)}
+            >
+              Add Your First Friend
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredFriends.map((friend) => (
+            <div 
+              key={friend.id} 
+              className="bg-white dark:bg-gray-800 rounded-lg shadow p-6"
+            >
+              <div className="flex items-center mb-4">
+                <Avatar className="h-12 w-12">
+                  <AvatarFallback className="bg-fitness-primary text-white">
+                    {getUserInitials(friend.profile)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="ml-3">
+                  <h3 className="font-medium">
+                    {friend.profile?.first_name} {friend.profile?.last_name}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {friend.profile?.fitness_goal?.replace('-', ' ')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex space-x-2">
+                <Button variant="outline" className="flex-1">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Message
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                  onClick={() => removeFriend(friend.friend_id)}
+                >
+                  <UserX className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const FriendRequests: React.FC = () => {
+  const { user } = useAuth();
+  const [sentRequests, setSentRequests] = useState<Friend[]>([]);
+  const [receivedRequests, setReceivedRequests] = useState<Friend[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFriendRequests = async () => {
+      if (!user) return;
+      
+      setLoading(true);
+      
+      try {
+        // Fetch sent requests
+        const { data: sentData, error: sentError } = await supabase
+          .from('friends')
+          .select(`
+            *,
+            profile:friend_id(*)
+          `)
+          .eq('user_id', user.id)
+          .eq('status', 'pending');
+          
+        if (sentError) throw sentError;
+        setSentRequests(sentData || []);
+        
+        // Fetch received requests
+        const { data: receivedData, error: receivedError } = await supabase
+          .from('friends')
+          .select(`
+            *,
+            profile:user_id(*)
+          `)
+          .eq('friend_id', user.id)
+          .eq('status', 'pending');
+          
+        if (receivedError) throw receivedError;
+        setReceivedRequests(receivedData || []);
+      } catch (error) {
+        console.error("Error fetching friend requests:", error);
+        toast.error("Failed to load friend requests");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchFriendRequests();
+  }, [user]);
+  
+  const acceptRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('friends')
+        .update({ status: 'accepted' })
         .eq('id', requestId);
         
-      if (updateError) throw updateError;
-      
-      // Create friend connections (both ways)
-      const { error: insertError } = await supabase
-        .from('friends')
-        .insert([
-          { user_id: profile.id, friend_id: senderId },
-          { user_id: senderId, friend_id: profile.id }
-        ]);
-        
-      if (insertError) throw insertError;
+      if (error) throw error;
       
       toast.success("Friend request accepted!");
+      setReceivedRequests(receivedRequests.filter(request => request.id !== requestId));
       
-      // Update UI
-      setFriendRequests(prev => 
-        prev.filter(request => request.id !== requestId)
-      );
-      
-      // Refresh friends list
-      const { data: friendData } = await supabase
-        .from('friends')
-        .select(`
-          id,
-          user_id,
-          friend_id,
-          created_at,
-          friend:friend_id(
-            id,
-            first_name,
-            last_name,
-            fitness_goal,
-            avatar_url
-          )
-        `)
-        .eq('user_id', profile.id)
-        .eq('friend_id', senderId)
-        .single();
-        
-      if (friendData) {
-        // Get email
-        const { data: userData } = await supabase
-          .from('auth_users_view')
-          .select('email')
-          .eq('id', senderId)
-          .single();
-          
-        // Get workout count
-        const { count } = await supabase
-          .from('completed_workouts')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', senderId);
-          
-        const newFriend = {
-          ...friendData,
-          friend: {
-            ...friendData.friend,
-            email: userData?.email || '',
-            workouts_count: count || 0
-          }
-        };
-        
-        setFriends(prev => [...prev, newFriend]);
+      // Create activity feed entry for new friendship
+      const request = receivedRequests.find(r => r.id === requestId);
+      if (request && user) {
+        await supabase
+          .from('activity_feed')
+          .insert([
+            {
+              user_id: user.id,
+              activity_type: 'new_friend',
+              content: { 
+                friend_id: request.user_id,
+                friend_name: request.profile?.first_name
+              },
+              is_public: true
+            }
+          ]);
       }
-      
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error accepting friend request:", error);
       toast.error("Failed to accept friend request");
     }
   };
   
-  // Reject friend request
-  const rejectFriendRequest = async (requestId: string) => {
+  const rejectRequest = async (requestId: string) => {
     try {
-      // Delete the request
       const { error } = await supabase
-        .from('friend_requests')
-        .delete()
+        .from('friends')
+        .update({ status: 'rejected' })
         .eq('id', requestId);
         
       if (error) throw error;
       
       toast.success("Friend request rejected");
-      
-      // Update UI
-      setFriendRequests(prev => 
-        prev.filter(request => request.id !== requestId)
-      );
-      
-    } catch (error: any) {
+      setReceivedRequests(receivedRequests.filter(request => request.id !== requestId));
+    } catch (error) {
       console.error("Error rejecting friend request:", error);
       toast.error("Failed to reject friend request");
     }
   };
   
-  // Share workout with a friend
-  const shareWorkout = async (friendId: string) => {
-    if (!profile) return;
-    
+  const cancelRequest = async (requestId: string) => {
     try {
-      // Get user's most recent workout
-      const { data: workout, error: workoutError } = await supabase
-        .from('completed_workouts')
-        .select('*')
-        .eq('user_id', profile.id)
-        .order('completed_at', { ascending: false })
-        .limit(1)
-        .single();
-        
-      if (workoutError) {
-        toast.error("You don't have any completed workouts to share");
-        return;
-      }
-      
-      // Create workout share
       const { error } = await supabase
-        .from('workout_shares')
-        .insert({
-          sender_id: profile.id,
-          receiver_id: friendId,
-          workout_id: workout.id,
-          message: `Check out my ${workout.workout_title} workout!`
-        });
+        .from('friends')
+        .delete()
+        .eq('id', requestId);
         
       if (error) throw error;
       
-      toast.success("Workout shared successfully!");
+      toast.success("Friend request canceled");
+      setSentRequests(sentRequests.filter(request => request.id !== requestId));
+    } catch (error) {
+      console.error("Error canceling friend request:", error);
+      toast.error("Failed to cancel friend request");
+    }
+  };
+  
+  const getUserInitials = (profile?: UserProfile): string => {
+    if (!profile) return "?";
+    
+    if (profile.first_name || profile.last_name) {
+      const first = profile.first_name ? profile.first_name[0] : "";
+      const last = profile.last_name ? profile.last_name[0] : "";
+      return (first + last).toUpperCase();
+    }
+    
+    return "?";
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-fitness-primary" />
+        <span className="ml-2">Loading friend requests...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <Tabs defaultValue="received" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="received">
+            Received Requests ({receivedRequests.length})
+          </TabsTrigger>
+          <TabsTrigger value="sent">
+            Sent Requests ({sentRequests.length})
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="received">
+          {receivedRequests.length === 0 ? (
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
+              <p className="text-gray-500">No pending friend requests</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {receivedRequests.map((request) => (
+                <div 
+                  key={request.id} 
+                  className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 flex justify-between items-center"
+                >
+                  <div className="flex items-center">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="bg-fitness-primary text-white">
+                        {getUserInitials(request.profile)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="ml-3">
+                      <h3 className="font-medium">
+                        {request.profile?.first_name} {request.profile?.last_name}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        Wants to connect with you
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button 
+                      onClick={() => acceptRequest(request.id)} 
+                      className="bg-green-500 hover:bg-green-600"
+                    >
+                      <Check className="h-4 w-4 mr-1" />
+                      Accept
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => rejectRequest(request.id)}
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="sent">
+          {sentRequests.length === 0 ? (
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
+              <p className="text-gray-500">No pending sent requests</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {sentRequests.map((request) => (
+                <div 
+                  key={request.id} 
+                  className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 flex justify-between items-center"
+                >
+                  <div className="flex items-center">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="bg-fitness-primary text-white">
+                        {getUserInitials(request.profile)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="ml-3">
+                      <h3 className="font-medium">
+                        {request.profile?.first_name} {request.profile?.last_name}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        Request pending
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline"
+                    onClick={() => cancelRequest(request.id)}
+                  >
+                    Cancel Request
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+const ActivityFeed: React.FC = () => {
+  const { user } = useAuth();
+  const [activities, setActivities] = useState<ActivityFeedType[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchActivities = async () => {
+      if (!user) return;
       
-    } catch (error: any) {
-      console.error("Error sharing workout:", error);
-      toast.error("Failed to share workout");
+      setLoading(true);
+      
+      try {
+        // Fetch user's friends
+        const { data: friends, error: friendsError } = await supabase
+          .from('friends')
+          .select('user_id, friend_id')
+          .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
+          .eq('status', 'accepted');
+          
+        if (friendsError) throw friends;
+        
+        // Get list of friend IDs
+        const friendIds = friends ? friends.flatMap(f => [f.user_id, f.friend_id]).filter(id => id !== user.id) : [];
+        
+        // Fetch activities from friends and user
+        const { data: activitiesData, error: activitiesError } = await supabase
+          .from('activity_feed')
+          .select(`
+            *,
+            profile:user_profiles!activity_feed_user_id_fkey(*)
+          `)
+          .in('user_id', [user.id, ...friendIds])
+          .order('created_at', { ascending: false })
+          .limit(50);
+          
+        if (activitiesError) throw activitiesError;
+        
+        setActivities(activitiesData || []);
+      } catch (error) {
+        console.error("Error fetching activity feed:", error);
+        toast.error("Failed to load activity feed");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchActivities();
+  }, [user]);
+  
+  const getUserInitials = (profile?: UserProfile): string => {
+    if (!profile) return "?";
+    
+    if (profile.first_name || profile.last_name) {
+      const first = profile.first_name ? profile.first_name[0] : "";
+      const last = profile.last_name ? profile.last_name[0] : "";
+      return (first + last).toUpperCase();
+    }
+    
+    return "?";
+  };
+  
+  const formatActivityContent = (activity: ActivityFeedType): string => {
+    const userName = `${activity.profile?.first_name || 'Someone'} ${activity.profile?.last_name || ''}`.trim();
+    
+    switch (activity.activity_type) {
+      case 'workout_completed':
+        return `${userName} completed a ${activity.content.workout_name} workout`;
+      case 'new_friend':
+        return `${userName} connected with ${activity.content.friend_name || 'a new friend'}`;
+      case 'goal_completed':
+        return `${userName} achieved their goal: ${activity.content.goal_name}`;
+      case 'new_progress':
+        return `${userName} logged new progress`;
+      default:
+        return `${userName} did something`;
+    }
+  };
+  
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInDays = Math.floor(diffInHours / 24);
+    
+    if (diffInDays > 7) {
+      return date.toLocaleDateString();
+    } else if (diffInDays > 0) {
+      return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    } else if (diffInHours > 0) {
+      return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    } else if (diffInMinutes > 0) {
+      return `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`;
+    } else {
+      return 'Just now';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-fitness-primary" />
+        <span className="ml-2">Loading activity feed...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {activities.length === 0 ? (
+        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <p className="text-gray-500">No activities to show</p>
+        </div>
+      ) : (
+        activities.map((activity) => (
+          <div 
+            key={activity.id} 
+            className="bg-white dark:bg-gray-800 rounded-lg shadow p-4"
+          >
+            <div className="flex items-start">
+              <Avatar className="h-10 w-10">
+                <AvatarFallback className="bg-fitness-primary text-white">
+                  {getUserInitials(activity.profile)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="ml-3 flex-1">
+                <p>{formatActivityContent(activity)}</p>
+                <div className="text-sm text-gray-500 mt-1">
+                  {formatDate(activity.created_at)}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+};
+
+const Friends: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const activeTab = location.pathname.includes("requests") 
+    ? "requests"
+    : location.pathname.includes("activity")
+    ? "activity"
+    : "friends";
+
+  const handleTabChange = (value: string) => {
+    switch (value) {
+      case "friends":
+        navigate("/friends");
+        break;
+      case "requests":
+        navigate("/friends/requests");
+        break;
+      case "activity":
+        navigate("/friends/activity");
+        break;
     }
   };
 
   return (
-    <DashboardLayout title="Friends">
+    <DashboardLayout title="Friends & Social">
       <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-2">Your Fitness Network</h2>
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Connect with friends, share workouts, and get motivated together.
+          Connect with other fitness enthusiasts, view activity feeds, and manage friend requests.
         </p>
         
-        <Tabs defaultValue="friends" className="mb-8">
-          <TabsList className="mb-6">
-            <TabsTrigger value="friends" className="flex items-center">
-              <Users className="h-4 w-4 mr-2" />
-              Friends ({friends.length})
-            </TabsTrigger>
-            <TabsTrigger value="requests" className="flex items-center">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Requests ({friendRequests.length})
-            </TabsTrigger>
-            <TabsTrigger value="find" className="flex items-center">
-              <Search className="h-4 w-4 mr-2" />
-              Find Friends
-            </TabsTrigger>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="friends">Friends</TabsTrigger>
+            <TabsTrigger value="requests">Friend Requests</TabsTrigger>
+            <TabsTrigger value="activity">Activity Feed</TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="friends">
-            {friends.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {friends.map((friend) => (
-                  <Card key={friend.id} className="overflow-hidden">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-4">
-                        <Avatar className="h-16 w-16 border">
-                          <AvatarImage src={friend.friend.avatar_url || undefined} />
-                          <AvatarFallback>
-                            {friend.friend.first_name?.[0] || ''}
-                            {friend.friend.last_name?.[0] || ''}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="font-semibold text-lg">
-                            {friend.friend.first_name} {friend.friend.last_name}
-                          </h3>
-                          <p className="text-sm text-gray-500">
-                            {friend.friend.email}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                              {friend.friend.fitness_goal?.replace('-', ' ')}
-                            </span>
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                              {friend.friend.workouts_count} workouts
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="px-6 py-4 bg-gray-50 dark:bg-gray-800">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="ml-auto"
-                        onClick={() => shareWorkout(friend.friend.id)}
-                      >
-                        <Share2 className="h-4 w-4 mr-2" />
-                        Share Workout
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-semibold mb-2">No friends yet</h3>
-                <p className="text-gray-500 mb-4">
-                  Find and add friends to share your fitness journey.
-                </p>
-                <Button onClick={() => document.querySelector('[data-value="find"]')?.click()}>
-                  Find Friends
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="requests">
-            {friendRequests.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {friendRequests.map((request) => (
-                  <Card key={request.id} className="overflow-hidden">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-4">
-                        <Avatar className="h-16 w-16 border">
-                          <AvatarImage src={request.sender.avatar_url || undefined} />
-                          <AvatarFallback>
-                            {request.sender.first_name?.[0] || ''}
-                            {request.sender.last_name?.[0] || ''}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="font-semibold text-lg">
-                            {request.sender.first_name} {request.sender.last_name}
-                          </h3>
-                          <p className="text-sm text-gray-500">
-                            {request.sender.email}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                              {request.sender.fitness_goal?.replace('-', ' ')}
-                            </span>
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                              {request.sender.workouts_count} workouts
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="px-6 py-4 bg-gray-50 dark:bg-gray-800">
-                      <div className="flex gap-2 ml-auto">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => rejectFriendRequest(request.id)}
-                        >
-                          <X className="h-4 w-4 mr-1" />
-                          Decline
-                        </Button>
-                        <Button 
-                          size="sm"
-                          onClick={() => acceptFriendRequest(request.id, request.sender_id)}
-                        >
-                          <Check className="h-4 w-4 mr-1" />
-                          Accept
-                        </Button>
-                      </div>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <UserPlus className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-semibold mb-2">No pending requests</h3>
-                <p className="text-gray-500">
-                  You don't have any friend requests at the moment.
-                </p>
-              </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="find">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6">
-              <form onSubmit={handleSearch} className="mb-6">
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Search by name..."
-                      className="pl-9"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <Button type="submit" disabled={isSearching}>
-                    {isSearching ? "Searching..." : "Search"}
-                  </Button>
-                </div>
-              </form>
-              
-              {searchResults.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {searchResults.map((user) => (
-                    <Card key={user.id} className="overflow-hidden">
-                      <CardContent className="p-6">
-                        <div className="flex items-center gap-4">
-                          <Avatar className="h-16 w-16 border">
-                            <AvatarImage src={user.avatar_url || undefined} />
-                            <AvatarFallback>
-                              {user.first_name?.[0] || ''}
-                              {user.last_name?.[0] || ''}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <h3 className="font-semibold text-lg">
-                              {user.first_name} {user.last_name}
-                            </h3>
-                            <p className="text-sm text-gray-500">
-                              {user.email}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                                {user.fitness_goal?.replace('-', ' ')}
-                              </span>
-                              <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                                {user.workouts_count} workouts
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="px-6 py-4 bg-gray-50 dark:bg-gray-800">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="ml-auto"
-                          onClick={() => sendFriendRequest(user.id)}
-                        >
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Add Friend
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              ) : searchQuery && !isSearching ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No users found matching "{searchQuery}"</p>
-                </div>
-              ) : null}
-            </div>
-          </TabsContent>
         </Tabs>
+        
+        <Routes>
+          <Route path="/" element={<FriendsList />} />
+          <Route path="/requests" element={<FriendRequests />} />
+          <Route path="/activity" element={<ActivityFeed />} />
+        </Routes>
       </div>
     </DashboardLayout>
   );
 };
 
-export default Friends; 
+export default Friends;
