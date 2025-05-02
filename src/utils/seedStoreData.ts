@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 // Function to seed grocery store data into the database
@@ -98,7 +99,10 @@ export const seedGroceryStores = async () => {
     
     for (const store of storeData) {
       const { error } = await supabase.from('grocery_stores').insert(store);
-      if (error) throw error;
+      if (error) {
+        console.error("Error inserting store:", error);
+        throw error;
+      }
     }
     
     console.log("Successfully seeded grocery store data");

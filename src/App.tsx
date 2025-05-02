@@ -1,4 +1,3 @@
-
 import React, { Suspense, lazy, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -8,7 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LoadingSpinner from "./components/ui/LoadingSpinner";
-import { seedGroceryStores } from "@/utils/seedStoreData";
+import { seedGroceryStores } from "./utils/seedStoreData";
 
 // Lazy load page components
 const Index = lazy(() => import("./pages/Index"));
