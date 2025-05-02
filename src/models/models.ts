@@ -1,3 +1,4 @@
+
 // Types for user data
 export interface UserProfile {
   id: string;
@@ -153,3 +154,25 @@ export interface CalendarEvent {
 
 // Add Json type from Supabase to use in our application
 export type Json = import('@/integrations/supabase/types').Json;
+
+// Add WorkoutPlan interfaces to match database schema
+export interface WorkoutDay {
+  day: string;
+  focus: string;
+  duration: number;
+}
+
+export interface WorkoutPlanExercise {
+  name: string;
+  sets: number;
+  reps: string;
+  muscle: string;
+}
+
+export interface WorkoutPlanInsert {
+  title: string;
+  description: string | null;
+  fitness_goal: string;
+  weekly_structure: Json;
+  exercises: Json;
+}

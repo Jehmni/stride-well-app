@@ -20,7 +20,7 @@ import WorkoutCard from "@/components/dashboard/WorkoutCard";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Json } from "@/models/models";
+import { Json, WorkoutDay, WorkoutPlanExercise, WorkoutPlanInsert } from "@/models/models";
 
 // Types for workout data
 interface WorkoutExercise {
@@ -28,12 +28,6 @@ interface WorkoutExercise {
   sets: number;
   reps: string;
   muscle: string;
-}
-
-interface WorkoutDay {
-  day: string;
-  focus: string;
-  duration: number;
 }
 
 interface WorkoutPlan {
@@ -417,7 +411,7 @@ const WorkoutPlan: React.FC = () => {
       // Insert one plan at a time to avoid array insertion issues
       for (const plan of workoutPlans) {
         // Make sure the plan object matches the expected structure for the workout_plans table
-        const formattedPlan = {
+        const formattedPlan: WorkoutPlanInsert = {
           title: plan.title,
           description: plan.description,
           fitness_goal: plan.fitness_goal,
