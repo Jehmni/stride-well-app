@@ -410,6 +410,35 @@ const WorkoutPlan: React.FC = () => {
     return days[dayNumber];
   };
 
+  // Fix the insertWorkoutPlan function to properly format the data for Supabase
+  const insertWorkoutPlan = async (workoutPlans) => {
+    try {
+      // Create properly formatted plans
+      const formattedPlans = workoutPlans.map(plan => ({
+        title: plan.title,
+        description: plan.description,
+        fitness_goal: plan.fitness_goal,
+        weekly_structure: plan.weekly_structure, // Ensure this is JSON compatible
+        exercises: plan.exercises // Ensure this is JSON compatible
+      }));
+
+      // Insert one plan at a time to avoid array insertion issues
+      for (const plan of formattedPlans) {
+        const { error } = await supabase
+          .from('workout_plans')
+          .insert(plan);
+          
+        if (error) throw error;
+      }
+      
+      console.log("Workout plans inserted successfully");
+      return true;
+    } catch (error) {
+      console.error("Error inserting workout plans:", error);
+      return false;
+    }
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout title="Workout Plans">
