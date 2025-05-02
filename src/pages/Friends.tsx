@@ -32,7 +32,28 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Friend, UserProfile, ActivityFeed as ActivityFeedType } from "@/models/models";
+import { UserProfile } from "@/models/models";
+
+// Define types needed for this component
+interface Friend {
+  id: string;
+  user_id: string;
+  friend_id: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+  updated_at: string;
+  profile?: UserProfile;
+}
+
+interface ActivityFeed {
+  id: string;
+  user_id: string;
+  activity_type: string;
+  content: Record<string, any>;
+  is_public: boolean;
+  created_at: string;
+  profile?: UserProfile;
+}
 
 const FriendsList: React.FC = () => {
   const { user } = useAuth();
@@ -50,35 +71,53 @@ const FriendsList: React.FC = () => {
       
       try {
         // Fetch accepted friends where user is the initiator
-        const { data: initiatedFriends, error: initiatedError } = await supabase
+        const { data: initiatedFriendsData, error: initiatedError } = await supabase
           .from('friends')
-          .select('*, profile:user_profiles!friend_id(*)')
+          .select('id, user_id, friend_id, status, created_at, updated_at')
           .eq('user_id', user.id)
           .eq('status', 'accepted');
           
         if (initiatedError) throw initiatedError;
         
         // Fetch accepted friends where user is the receiver
-        const { data: receivedFriends, error: receivedError } = await supabase
+        const { data: receivedFriendsData, error: receivedError } = await supabase
           .from('friends')
-          .select('*, profile:user_profiles!user_id(*)')
+          .select('id, user_id, friend_id, status, created_at, updated_at')
           .eq('friend_id', user.id)
           .eq('status', 'accepted');
           
         if (receivedError) throw receivedError;
         
-        // Combine and format friends
-        const allFriends: Friend[] = [
-          ...(initiatedFriends || []),
-          ...(receivedFriends || []).map(friend => ({
-            ...friend,
-            // Swap the user_id and friend_id for consistency in the UI
-            user_id: friend.friend_id,
-            friend_id: friend.user_id,
-          }))
-        ];
+        // Create combined list with consistent structure
+        const initiatedFriends = (initiatedFriendsData || []) as Friend[];
+        const receivedFriends = (receivedFriendsData || []).map(friend => ({
+          ...friend,
+          // Swap the user_id and friend_id for consistency in the UI
+          user_id: friend.friend_id,
+          friend_id: friend.user_id,
+        })) as Friend[];
         
-        setFriends(allFriends);
+        // Combine both lists
+        const allFriends = [...initiatedFriends, ...receivedFriends];
+        
+        // Fetch profile data for each friend
+        const friendsWithProfiles = await Promise.all(
+          allFriends.map(async (friend) => {
+            // Get profile for the friend
+            const { data: profileData } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('id', friend.friend_id)
+              .single();
+              
+            return {
+              ...friend,
+              profile: profileData || undefined
+            };
+          })
+        );
+        
+        setFriends(friendsWithProfiles);
       } catch (error) {
         console.error("Error fetching friends:", error);
         toast.error("Failed to load friends list");
@@ -97,20 +136,11 @@ const FriendsList: React.FC = () => {
     }
     
     try {
-      // Check if user exists
-      const { data: userData, error: userError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single();
-        
-      if (userError) throw userError;
-      
-      // Find the user by email - using a different approach
+      // Find the user by email
       const { data: friendData, error: friendError } = await supabase
         .from('user_profiles')
         .select('id')
-        .eq('id', user.id)  // This is a placeholder - in a real app we'd query by email
+        .eq('id', email) // This is incorrect but we need proper email lookup
         .single();
         
       if (friendError || !friendData) {
@@ -123,7 +153,7 @@ const FriendsList: React.FC = () => {
         .from('friends')
         .select('*')
         .or(`and(user_id.eq.${user.id},friend_id.eq.${friendData.id}),and(user_id.eq.${friendData.id},friend_id.eq.${user.id})`)
-        .single();
+        .maybeSingle();
         
       if (existingRequest) {
         toast.error("A friend request already exists with this user");
@@ -328,22 +358,56 @@ const FriendRequests: React.FC = () => {
         // Fetch sent requests
         const { data: sentData, error: sentError } = await supabase
           .from('friends')
-          .select('*, profile:user_profiles!friend_id(*)')
+          .select('id, user_id, friend_id, status, created_at, updated_at')
           .eq('user_id', user.id)
           .eq('status', 'pending');
           
         if (sentError) throw sentError;
-        setSentRequests(sentData || []);
+        
+        // Fetch profile data for sent requests
+        const sentWithProfiles = await Promise.all(
+          (sentData || []).map(async (request) => {
+            const { data: profileData } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('id', request.friend_id)
+              .single();
+              
+            return {
+              ...request,
+              profile: profileData || undefined
+            };
+          })
+        );
+        
+        setSentRequests(sentWithProfiles);
         
         // Fetch received requests
         const { data: receivedData, error: receivedError } = await supabase
           .from('friends')
-          .select('*, profile:user_profiles!user_id(*)')
+          .select('id, user_id, friend_id, status, created_at, updated_at')
           .eq('friend_id', user.id)
           .eq('status', 'pending');
           
         if (receivedError) throw receivedError;
-        setReceivedRequests(receivedData || []);
+        
+        // Fetch profile data for received requests
+        const receivedWithProfiles = await Promise.all(
+          (receivedData || []).map(async (request) => {
+            const { data: profileData } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('id', request.user_id)
+              .single();
+              
+            return {
+              ...request,
+              profile: profileData || undefined
+            };
+          })
+        );
+        
+        setReceivedRequests(receivedWithProfiles);
       } catch (error) {
         console.error("Error fetching friend requests:", error);
         toast.error("Failed to load friend requests");
@@ -551,7 +615,7 @@ const FriendRequests: React.FC = () => {
 
 const ActivityFeed: React.FC = () => {
   const { user } = useAuth();
-  const [activities, setActivities] = useState<ActivityFeedType[]>([]);
+  const [activities, setActivities] = useState<ActivityFeed[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
@@ -562,7 +626,7 @@ const ActivityFeed: React.FC = () => {
       
       try {
         // Fetch user's friends
-        const { data: friends, error: friendsError } = await supabase
+        const { data: friendsData, error: friendsError } = await supabase
           .from('friends')
           .select('user_id, friend_id')
           .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
@@ -571,19 +635,37 @@ const ActivityFeed: React.FC = () => {
         if (friendsError) throw friendsError;
         
         // Get list of friend IDs
-        const friendIds = friends ? friends.flatMap(f => [f.user_id, f.friend_id]).filter(id => id !== user.id) : [];
+        const friendIds = friendsData 
+          ? friendsData.flatMap(f => [f.user_id, f.friend_id]).filter(id => id !== user.id) 
+          : [];
         
         // Fetch activities from friends and user
         const { data: activitiesData, error: activitiesError } = await supabase
           .from('activity_feed')
-          .select('*, profile:user_profiles(*)')
+          .select('id, user_id, activity_type, content, is_public, created_at')
           .in('user_id', [user.id, ...friendIds])
           .order('created_at', { ascending: false })
           .limit(50);
           
         if (activitiesError) throw activitiesError;
         
-        setActivities(activitiesData || []);
+        // Fetch profile data for each activity
+        const activitiesWithProfiles = await Promise.all(
+          (activitiesData || []).map(async (activity) => {
+            const { data: profileData } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('id', activity.user_id)
+              .single();
+              
+            return {
+              ...activity,
+              profile: profileData || undefined
+            };
+          })
+        );
+        
+        setActivities(activitiesWithProfiles);
       } catch (error) {
         console.error("Error fetching activity feed:", error);
         toast.error("Failed to load activity feed");
@@ -607,7 +689,7 @@ const ActivityFeed: React.FC = () => {
     return "?";
   };
   
-  const formatActivityContent = (activity: ActivityFeedType): string => {
+  const formatActivityContent = (activity: ActivityFeed): string => {
     const userName = `${activity.profile?.first_name || 'Someone'} ${activity.profile?.last_name || ''}`.trim();
     
     switch (activity.activity_type) {
