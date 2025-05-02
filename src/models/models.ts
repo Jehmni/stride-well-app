@@ -1,4 +1,3 @@
-
 // Types for user data
 export interface UserProfile {
   id: string;
@@ -151,3 +150,6 @@ export interface CalendarEvent {
   created_at: string;
   updated_at: string;
 }
+
+// Add Json type from Supabase to use in our application
+export type Json = import('@/integrations/supabase/types').Json;
