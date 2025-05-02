@@ -7,6 +7,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import NearbyStores from "@/components/meal/NearbyStores";
 
 type Meal = {
   id: string;
@@ -347,9 +348,22 @@ const MealPlan: React.FC = () => {
             ))}
           </ul>
         </div>
+        
+        {/* Add NearbyStores component to show stores with ingredients */}
+        <div className="mt-4">
+          <NearbyStores 
+            ingredients={meal.recipe.map(item => item.split(",")[0].trim())}
+            onStoreSelect={(storeId) => {
+              toast.success(`Shopping list sent to your phone for ${meal.name}`);
+            }}
+          />
+        </div>
       </CardContent>
-      <CardFooter className="p-4 pt-0 flex justify-end">
-        <Button size="sm" variant="outline" onClick={() => logMeal(mealType, meal)}>
+      <CardFooter className="p-4 bg-gray-50 dark:bg-gray-800 border-t flex justify-between">
+        <Button size="sm" variant="outline" onClick={() => window.print()}>
+          Print Recipe
+        </Button>
+        <Button size="sm" onClick={() => logMeal(mealType, meal)}>
           Log Meal
         </Button>
       </CardFooter>
