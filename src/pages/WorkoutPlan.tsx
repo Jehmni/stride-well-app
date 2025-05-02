@@ -1,123 +1,44 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Calendar, Clock, Dumbbell, Loader2, PlusCircle, Target, Trash } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import WorkoutCard from "@/components/dashboard/WorkoutCard";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Json, WorkoutDay, WorkoutPlanExercise, WorkoutPlanInsert } from "@/models/models";
-
-// Types for workout data
-interface WorkoutExercise {
-  name: string;
-  sets: number;
-  reps: string;
-  muscle: string;
-}
-
-interface WorkoutPlan {
-  id: string;
-  title: string;
-  description: string;
-  fitness_goal: string;
-  weekly_structure: WorkoutDay[];
-  exercises: WorkoutExercise[];
-}
-
-interface Exercise {
-  id: string;
-  name: string;
-  muscle_group: string;
-  difficulty: string;
-  exercise_type: string;
-  description: string | null;
-}
-
-interface UserWorkout {
-  id: string;
-  name: string;
-  description: string | null;
-  day_of_week: number | null;
-  created_at: string;
-  updated_at: string;
-}
-
-interface WorkoutExerciseDetail {
-  id: string;
-  workout_id: string;
-  exercise_id: string;
-  sets: number;
-  reps: number | null;
-  duration: number | null;
-  rest_time: number;
-  order_position: number;
-  notes: string | null;
-  exercise: Exercise;
-}
-
-interface WorkoutLog {
-  id: string;
-  user_id: string;
-  workout_id: string;
-  completed_at: string;
-  duration?: number;
-  calories_burned?: number;
-  notes?: string;
-  rating?: number;
-}
+import { Exercise } from "@/models/models";
+import WorkoutPlanHeader from "@/components/workout/WorkoutPlanHeader";
+import WeeklyStructure from "@/components/workout/WeeklyStructure";
+import KeyExercises from "@/components/workout/KeyExercises";
+import TodayWorkout from "@/components/workout/TodayWorkout";
+import CustomWorkoutList from "@/components/workout/CustomWorkoutList";
+import WorkoutDetails from "@/components/workout/WorkoutDetails";
+import { 
+  WorkoutPlan as WorkoutPlanType,
+  UserWorkout,
+  WorkoutExerciseDetail,
+  TodayWorkoutProps
+} from "@/components/workout/types";
+import {
+  fetchWorkoutExercises,
+  removeExerciseFromWorkout,
+  deleteWorkout,
+  insertWorkoutPlan
+} from "@/components/workout/workoutUtils";
 
 const WorkoutPlan: React.FC = () => {
   const navigate = useNavigate();
   const { profile, user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
-  const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlan | null>(null);
-  const [todayWorkout, setTodayWorkout] = useState<{
-    title: string;
-    description: string;
-    duration: number;
-    exercises: number;
-    date: string;
-    image: string;
-  } | null>(null);
+  const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlanType | null>(null);
+  const [todayWorkout, setTodayWorkout] = useState<TodayWorkoutProps | null>(null);
   
-  // New states for custom workouts
+  // Custom workouts state
   const [userWorkouts, setUserWorkouts] = useState<UserWorkout[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [showCreateWorkout, setShowCreateWorkout] = useState(false);
-  const [newWorkout, setNewWorkout] = useState({
-    name: "",
-    description: "",
-    dayOfWeek: "0",
-  });
-  
-  // Selected workout for details view
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExerciseDetail[]>([]);
-  
-  // New exercise form
-  const [newExerciseForm, setNewExerciseForm] = useState({
-    exerciseId: "",
-    sets: 3,
-    reps: 10,
-    duration: null,
-    restTime: 60,
-    notes: "",
-  });
 
   // Fetch workout plan based on user's fitness goal
   useEffect(() => {
@@ -136,10 +57,10 @@ const WorkoutPlan: React.FC = () => {
         
         if (workoutPlansError) throw workoutPlansError;
         
-        let plan: WorkoutPlan;
+        let plan: WorkoutPlanType;
         
         if (workoutPlansData && workoutPlansData.length > 0) {
-          plan = workoutPlansData[0] as unknown as WorkoutPlan;
+          plan = workoutPlansData[0] as unknown as WorkoutPlanType;
         } else {
           // Use a default workout plan if none found in the database
           plan = {
@@ -227,205 +148,41 @@ const WorkoutPlan: React.FC = () => {
     fetchWorkoutPlan();
   }, [profile, user?.id]);
   
-  // Function to mark a workout as completed
-  const completeWorkout = async () => {
-    if (!profile || !user) return;
-    
-    try {
-      // Insert into workout_logs table
-      const { data, error } = await supabase
-        .from('workout_logs')
-        .insert({
-          user_id: user.id,
-          workout_id: todayWorkout ? 'today-workout' : 'custom-workout',
-          duration: todayWorkout ? todayWorkout.duration : 30,
-          calories_burned: Math.floor(Math.random() * 200) + 200 // Random calories between 200-400
-        })
-        .select();
-        
-      if (error) throw error;
-      
-      toast.success("Workout marked as completed!");
-    } catch (error: any) {
-      console.error("Error saving completed workout:", error);
-      toast.error("Failed to save workout completion");
-    }
+  // Handle selecting a workout and fetching its exercises
+  const handleSelectWorkout = async (workoutId: string) => {
+    setSelectedWorkout(workoutId);
+    const exercises = await fetchWorkoutExercises(workoutId);
+    setWorkoutExercises(exercises);
   };
-  
-  // Function to create a new custom workout
-  const createWorkout = async () => {
-    if (!user) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('workouts')
-        .insert({
-          name: newWorkout.name,
-          description: newWorkout.description || null,
-          day_of_week: newWorkout.dayOfWeek ? parseInt(newWorkout.dayOfWeek) : null,
-          user_id: user.id
-        })
-        .select();
-        
-      if (error) throw error;
-      
-      toast.success("Workout created successfully!");
-      setUserWorkouts([...(data || []), ...userWorkouts]);
-      setShowCreateWorkout(false);
-      setNewWorkout({
-        name: "",
-        description: "",
-        dayOfWeek: "0"
-      });
-    } catch (error: any) {
-      console.error("Error creating workout:", error);
-      toast.error("Failed to create workout");
-    }
-  };
-  
-  // Function to delete a workout
-  const deleteWorkout = async (workoutId: string) => {
-    try {
-      const { error } = await supabase
-        .from('workouts')
-        .delete()
-        .eq('id', workoutId);
-        
-      if (error) throw error;
-      
-      toast.success("Workout deleted successfully!");
+
+  // Handle workout deletion
+  const handleDeleteWorkout = async (workoutId: string) => {
+    const success = await deleteWorkout(workoutId);
+    if (success) {
       setUserWorkouts(userWorkouts.filter(workout => workout.id !== workoutId));
-      
       if (selectedWorkout === workoutId) {
         setSelectedWorkout(null);
         setWorkoutExercises([]);
       }
-    } catch (error: any) {
-      console.error("Error deleting workout:", error);
-      toast.error("Failed to delete workout");
     }
   };
-  
-  // Function to fetch workout exercises
-  const fetchWorkoutExercises = async (workoutId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('workout_exercises')
-        .select(`
-          *,
-          exercise:exercises(*)
-        `)
-        .eq('workout_id', workoutId)
-        .order('order_position', { ascending: true });
-        
-      if (error) throw error;
-      
-      setWorkoutExercises(data || []);
-    } catch (error: any) {
-      console.error("Error fetching workout exercises:", error);
-      toast.error("Failed to load workout details");
-    }
-  };
-  
-  // Function to add an exercise to a workout
-  const addExerciseToWorkout = async () => {
-    if (!selectedWorkout || !newExerciseForm.exerciseId) return;
-    
-    try {
-      // Get the next order position
-      const nextPosition = workoutExercises.length > 0 
-        ? Math.max(...workoutExercises.map(ex => ex.order_position)) + 1 
-        : 0;
-      
-      const { data, error } = await supabase
-        .from('workout_exercises')
-        .insert({
-          workout_id: selectedWorkout,
-          exercise_id: newExerciseForm.exerciseId,
-          sets: newExerciseForm.sets,
-          reps: newExerciseForm.reps,
-          duration: newExerciseForm.duration,
-          rest_time: newExerciseForm.restTime,
-          order_position: nextPosition,
-          notes: newExerciseForm.notes || null
-        })
-        .select(`
-          *,
-          exercise:exercises(*)
-        `);
-        
-      if (error) throw error;
-      
-      toast.success("Exercise added to workout!");
-      setWorkoutExercises([...workoutExercises, ...(data || [])]);
-      
-      // Reset form
-      setNewExerciseForm({
-        exerciseId: "",
-        sets: 3,
-        reps: 10,
-        duration: null,
-        restTime: 60,
-        notes: "",
-      });
-    } catch (error: any) {
-      console.error("Error adding exercise to workout:", error);
-      toast.error("Failed to add exercise to workout");
-    }
-  };
-  
-  // Function to remove an exercise from a workout
-  const removeExerciseFromWorkout = async (exerciseId: string) => {
-    try {
-      const { error } = await supabase
-        .from('workout_exercises')
-        .delete()
-        .eq('id', exerciseId);
-        
-      if (error) throw error;
-      
-      toast.success("Exercise removed from workout!");
+
+  // Handle removing an exercise
+  const handleRemoveExercise = async (exerciseId: string) => {
+    const success = await removeExerciseFromWorkout(exerciseId);
+    if (success) {
       setWorkoutExercises(workoutExercises.filter(ex => ex.id !== exerciseId));
-    } catch (error: any) {
-      console.error("Error removing exercise:", error);
-      toast.error("Failed to remove exercise");
     }
   };
 
-  // Get day name from number
-  const getDayName = (dayNumber: number | null) => {
-    if (dayNumber === null) return "Any day";
-    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    return days[dayNumber];
+  // Handle adding a new workout
+  const handleWorkoutCreated = (workout: UserWorkout) => {
+    setUserWorkouts([workout, ...userWorkouts]);
   };
 
-  // Fixed function to properly format the data for Supabase
-  const insertWorkoutPlan = async (workoutPlans: any[]) => {
-    try {
-      // Insert one plan at a time to avoid array insertion issues
-      for (const plan of workoutPlans) {
-        // Make sure the plan object matches the expected structure for the workout_plans table
-        const formattedPlan: WorkoutPlanInsert = {
-          title: plan.title,
-          description: plan.description,
-          fitness_goal: plan.fitness_goal,
-          weekly_structure: plan.weekly_structure as Json,
-          exercises: plan.exercises as Json
-        };
-
-        const { error } = await supabase
-          .from('workout_plans')
-          .insert(formattedPlan);
-          
-        if (error) throw error;
-      }
-      
-      console.log("Workout plans inserted successfully");
-      return true;
-    } catch (error) {
-      console.error("Error inserting workout plans:", error);
-      return false;
-    }
+  // Handle adding a new exercise
+  const handleExerciseAdded = (exercise: WorkoutExerciseDetail) => {
+    setWorkoutExercises([...workoutExercises, exercise]);
   };
 
   if (isLoading) {
@@ -456,395 +213,31 @@ const WorkoutPlan: React.FC = () => {
 
   return (
     <DashboardLayout title="Workout Plans">
-      <div className="mb-8">
-        <h2 className="text-2xl font-semibold mb-4">{workoutPlan.title}</h2>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
-          {workoutPlan.description}
-        </p>
-        
-        <div className="bg-fitness-primary bg-opacity-10 p-6 rounded-lg mb-8">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <Target className="mr-2 h-5 w-5" />
-            Weekly Structure
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
-            {workoutPlan.weekly_structure.map((day, index) => (
-              <div 
-                key={index}
-                className={`p-4 rounded-lg border ${
-                  new Date().getDay() === (index + 1) % 7 ? 
-                  'border-fitness-primary bg-fitness-primary bg-opacity-5' : 
-                  'border-gray-200 dark:border-gray-700'
-                }`}
-              >
-                <p className="font-medium">{day.day}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{day.focus}</p>
-                {day.duration > 0 ? (
-                  <div className="flex items-center mt-2 text-xs text-gray-500">
-                    <Clock className="h-3 w-3 mr-1" />
-                    <span>{day.duration} mins</span>
-                  </div>
-                ) : (
-                  <div className="mt-2 text-xs text-gray-500">Rest Day</div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <Dumbbell className="mr-2 h-5 w-5" />
-            Key Exercises
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
-              <thead className="bg-gray-100 dark:bg-gray-700">
-                <tr>
-                  <th className="py-3 px-4 text-left">Exercise</th>
-                  <th className="py-3 px-4 text-left">Sets</th>
-                  <th className="py-3 px-4 text-left">Reps</th>
-                  <th className="py-3 px-4 text-left">Target Muscle</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {workoutPlan.exercises.map((exercise, index) => (
-                  <tr key={index}>
-                    <td className="py-3 px-4">{exercise.name}</td>
-                    <td className="py-3 px-4">{exercise.sets}</td>
-                    <td className="py-3 px-4">{exercise.reps}</td>
-                    <td className="py-3 px-4">{exercise.muscle}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      <WorkoutPlanHeader workoutPlan={workoutPlan} />
+      <WeeklyStructure weeklyStructure={workoutPlan.weekly_structure} />
+      <KeyExercises exercises={workoutPlan.exercises} />
 
       {todayWorkout && (
-        <div className="mb-8">
-          <h3 className="text-xl font-semibold mb-4 flex items-center">
-            <Calendar className="mr-2 h-5 w-5" />
-            Today's Workout
-          </h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <WorkoutCard
-              title={todayWorkout.title}
-              description={todayWorkout.description}
-              duration={todayWorkout.duration}
-              exercises={todayWorkout.exercises}
-              date={todayWorkout.date}
-              image={todayWorkout.image}
-            />
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h4 className="text-lg font-medium mb-4">Ready to start?</h4>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Complete this workout to track your progress and stay on track with your fitness goals.
-              </p>
-              <div className="space-y-4">
-                <Button 
-                  className="w-full"
-                  onClick={completeWorkout}
-                >
-                  Mark as Completed <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => navigate("/progress")}
-                >
-                  View Your Progress
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <TodayWorkout todayWorkout={todayWorkout} userId={user?.id} />
       )}
       
-      {/* Custom Workouts Section */}
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-semibold flex items-center">
-            <Dumbbell className="mr-2 h-5 w-5" />
-            Your Custom Workouts
-          </h3>
-          <Dialog open={showCreateWorkout} onOpenChange={setShowCreateWorkout}>
-            <DialogTrigger asChild>
-              <Button>
-                <PlusCircle className="h-4 w-4 mr-2" />
-                New Workout
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New Workout</DialogTitle>
-                <DialogDescription>
-                  Create a custom workout tailored to your fitness goals.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Workout Name</Label>
-                  <Input
-                    id="name"
-                    placeholder="e.g., Upper Body Strength"
-                    value={newWorkout.name}
-                    onChange={(e) => setNewWorkout({...newWorkout, name: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description (optional)</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Describe your workout..."
-                    value={newWorkout.description}
-                    onChange={(e) => setNewWorkout({...newWorkout, description: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="day">Preferred Day</Label>
-                  <Select 
-                    value={newWorkout.dayOfWeek}
-                    onValueChange={(value) => setNewWorkout({...newWorkout, dayOfWeek: value})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a day" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="null">Any day</SelectItem>
-                      <SelectItem value="0">Monday</SelectItem>
-                      <SelectItem value="1">Tuesday</SelectItem>
-                      <SelectItem value="2">Wednesday</SelectItem>
-                      <SelectItem value="3">Thursday</SelectItem>
-                      <SelectItem value="4">Friday</SelectItem>
-                      <SelectItem value="5">Saturday</SelectItem>
-                      <SelectItem value="6">Sunday</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowCreateWorkout(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={createWorkout} disabled={!newWorkout.name}>
-                  Create Workout
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-        
-        {userWorkouts.length === 0 ? (
-          <div className="text-center py-10 bg-white dark:bg-gray-800 rounded-lg shadow">
-            <Dumbbell className="h-12 w-12 mx-auto text-gray-400" />
-            <h3 className="mt-4 text-lg font-medium">No Custom Workouts Yet</h3>
-            <p className="mt-2 text-gray-500 max-w-sm mx-auto">
-              Create your first custom workout to start tracking your fitness journey.
-            </p>
-            <Button 
-              className="mt-4" 
-              variant="outline"
-              onClick={() => setShowCreateWorkout(true)}
-            >
-              Create Your First Workout
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {userWorkouts.map((workout) => (
-              <div
-                key={workout.id}
-                className={`p-4 rounded-lg border hover:shadow-md transition-shadow cursor-pointer ${
-                  selectedWorkout === workout.id
-                    ? 'border-fitness-primary bg-fitness-primary bg-opacity-5'
-                    : 'border-gray-200 dark:border-gray-700'
-                }`}
-                onClick={() => {
-                  setSelectedWorkout(workout.id);
-                  fetchWorkoutExercises(workout.id);
-                }}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-medium">{workout.name}</h4>
-                    {workout.description && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        {workout.description}
-                      </p>
-                    )}
-                    <p className="text-xs text-gray-500 mt-2">
-                      {getDayName(workout.day_of_week)}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteWorkout(workout.id);
-                    }}
-                  >
-                    <Trash className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <CustomWorkoutList 
+        userId={user?.id}
+        userWorkouts={userWorkouts}
+        selectedWorkout={selectedWorkout}
+        onSelectWorkout={handleSelectWorkout}
+        onDeleteWorkout={handleDeleteWorkout}
+        onWorkoutCreated={handleWorkoutCreated}
+      />
       
-      {/* Workout Details Section */}
-      {selectedWorkout && (
-        <div className="mt-8">
-          <h3 className="text-xl font-semibold mb-4">
-            {userWorkouts.find(w => w.id === selectedWorkout)?.name} - Exercises
-          </h3>
-          
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
-            <h4 className="text-lg font-medium mb-4">Add Exercise</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="exercise">Select Exercise</Label>
-                <Select
-                  value={newExerciseForm.exerciseId}
-                  onValueChange={(value) => 
-                    setNewExerciseForm({...newExerciseForm, exerciseId: value})
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose an exercise" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {exercises.map((exercise) => (
-                      <SelectItem key={exercise.id} value={exercise.id}>
-                        {exercise.name} ({exercise.muscle_group})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label htmlFor="sets">Sets</Label>
-                <Input
-                  id="sets"
-                  type="number"
-                  min={1}
-                  value={newExerciseForm.sets}
-                  onChange={(e) => 
-                    setNewExerciseForm({
-                      ...newExerciseForm, 
-                      sets: parseInt(e.target.value) || 1
-                    })
-                  }
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="reps">Reps</Label>
-                <Input
-                  id="reps"
-                  type="number"
-                  min={1}
-                  value={newExerciseForm.reps}
-                  onChange={(e) => 
-                    setNewExerciseForm({
-                      ...newExerciseForm, 
-                      reps: parseInt(e.target.value) || 1
-                    })
-                  }
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="restTime">Rest Time (seconds)</Label>
-                <Input
-                  id="restTime"
-                  type="number"
-                  min={0}
-                  value={newExerciseForm.restTime}
-                  onChange={(e) => 
-                    setNewExerciseForm({
-                      ...newExerciseForm, 
-                      restTime: parseInt(e.target.value) || 0
-                    })
-                  }
-                />
-              </div>
-              
-              <div className="md:col-span-2">
-                <Label htmlFor="notes">Notes (optional)</Label>
-                <Input
-                  id="notes"
-                  placeholder="Any special instructions or notes"
-                  value={newExerciseForm.notes || ""}
-                  onChange={(e) => 
-                    setNewExerciseForm({...newExerciseForm, notes: e.target.value})
-                  }
-                />
-              </div>
-            </div>
-            <Button 
-              className="mt-4" 
-              onClick={addExerciseToWorkout}
-              disabled={!newExerciseForm.exerciseId}
-            >
-              Add to Workout
-            </Button>
-          </div>
-          
-          {workoutExercises.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
-                <thead className="bg-gray-100 dark:bg-gray-700">
-                  <tr>
-                    <th className="py-3 px-4 text-left">Exercise</th>
-                    <th className="py-3 px-4 text-left">Sets</th>
-                    <th className="py-3 px-4 text-left">Reps</th>
-                    <th className="py-3 px-4 text-left">Rest</th>
-                    <th className="py-3 px-4 text-left">Notes</th>
-                    <th className="py-3 px-4 text-left">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {workoutExercises.map((ex) => (
-                    <tr key={ex.id}>
-                      <td className="py-3 px-4">
-                        <div>
-                          <div className="font-medium">{ex.exercise.name}</div>
-                          <div className="text-xs text-gray-500">{ex.exercise.muscle_group}</div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">{ex.sets}</td>
-                      <td className="py-3 px-4">{ex.reps || '-'}</td>
-                      <td className="py-3 px-4">{ex.rest_time}s</td>
-                      <td className="py-3 px-4">{ex.notes || '-'}</td>
-                      <td className="py-3 px-4">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                          onClick={() => removeExerciseFromWorkout(ex.id)}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-8 bg-white dark:bg-gray-800 rounded-lg">
-              <p className="text-gray-500">No exercises added to this workout yet.</p>
-            </div>
-          )}
-        </div>
-      )}
+      <WorkoutDetails
+        selectedWorkout={selectedWorkout}
+        userWorkouts={userWorkouts}
+        workoutExercises={workoutExercises}
+        exercises={exercises}
+        onExerciseAdded={handleExerciseAdded}
+        onRemoveExercise={handleRemoveExercise}
+      />
     </DashboardLayout>
   );
 };
