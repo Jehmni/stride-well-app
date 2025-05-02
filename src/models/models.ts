@@ -1,3 +1,4 @@
+
 // Types for user data
 export interface UserProfile {
   id: string;

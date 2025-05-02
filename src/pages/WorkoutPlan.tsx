@@ -168,13 +168,7 @@ const WorkoutPlan: React.FC = () => {
           
           // Optionally save this default plan to the database
           try {
-            await supabase.from('workout_plans').insert([{
-              title: plan.title,
-              description: plan.description,
-              fitness_goal: plan.fitness_goal,
-              weekly_structure: plan.weekly_structure,
-              exercises: plan.exercises
-            }]);
+            await insertWorkoutPlan([plan]);
           } catch (insertError) {
             console.error("Error saving default workout plan:", insertError);
           }
