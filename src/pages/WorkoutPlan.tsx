@@ -20,6 +20,7 @@ import WorkoutCard from "@/components/dashboard/WorkoutCard";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Json } from "@/integrations/supabase/types";
 
 // Types for workout data
 interface WorkoutExercise {
@@ -413,20 +414,20 @@ const WorkoutPlan: React.FC = () => {
   // Fix the insertWorkoutPlan function to properly format the data for Supabase
   const insertWorkoutPlan = async (workoutPlans) => {
     try {
-      // Create properly formatted plans
-      const formattedPlans = workoutPlans.map(plan => ({
-        title: plan.title,
-        description: plan.description,
-        fitness_goal: plan.fitness_goal,
-        weekly_structure: plan.weekly_structure, // Ensure this is JSON compatible
-        exercises: plan.exercises // Ensure this is JSON compatible
-      }));
-
       // Insert one plan at a time to avoid array insertion issues
-      for (const plan of formattedPlans) {
+      for (const plan of workoutPlans) {
+        // Make sure the plan object matches the expected structure for the workout_plans table
+        const formattedPlan = {
+          title: plan.title,
+          description: plan.description,
+          fitness_goal: plan.fitness_goal,
+          weekly_structure: plan.weekly_structure as Json,
+          exercises: plan.exercises as Json
+        };
+
         const { error } = await supabase
           .from('workout_plans')
-          .insert(plan);
+          .insert(formattedPlan);
           
         if (error) throw error;
       }
