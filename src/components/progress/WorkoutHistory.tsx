@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { WorkoutLog, Workout, WorkoutExercise } from "@/models/models";
+import { WorkoutLog, Workout, WorkoutExercise, SelectQueryError } from "@/models/models";
 import { format, parseISO, subDays } from "date-fns";
 
 const WorkoutHistory: React.FC = () => {
@@ -51,12 +51,15 @@ const WorkoutHistory: React.FC = () => {
           
         if (error) throw error;
         
-        // Filter out logs where workout relation failed
-        const validLogs = data
-          .filter(log => log.workout && !('error' in log.workout))
+        // Filter out logs where workout relation failed and cast to WorkoutLog[]
+        const validLogs = (data || [])
+          .filter(log => {
+            // Check if workout exists and is not an error object
+            return log.workout && typeof log.workout === 'object' && !('error' in log.workout);
+          })
           .map(log => ({
             ...log,
-            workout: log.workout || null
+            workout: log.workout as Workout
           })) as WorkoutLog[];
         
         setWorkoutLogs(validLogs);

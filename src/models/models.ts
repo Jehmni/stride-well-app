@@ -1,3 +1,4 @@
+
 // Types for user data
 export interface UserProfile {
   id: string;
@@ -49,6 +50,12 @@ export interface Workout {
   exercises?: WorkoutExercise[];
 }
 
+// Type for relation errors from Supabase
+export interface SelectQueryError<T = string> {
+  error: true;
+  [key: string]: any;
+}
+
 export interface WorkoutLog {
   id: string;
   user_id: string;
@@ -58,7 +65,7 @@ export interface WorkoutLog {
   calories_burned?: number;
   notes?: string;
   rating?: number;
-  workout?: Workout | null; // Changed to make it optional and nullable
+  workout?: Workout | null | SelectQueryError; // Updated to handle error case
 }
 
 // Types for meal data
