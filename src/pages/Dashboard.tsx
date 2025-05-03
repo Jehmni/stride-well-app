@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Activity, ChevronRight, Dumbbell, Utensils, Weight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -7,10 +7,17 @@ import NutritionCard from "@/components/dashboard/NutritionCard";
 import StatsCard from "@/components/dashboard/StatsCard";
 import { useAuth } from "@/hooks/useAuth";
 import { calculateBMI } from "@/utils/healthCalculations";
+import { generatePersonalizedWorkoutPlan } from "@/services/workoutService";
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const [selectedWorkout, setSelectedWorkout] = useState({
+    title: "Personalized Workout",
+    description: "Customized routine based on your fitness profile",
+    image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-4.0.3&auto=format&fit=crop&w=1740&q=80"
+  });
+  const [isLoading, setIsLoading] = useState(true);
   
   // Get user's first name for welcome message
   const firstName = profile?.first_name || "there";
@@ -18,40 +25,45 @@ const Dashboard: React.FC = () => {
   // Calculate BMI if height and weight are available
   const userBMI = profile ? calculateBMI(profile.height, profile.weight) : null;
   
-  // Mock user data - would normally come from API/store
-  const goalToWorkout = {
-    "weight-loss": {
-      title: "Fat Burning HIIT",
-      description: "High-intensity interval training focused on maximum calorie burn",
-      image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-4.0.3&auto=format&fit=crop&w=1740&q=80"
-    },
-    "muscle-gain": {
-      title: "Strength Building",
-      description: "Heavy compound movements for maximum muscle growth",
-      image: "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-4.0.3&auto=format&fit=crop&w=1469&q=80"
-    },
-    "general-fitness": {
-      title: "Full Body Workout",
-      description: "Balanced routine for overall fitness and conditioning",
-      image: "https://images.unsplash.com/photo-1599058917212-d750089bc07e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1469&q=80"
-    },
-    "endurance": {
-      title: "Endurance Builder",
-      description: "Cardio and stamina focused workout to improve endurance",
-      image: "https://images.unsplash.com/photo-1596357395217-80de13130e92?ixlib=rb-4.0.3&auto=format&fit=crop&w=1742&q=80"
-    }
-  };
-
-  const defaultWorkout = {
-    title: "Personalized Workout",
-    description: "Customized routine based on your fitness profile",
-    image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-4.0.3&auto=format&fit=crop&w=1740&q=80"
-  };
-
-  // Use the workout that matches the user's goal, or the default
-  const selectedWorkout = profile?.fitness_goal 
-    ? goalToWorkout[profile.fitness_goal as keyof typeof goalToWorkout] 
-    : defaultWorkout;
+  // Fetch personalized workout on component mount
+  useEffect(() => {
+    const loadPersonalizedWorkout = async () => {
+      if (!profile) return;
+      
+      try {
+        // Fetch personalized workout plan from AI service
+        const workoutPlan = await generatePersonalizedWorkoutPlan(profile);
+        
+        if (workoutPlan) {
+          // Select an appropriate image based on the fitness goal
+          let workoutImage = "https://images.unsplash.com/photo-1599058917212-d750089bc07e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1469&q=80";
+          
+          // Map fitness goals to appropriate images
+          if (profile.fitness_goal === "weight-loss") {
+            workoutImage = "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-4.0.3&auto=format&fit=crop&w=1740&q=80";
+          } else if (profile.fitness_goal === "muscle-gain") {
+            workoutImage = "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-4.0.3&auto=format&fit=crop&w=1469&q=80";
+          } else if (profile.fitness_goal === "endurance") {
+            workoutImage = "https://images.unsplash.com/photo-1596357395217-80de13130e92?ixlib=rb-4.0.3&auto=format&fit=crop&w=1742&q=80";
+          }
+          
+          // Update selected workout with data from the personalized plan
+          setSelectedWorkout({
+            title: workoutPlan.title,
+            description: workoutPlan.description,
+            image: workoutImage
+          });
+        }
+      } catch (error) {
+        console.error("Error loading personalized workout:", error);
+        // Fallback to default workout if there's an error
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadPersonalizedWorkout();
+  }, [profile]);
 
   return (
     <DashboardLayout title="Dashboard">

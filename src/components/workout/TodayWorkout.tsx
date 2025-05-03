@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, ArrowRight } from "lucide-react";
+import { Calendar, ArrowRight, Check, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import WorkoutCard from "@/components/dashboard/WorkoutCard";
 import { TodayWorkoutProps, WorkoutExerciseDetail } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import WorkoutProgress from "./WorkoutProgress";
+import LogWorkoutDialog from "./LogWorkoutDialog";
 
 interface TodayWorkoutComponentProps {
   todayWorkout: TodayWorkoutProps;
@@ -167,21 +168,30 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
             <h4 className="text-lg font-medium mb-4">Ready to start?</h4>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
               Complete this workout to track your progress and stay on track with your fitness goals.
-            </p>
-            <div className="space-y-4">
+            </p>          <div className="space-y-4">
               <Button 
                 className="w-full"
                 onClick={handleStartWorkout}
               >
-                Start Workout <ArrowRight className="ml-2 h-4 w-4" />
+                Start Workout <Play className="ml-2 h-4 w-4" />
               </Button>
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => navigate("/progress")}
-              >
-                View Your Progress
-              </Button>
+              
+              {userId && (
+                <div className="flex w-full gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => navigate("/progress")}
+                  >
+                    View Progress
+                  </Button>
+                  <LogWorkoutDialog 
+                    workoutId="today-workout" 
+                    workoutTitle={todayWorkout.title} 
+                    onComplete={handleWorkoutCompleted}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

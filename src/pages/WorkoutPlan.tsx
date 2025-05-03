@@ -9,9 +9,11 @@ import CustomWorkoutList from "@/components/workout/CustomWorkoutList";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { TodayWorkoutProps, WorkoutDay, WorkoutExercise, UserWorkout } from "@/components/workout/types";
+import { TodayWorkoutProps, WorkoutDay, WorkoutExercise, UserWorkout, WorkoutPlan as WorkoutPlanType } from "@/components/workout/types";
 import { Activity, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { generatePersonalizedWorkoutPlan, fetchUserWorkouts } from "@/services/workoutService";
+import { toast } from "sonner";
 
 const WorkoutPlan: React.FC = () => {
   const { user, profile } = useAuth();
@@ -42,43 +44,42 @@ const WorkoutPlan: React.FC = () => {
     { name: "Shoulder Press", sets: 3, reps: "8-10", muscle: "Shoulders" },
     { name: "Pull-ups", sets: 3, reps: "Max", muscle: "Back" }
   ]);
-
   useEffect(() => {
     if (profile) {
-      // Define today's workout based on fitness goal
-      const workoutByGoal = {
-        "weight-loss": {
-          title: "Fat Burning HIIT",
-          description: "High-intensity interval training focused on maximum calorie burn",
-          duration: 40,
-          exercises: 8,
-          date: "Today",
-          image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-4.0.3&auto=format&fit=crop&w=1740&q=80"
-        },
-        "muscle-gain": {
-          title: "Strength Building",
-          description: "Heavy compound movements for maximum muscle growth",
-          duration: 55,
-          exercises: 6,
-          date: "Today",
-          image: "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-4.0.3&auto=format&fit=crop&w=1469&q=80"
-        },
-        "general-fitness": {
-          title: "Full Body Workout",
-          description: "Balanced routine for overall fitness and conditioning",
-          duration: 45,
-          exercises: 10,
-          date: "Today",
-          image: "https://images.unsplash.com/photo-1599058917212-d750089bc07e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1469&q=80"
-        },
-        "endurance": {
-          title: "Endurance Builder",
-          description: "Cardio and stamina focused workout to improve endurance",
-          duration: 60,
-          exercises: 7,
-          date: "Today",
-          image: "https://images.unsplash.com/photo-1596357395217-80de13130e92?ixlib=rb-4.0.3&auto=format&fit=crop&w=1742&q=80"
-        }
+      // Load personalized workout plan using the AI-driven service
+      const loadWorkoutPlan = async () => {
+        try {
+          // Fetch personalized workout plan from the service
+          const workoutPlan = await generatePersonalizedWorkoutPlan(profile);
+          
+          if (workoutPlan) {
+            // Update weekly structure state
+            setWeeklyStructure(workoutPlan.weekly_structure);
+            
+            // Update key exercises state
+            setKeyExercises(workoutPlan.exercises);
+            
+            // Get today's day of the week (0-6, starting with Sunday)
+            const today = new Date().getDay();
+            // Adjust to match our weekly structure (starting with Monday)
+            const todayIndex = today === 0 ? 6 : today - 1;
+            
+            const todaysWorkout = workoutPlan.weekly_structure[todayIndex];
+            
+            // Get an image based on workout focus
+            const workoutImage = getWorkoutImage(todaysWorkout.focus);
+            
+            // Define today's workout based on the personalized plan
+            setTodayWorkout({
+              title: `${todaysWorkout.focus} Workout`,
+              description: `${workoutPlan.description} - Focused on ${todaysWorkout.focus.toLowerCase()}`,
+              duration: todaysWorkout.duration,
+              exercises: Math.min(8, workoutPlan.exercises.length),
+              date: "Today",
+              image: workoutImage
+            });
+          } else {
+            // Fallback workout if plan generation fails
       };
 
       setTodayWorkout(

@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,6 +8,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LoadingSpinner from "./components/ui/LoadingSpinner";
 import { seedGroceryStores } from "./utils/seedStoreData";
+import { seedExerciseData } from "./utils/seedExerciseData";
 
 // Import Index directly to avoid lazy loading issues
 import Index from "./pages/Index";
@@ -27,10 +28,11 @@ const Challenges = lazy(() => import("./pages/Challenges"));
 
 const queryClient = new QueryClient();
 
-function App() {
+function App() {  
   React.useEffect(() => {
-    // Seed store data on app initialization
+    // Seed store and exercise data on app initialization
     seedGroceryStores();
+    seedExerciseData();
   }, []);
   
   return (

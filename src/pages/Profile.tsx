@@ -99,8 +99,7 @@ const Profile: React.FC = () => {
       toast.error("Failed to log out. Please try again.");
     }
   };
-  
-  const handleSavePersonalInfo = async () => {
+    const handleSavePersonalInfo = async () => {
     if (!user) {
       toast.error("You must be logged in to update your profile");
       return;
@@ -109,6 +108,9 @@ const Profile: React.FC = () => {
     setIsLoading(true);
     
     try {
+      // Check if fitness goal was changed
+      const fitnessGoalChanged = profile && profile.fitness_goal !== personalInfo.fitnessGoal;
+      
       // Update user profile in Supabase
       const { error } = await supabase
         .from('user_profiles')
@@ -129,7 +131,14 @@ const Profile: React.FC = () => {
       // Refresh the profile data from context
       await refreshProfile();
       
-      toast.success("Profile updated successfully!");
+      // If fitness goal was changed, mark workout plans for regeneration
+      if (fitnessGoalChanged) {
+        // We could trigger a real-time update here, but for simplicity
+        // we'll just inform the user that workouts will be updated
+        toast.success("Profile updated! Your workout plan will be personalized to your new fitness goal.");
+      } else {
+        toast.success("Profile updated successfully!");
+      }
     } catch (error: any) {
       console.error("Error updating profile:", error);
       toast.error(error.message || "Failed to update profile");
