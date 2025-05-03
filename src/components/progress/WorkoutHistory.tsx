@@ -50,17 +50,20 @@ const WorkoutHistory: React.FC = () => {
           .limit(20);
           
         if (error) throw error;
-        
-        // Filter out logs where workout relation failed and cast to WorkoutLog[]
+
+        // Filter out logs where workout relation failed or is null
         const validLogs = (data || [])
           .filter(log => {
-            // Check if workout exists and is not an error object
-            return log.workout && typeof log.workout === 'object' && !('error' in log.workout);
+            // Check if workout exists, is an object, and doesn't have an error property
+            return log.workout && 
+                  typeof log.workout === 'object' && 
+                  !('error' in log.workout);
           })
           .map(log => {
-            // Safe to cast workout to Workout since we've filtered out error cases
+            // At this point, we know log.workout is a valid Workout object
             return {
               ...log,
+              // TypeScript needs help understanding our filtering ensures this is a Workout
               workout: log.workout as Workout
             } as WorkoutLog;
           });
