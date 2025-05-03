@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import WorkoutHistory from "@/components/progress/WorkoutHistory";
+import WorkoutStatistics from "@/components/workout/WorkoutStatistics";
+import ExerciseDashboard from "@/components/workout/ExerciseDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { calculateBMI, getBMICategory } from "@/utils/healthCalculations";
 import UserAvatar from "@/components/profile/UserAvatar"; 
@@ -47,16 +49,24 @@ const Progress: React.FC = () => {
           {bmiCategory && <span className="text-sm text-gray-500">{bmiCategory}</span>}
         </div>
       </div>
-      
-      <Tabs defaultValue="workouts">
+        <Tabs defaultValue="workouts">
         <TabsList className="mb-6">
           <TabsTrigger value="workouts">Workout History</TabsTrigger>
-          <TabsTrigger value="weight">Weight Tracking</TabsTrigger>
+          <TabsTrigger value="exercises">Exercise Progress</TabsTrigger>
+          <TabsTrigger value="statistics">Statistics</TabsTrigger>
           <TabsTrigger value="measurements">Measurements</TabsTrigger>
         </TabsList>
         
         <TabsContent value="workouts">
           <WorkoutHistory />
+        </TabsContent>
+        
+        <TabsContent value="exercises">
+          <ExerciseDashboard />
+        </TabsContent>
+        
+        <TabsContent value="statistics">
+          <WorkoutStatistics />
         </TabsContent>
         
         <TabsContent value="weight">

@@ -357,3 +357,115 @@ export const logWorkoutCompletion = async (
     return null;
   }
 };
+
+// Log individual exercise completion within a workout
+export const logExerciseCompletion = async (
+  workoutLogId: string,
+  exerciseId: string,
+  setsCompleted: number,
+  repsCompleted?: number,
+  weightUsed?: number,
+  notes?: string
+) => {
+  try {
+    const { data, error } = await supabase
+      .from('exercise_logs')
+      .insert({
+        workout_log_id: workoutLogId,
+        exercise_id: exerciseId,
+        sets_completed: setsCompleted,
+        reps_completed: repsCompleted || null,
+        weight_used: weightUsed || null,
+        notes: notes || null,
+        completed_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error("Error logging exercise completion:", error);
+    return null;
+  }
+};
+
+// Track user's exercise progress over time
+export const getExerciseProgressHistory = async (
+  userId: string,
+  exerciseId: string,
+  limit: number = 10
+) => {
+  try {
+    const { data, error } = await supabase
+      .from('exercise_logs')
+      .select(`
+        *,
+        workout_logs:workout_logs(
+          id,
+          user_id,
+          completed_at
+        )
+      `)
+      .eq('exercise_id', exerciseId)
+      .eq('workout_logs.user_id', userId)
+      .order('completed_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching exercise progress:", error);
+    return [];
+  }
+};
+
+// Get workout completion statistics for a user
+export const getUserWorkoutStatistics = async (userId: string) => {
+  try {
+    // Get total workout count
+    const { count: totalWorkouts, error: countError } = await supabase
+      .from('workout_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+      
+    if (countError) throw countError;
+    
+    // Get workouts completed in the last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const { count: recentWorkouts, error: recentError } = await supabase
+      .from('workout_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('completed_at', thirtyDaysAgo.toISOString());
+      
+    if (recentError) throw recentError;
+    
+    // Get total duration of all workouts
+    const { data: durationData, error: durationError } = await supabase
+      .from('workout_logs')
+      .select('duration')
+      .eq('user_id', userId);
+      
+    if (durationError) throw durationError;
+    
+    const totalDuration = durationData?.reduce((sum, log) => sum + (log.duration || 0), 0) || 0;
+    
+    return {
+      totalWorkouts: totalWorkouts || 0,
+      recentWorkouts: recentWorkouts || 0,
+      totalDuration,
+      averageDuration: totalWorkouts ? Math.round(totalDuration / totalWorkouts) : 0
+    };
+  } catch (error) {
+    console.error("Error fetching workout statistics:", error);
+    return {
+      totalWorkouts: 0,
+      recentWorkouts: 0,
+      totalDuration: 0,
+      averageDuration: 0
+    };
+  }
+};

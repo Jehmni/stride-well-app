@@ -5,6 +5,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import WorkoutCard from "@/components/dashboard/WorkoutCard";
 import NutritionCard from "@/components/dashboard/NutritionCard";
 import StatsCard from "@/components/dashboard/StatsCard";
+import WorkoutStatistics from "@/components/workout/WorkoutStatistics";
 import { useAuth } from "@/hooks/useAuth";
 import { calculateBMI } from "@/utils/healthCalculations";
 import { generatePersonalizedWorkoutPlan } from "@/services/workoutService";
@@ -128,6 +129,9 @@ const Dashboard: React.FC = () => {
           }}
           onClick={() => navigate('/meal-plan')}
         />
+      </div>      {/* Workout Progress Statistics */}
+      <div className="mb-8">
+        <WorkoutStatistics onViewAllProgress={() => navigate('/progress')} />
       </div>
 
       {/* Upcoming Workouts */}

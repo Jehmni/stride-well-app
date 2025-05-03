@@ -8,7 +8,7 @@ import { TodayWorkoutProps, WorkoutExerciseDetail } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import WorkoutProgress from "./WorkoutProgress";
-import LogWorkoutDialog from "./LogWorkoutDialog";
+import DetailedWorkoutLog from "./DetailedWorkoutLog";
 
 interface TodayWorkoutComponentProps {
   todayWorkout: TodayWorkoutProps;
@@ -184,10 +184,10 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
                     onClick={() => navigate("/progress")}
                   >
                     View Progress
-                  </Button>
-                  <LogWorkoutDialog 
+                  </Button>                  <DetailedWorkoutLog 
                     workoutId="today-workout" 
-                    workoutTitle={todayWorkout.title} 
+                    workoutTitle={todayWorkout.title}
+                    exercises={todayExercises}
                     onComplete={handleWorkoutCompleted}
                   />
                 </div>
