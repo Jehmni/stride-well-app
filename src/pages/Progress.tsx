@@ -10,6 +10,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import WorkoutHistory from "@/components/progress/WorkoutHistory";
 import { useAuth } from "@/hooks/useAuth";
 import { calculateBMI, getBMICategory } from "@/utils/healthCalculations";
+import UserAvatar from "@/components/profile/UserAvatar"; 
 
 const Progress: React.FC = () => {
   const { profile } = useAuth();
@@ -19,10 +20,13 @@ const Progress: React.FC = () => {
   
   return (
     <DashboardLayout title="Progress Tracking">
-      <div className="mb-6">
-        <p className="text-gray-600 dark:text-gray-400">
-          Track your fitness journey and see how far you've come.
-        </p>
+      <div className="mb-6 flex items-center gap-4">
+        <UserAvatar size="md" />
+        <div>
+          <p className="text-gray-600 dark:text-gray-400">
+            Track your fitness journey and see how far you've come.
+          </p>
+        </div>
       </div>
       
       {/* Health Stats Overview */}

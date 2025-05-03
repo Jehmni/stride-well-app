@@ -6,7 +6,8 @@ import {
   Lock, 
   LogOut, 
   User,
-  AlertTriangle
+  AlertTriangle,
+  Edit
 } from "lucide-react";
 import { 
   Tabs, 
@@ -194,7 +195,7 @@ const Profile: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">Personal Information</h3>
                   <Button size="sm" variant="ghost">
-                    <Edit2 className="h-4 w-4" />
+                    <Edit className="h-4 w-4" />
                   </Button>
                 </div>
               </CardHeader>
@@ -455,7 +456,7 @@ const Profile: React.FC = () => {
                       <RadioGroupItem value="light" id="light" className="sr-only" />
                       <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
                         <svg className="h-6 w-6 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.59-1.591a.75.75 0 001.06 1.061l1.59 1.591zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z" />
+                          <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2m2 6h-2m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
                         </svg>
                       </div>
                       <Label htmlFor="light" className={appearance === "light" ? "font-medium" : ""}>

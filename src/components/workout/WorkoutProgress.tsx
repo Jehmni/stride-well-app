@@ -30,7 +30,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
     if (!exercises.length) return;
     
     // Load previously completed exercises from localStorage
-    const savedCompleted = JSON.parse(localStorage.getItem('completedExercises') || '{}');
+    const savedCompleted = JSON.parse(localStorage.getItem(`completedExercises-${workoutId}`) || '{}');
     const completedIds = exercises
       .filter(ex => savedCompleted[ex.id])
       .map(ex => ex.id);
@@ -44,12 +44,17 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
     
     setProgress(newProgress);
     setIsWorkoutComplete(newProgress === 100);
-  }, [exercises]);
+  }, [exercises, workoutId]);
   
   const handleExerciseComplete = (exerciseId: string) => {
     if (!completedExercises.includes(exerciseId)) {
       const updated = [...completedExercises, exerciseId];
       setCompletedExercises(updated);
+      
+      // Save to localStorage
+      const savedCompleted = JSON.parse(localStorage.getItem(`completedExercises-${workoutId}`) || '{}');
+      savedCompleted[exerciseId] = true;
+      localStorage.setItem(`completedExercises-${workoutId}`, JSON.stringify(savedCompleted));
       
       // Calculate new progress
       const newProgress = exercises.length 
@@ -87,10 +92,13 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
       // Estimate calories burned (very rough formula based on duration and intensity)
       const caloriesBurned = Math.floor(totalDuration * 8 + Math.random() * 50);
       
-      // Make sure workoutId is a valid UUID if it's not "today-workout"
       let actualWorkoutId = workoutId;
-      if (workoutId === 'today-workout') {
-        // For "today-workout", create a real workout entry first
+      
+      // For "today-workout" or any non-UUID workoutId, create a real workout entry first
+      if (workoutId === 'today-workout' || !isValidUUID(workoutId)) {
+        console.log("Creating new workout record for temporary workout ID:", workoutId);
+        
+        // Create a new workout
         const { data: workoutData, error: workoutError } = await supabase
           .from('workouts')
           .insert({
@@ -107,6 +115,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
           throw workoutError;
         }
         
+        console.log("Created new workout with ID:", workoutData.id);
         actualWorkoutId = workoutData.id;
         
         // Now insert the exercises into workout_exercises table
@@ -145,8 +154,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
           completed_at: new Date().toISOString(),
           duration: totalDuration,
           calories_burned: caloriesBurned
-        })
-        .select();
+        });
         
       if (logError) {
         throw logError;
@@ -164,10 +172,16 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
   
   const resetWorkoutProgress = () => {
     // Clear completed exercises
-    localStorage.removeItem('completedExercises');
+    localStorage.removeItem(`completedExercises-${workoutId}`);
     setCompletedExercises([]);
     setProgress(0);
     setIsWorkoutComplete(false);
+  };
+
+  // Helper function to validate UUID
+  const isValidUUID = (uuid: string) => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
   };
 
   if (isWorkoutComplete) {
@@ -215,6 +229,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
                 key={exercise.id}
                 exercise={exercise}
                 onComplete={handleExerciseComplete}
+                isCompleted={completedExercises.includes(exercise.id)}
               />
             ))}
           </div>
