@@ -1,4 +1,3 @@
-
 // Types for user data
 export interface UserProfile {
   id: string;
@@ -59,6 +58,7 @@ export interface WorkoutLog {
   calories_burned?: number;
   notes?: string;
   rating?: number;
+  workout?: Workout; // Added this property to fix the errors
 }
 
 // Types for meal data

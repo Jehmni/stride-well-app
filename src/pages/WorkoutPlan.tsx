@@ -9,8 +9,9 @@ import CustomWorkoutList from "@/components/workout/CustomWorkoutList";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { TodayWorkoutProps } from "@/components/workout/types";
+import { TodayWorkoutProps, WorkoutDay, WorkoutExercise, UserWorkout } from "@/components/workout/types";
 import { Activity, Calendar } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const WorkoutPlan: React.FC = () => {
   const { user, profile } = useAuth();
@@ -23,6 +24,24 @@ const WorkoutPlan: React.FC = () => {
     date: "Today",
     image: ""
   });
+  const [userWorkouts, setUserWorkouts] = useState<UserWorkout[]>([]);
+  const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
+  const [weeklyStructure, setWeeklyStructure] = useState<WorkoutDay[]>([
+    { day: "Monday", focus: "Upper Body", duration: 45 },
+    { day: "Tuesday", focus: "Lower Body", duration: 45 },
+    { day: "Wednesday", focus: "Cardio", duration: 30 },
+    { day: "Thursday", focus: "Core", duration: 30 },
+    { day: "Friday", focus: "Full Body", duration: 45 },
+    { day: "Saturday", focus: "Active Recovery", duration: 30 },
+    { day: "Sunday", focus: "Rest", duration: 0 }
+  ]);
+  const [keyExercises, setKeyExercises] = useState<WorkoutExercise[]>([
+    { name: "Squats", sets: 3, reps: "10-12", muscle: "Legs" },
+    { name: "Bench Press", sets: 3, reps: "8-10", muscle: "Chest" },
+    { name: "Deadlifts", sets: 3, reps: "6-8", muscle: "Back" },
+    { name: "Shoulder Press", sets: 3, reps: "8-10", muscle: "Shoulders" },
+    { name: "Pull-ups", sets: 3, reps: "Max", muscle: "Back" }
+  ]);
 
   useEffect(() => {
     if (profile) {
@@ -66,7 +85,57 @@ const WorkoutPlan: React.FC = () => {
         workoutByGoal[profile.fitness_goal as keyof typeof workoutByGoal] || workoutByGoal["general-fitness"]
       );
     }
-  }, [profile]);
+    
+    // Fetch user's custom workouts
+    if (user?.id) {
+      fetchUserWorkouts(user.id);
+    }
+  }, [profile, user?.id]);
+
+  const fetchUserWorkouts = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('user_id', userId);
+      
+      if (error) {
+        console.error("Error fetching workouts:", error);
+        return;
+      }
+      
+      setUserWorkouts(data || []);
+    } catch (error) {
+      console.error("Error fetching workouts:", error);
+    }
+  };
+
+  const handleSelectWorkout = (workoutId: string) => {
+    setSelectedWorkout(workoutId);
+  };
+
+  const handleDeleteWorkout = async (workoutId: string) => {
+    try {
+      const { error } = await supabase
+        .from('workouts')
+        .delete()
+        .eq('id', workoutId);
+      
+      if (error) throw error;
+      
+      // Update state after successful deletion
+      setUserWorkouts(userWorkouts.filter(workout => workout.id !== workoutId));
+      if (selectedWorkout === workoutId) {
+        setSelectedWorkout(null);
+      }
+    } catch (error) {
+      console.error("Error deleting workout:", error);
+    }
+  };
+
+  const handleWorkoutCreated = (workout: UserWorkout) => {
+    setUserWorkouts([...userWorkouts, workout]);
+  };
 
   return (
     <DashboardLayout title="Workout Plan">
@@ -95,11 +164,18 @@ const WorkoutPlan: React.FC = () => {
       />
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <WeeklyStructure />
-        <KeyExercises />
+        <WeeklyStructure weeklyStructure={weeklyStructure} />
+        <KeyExercises exercises={keyExercises} />
       </div>
       
-      <CustomWorkoutList userId={user?.id} />
+      <CustomWorkoutList 
+        userId={user?.id} 
+        userWorkouts={userWorkouts}
+        selectedWorkout={selectedWorkout}
+        onSelectWorkout={handleSelectWorkout}
+        onDeleteWorkout={handleDeleteWorkout}
+        onWorkoutCreated={handleWorkoutCreated}
+      />
     </DashboardLayout>
   );
 };

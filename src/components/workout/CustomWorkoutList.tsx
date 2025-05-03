@@ -16,11 +16,11 @@ interface CustomWorkoutListProps {
 
 const CustomWorkoutList: React.FC<CustomWorkoutListProps> = ({ 
   userId, 
-  userWorkouts, 
-  selectedWorkout,
-  onSelectWorkout,
-  onDeleteWorkout,
-  onWorkoutCreated
+  userWorkouts = [], // Provide default empty array
+  selectedWorkout = null, // Provide default null
+  onSelectWorkout = () => {}, // Provide default no-op function
+  onDeleteWorkout = () => {}, // Provide default no-op function
+  onWorkoutCreated = () => {} // Provide default no-op function
 }) => {
   
   // Get day name from number
