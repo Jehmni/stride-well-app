@@ -6,11 +6,13 @@ import FitnessGoalsForm from "@/components/onboarding/FitnessGoalsForm";
 
 const Onboarding: React.FC = () => {
   return (
-    <Routes>
-      <Route index element={<PersonalInfoForm />} />
-      <Route path="/goals" element={<FitnessGoalsForm />} />
-      <Route path="*" element={<Navigate to="/onboarding" />} />
-    </Routes>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Routes>
+        <Route index element={<PersonalInfoForm />} />
+        <Route path="goals" element={<FitnessGoalsForm />} />
+        <Route path="*" element={<Navigate to="/onboarding" />} />
+      </Routes>
+    </div>
   );
 };
 
