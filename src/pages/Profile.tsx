@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Activity, 
@@ -10,7 +10,8 @@ import {
   LogOut, 
   Mail, 
   Share2, 
-  User 
+  User,
+  AlertTriangle
 } from "lucide-react";
 import { 
   Tabs, 
@@ -31,19 +32,44 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useForm } from "react-hook-form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
-  const userProfile = JSON.parse(localStorage.getItem("userProfile") || "{}");
+  const { user, profile, signOut, refreshProfile } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   const [personalInfo, setPersonalInfo] = useState({
-    name: userProfile.name || "John Doe",
-    email: "john.doe@example.com",
-    age: userProfile.age || 30,
-    sex: userProfile.sex || "male",
-    weight: userProfile.weight || 75,
-    height: userProfile.height || 175,
-    fitnessGoal: userProfile.fitnessGoal || "general-fitness"
+    firstName: "",
+    lastName: "",
+    email: "",
+    age: 30,
+    sex: "male",
+    weight: 75,
+    height: 175,
+    fitnessGoal: "general-fitness"
   });
   
   const [notifications, setNotifications] = useState({
@@ -56,19 +82,101 @@ const Profile: React.FC = () => {
   
   const [appearance, setAppearance] = useState("system");
   
-  const handleLogout = () => {
-    localStorage.removeItem("isAuthenticated");
-    localStorage.removeItem("isOnboarded");
-    navigate("/login");
+  // Load user data when component mounts
+  useEffect(() => {
+    if (profile) {
+      setPersonalInfo({
+        firstName: profile.first_name || "",
+        lastName: profile.last_name || "",
+        email: user?.email || "",
+        age: profile.age,
+        sex: profile.sex,
+        weight: profile.weight,
+        height: profile.height,
+        fitnessGoal: profile.fitness_goal
+      });
+    }
+  }, [profile, user]);
+  
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate("/login");
+    } catch (error) {
+      console.error("Error during logout:", error);
+      toast.error("Failed to log out. Please try again.");
+    }
   };
   
-  const handleSavePersonalInfo = () => {
-    localStorage.setItem("userProfile", JSON.stringify(personalInfo));
-    toast.success("Profile information updated successfully!");
+  const handleSavePersonalInfo = async () => {
+    if (!user) {
+      toast.error("You must be logged in to update your profile");
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      // Update user profile in Supabase
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          first_name: personalInfo.firstName,
+          last_name: personalInfo.lastName,
+          age: personalInfo.age,
+          sex: personalInfo.sex,
+          height: personalInfo.height,
+          weight: personalInfo.weight,
+          fitness_goal: personalInfo.fitnessGoal,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+        
+      if (error) throw error;
+      
+      // Refresh the profile data from context
+      await refreshProfile();
+      
+      toast.success("Profile updated successfully!");
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
+      toast.error(error.message || "Failed to update profile");
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const handleSaveNotifications = () => {
+    // In a real app, this would save notification preferences to the database
+    // For now, we'll just show a success message
     toast.success("Notification preferences updated successfully!");
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      // Delete the user's account from Supabase Auth
+      const { error } = await supabase.auth.admin.deleteUser(user.id);
+      
+      if (error) throw error;
+      
+      // Sign out and navigate to login page
+      await signOut();
+      toast.success("Your account has been deleted successfully");
+      navigate("/login");
+    } catch (error: any) {
+      console.error("Error deleting account:", error);
+      toast.error(error.message || "Failed to delete account");
+      setIsLoading(false);
+    }
+  };
+  
+  const getInitials = () => {
+    const first = personalInfo.firstName?.charAt(0) || '';
+    const last = personalInfo.lastName?.charAt(0) || '';
+    return (first + last).toUpperCase() || 'U';
   };
 
   return (
@@ -76,22 +184,30 @@ const Profile: React.FC = () => {
       <div className="max-w-4xl mx-auto">
         <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8">
           <div className="relative">
-            <div className="h-24 w-24 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-400 text-2xl font-bold">
-              {personalInfo.name.split(' ').map(n => n[0]).join('')}
-            </div>
+            <Avatar className="h-24 w-24">
+              <AvatarFallback className="text-2xl font-bold">
+                {getInitials()}
+              </AvatarFallback>
+            </Avatar>
             <button className="absolute bottom-0 right-0 bg-fitness-primary text-white p-1 rounded-full">
               <Camera className="h-4 w-4" />
             </button>
           </div>
           <div>
-            <h2 className="text-2xl font-bold mb-1">{personalInfo.name}</h2>
+            <h2 className="text-2xl font-bold mb-1">
+              {personalInfo.firstName || personalInfo.lastName 
+                ? `${personalInfo.firstName} ${personalInfo.lastName}`.trim() 
+                : 'Welcome'}
+            </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-2">{personalInfo.email}</p>
             <div className="flex items-center text-sm text-gray-500">
               <Activity className="h-4 w-4 mr-1" />
-              <span>{personalInfo.fitnessGoal === "weight-loss" ? "Weight Loss" : 
-                      personalInfo.fitnessGoal === "muscle-gain" ? "Muscle Gain" : 
-                      personalInfo.fitnessGoal === "endurance" ? "Endurance" : 
-                      "General Fitness"} Goal</span>
+              <span>
+                {personalInfo.fitnessGoal === "weight-loss" ? "Weight Loss" : 
+                personalInfo.fitnessGoal === "muscle-gain" ? "Muscle Gain" : 
+                personalInfo.fitnessGoal === "endurance" ? "Endurance" : 
+                "General Fitness"} Goal
+              </span>
             </div>
           </div>
           <div className="md:ml-auto mt-4 md:mt-0">
@@ -134,22 +250,34 @@ const Profile: React.FC = () => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
+                    <Label htmlFor="firstName">First Name</Label>
                     <Input 
-                      id="name" 
-                      value={personalInfo.name}
-                      onChange={(e) => setPersonalInfo({...personalInfo, name: e.target.value})}
+                      id="firstName" 
+                      value={personalInfo.firstName}
+                      onChange={(e) => setPersonalInfo({...personalInfo, firstName: e.target.value})}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="lastName">Last Name</Label>
                     <Input 
-                      id="email" 
-                      type="email" 
-                      value={personalInfo.email}
-                      onChange={(e) => setPersonalInfo({...personalInfo, email: e.target.value})}
+                      id="lastName" 
+                      value={personalInfo.lastName}
+                      onChange={(e) => setPersonalInfo({...personalInfo, lastName: e.target.value})}
                     />
                   </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    value={personalInfo.email}
+                    readOnly
+                    disabled
+                    className="bg-gray-50"
+                  />
+                  <p className="text-xs text-gray-500">Email changes must be done from the account settings</p>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -237,8 +365,12 @@ const Profile: React.FC = () => {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button onClick={handleSavePersonalInfo} className="w-full fitness-button-primary">
-                  Save Changes
+                <Button 
+                  onClick={handleSavePersonalInfo} 
+                  className="w-full fitness-button-primary"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Saving..." : "Save Changes"}
                 </Button>
               </CardFooter>
             </Card>
@@ -396,7 +528,12 @@ const Profile: React.FC = () => {
                       <LogOut className="h-4 w-4 mr-2" />
                       Log Out
                     </Button>
-                    <Button variant="outline" className="w-full text-red-500 border-red-200 hover:bg-red-50">
+                    <Button 
+                      variant="outline" 
+                      className="w-full text-red-500 border-red-200 hover:bg-red-50"
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-2" />
                       Delete Account
                     </Button>
                   </div>
@@ -406,6 +543,28 @@ const Profile: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete your account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action is permanent and cannot be undone. All your data, including workout history, 
+              meal plans, and progress tracking will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteAccount} 
+              disabled={isLoading}
+              className="bg-red-500 text-white hover:bg-red-600"
+            >
+              {isLoading ? "Deleting..." : "Delete Account"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };
