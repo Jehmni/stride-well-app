@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Activity, ChevronRight, Dumbbell, Utensils, Weight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -6,12 +5,20 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import WorkoutCard from "@/components/dashboard/WorkoutCard";
 import NutritionCard from "@/components/dashboard/NutritionCard";
 import StatsCard from "@/components/dashboard/StatsCard";
+import { useAuth } from "@/hooks/useAuth";
+import { calculateBMI } from "@/utils/healthCalculations";
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { profile } = useAuth();
+  
+  // Get user's first name for welcome message
+  const firstName = profile?.first_name || "there";
+  
+  // Calculate BMI if height and weight are available
+  const userBMI = profile ? calculateBMI(profile.height, profile.weight) : null;
   
   // Mock user data - would normally come from API/store
-  const userProfile = JSON.parse(localStorage.getItem("userProfile") || "{}");
   const goalToWorkout = {
     "weight-loss": {
       title: "Fat Burning HIIT",
@@ -42,14 +49,14 @@ const Dashboard: React.FC = () => {
   };
 
   // Use the workout that matches the user's goal, or the default
-  const selectedWorkout = userProfile.fitnessGoal 
-    ? goalToWorkout[userProfile.fitnessGoal as keyof typeof goalToWorkout] 
+  const selectedWorkout = profile?.fitness_goal 
+    ? goalToWorkout[profile.fitness_goal as keyof typeof goalToWorkout] 
     : defaultWorkout;
 
   return (
     <DashboardLayout title="Dashboard">
       <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Welcome back!</h2>
+        <h2 className="text-xl font-semibold mb-4">Welcome back, {firstName}!</h2>
         <p className="text-gray-600 dark:text-gray-400">
           Here's an overview of your fitness journey today.
         </p>
@@ -65,21 +72,21 @@ const Dashboard: React.FC = () => {
         />
         <StatsCard
           title="Current Weight"
-          value={`${userProfile.weight || 70} kg`}
+          value={`${profile?.weight || 70} kg`}
           icon={<Weight className="h-6 w-6 text-fitness-primary" />}
           change={{ value: 2.5, isPositive: true }}
+        />
+        <StatsCard
+          title="BMI"
+          value={userBMI ? userBMI.toFixed(1) : "N/A"}
+          icon={<Activity className="h-6 w-6 text-fitness-primary" />}
+          description={userBMI ? getBMICategory(userBMI) : "Not calculated"}
         />
         <StatsCard
           title="Active Calories"
           value="1,248"
           icon={<Activity className="h-6 w-6 text-fitness-primary" />}
           description="Daily Burn"
-        />
-        <StatsCard
-          title="Protein Intake"
-          value="124g"
-          icon={<Utensils className="h-6 w-6 text-fitness-primary" />}
-          description="Daily Target"
         />
       </div>
 
@@ -153,6 +160,14 @@ const Dashboard: React.FC = () => {
       </div>
     </DashboardLayout>
   );
+};
+
+// Helper function to determine BMI category
+const getBMICategory = (bmi: number): string => {
+  if (bmi < 18.5) return "Underweight";
+  if (bmi < 25) return "Normal Weight";
+  if (bmi < 30) return "Overweight";
+  return "Obese";
 };
 
 export default Dashboard;

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -54,12 +53,17 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { calculateBMI, getBMICategory } from "@/utils/healthCalculations";
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const { user, profile, signOut, refreshProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  
+  // Calculate BMI if height and weight are available
+  const userBMI = profile ? calculateBMI(profile.height, profile.weight) : null;
+  const bmiCategory = userBMI ? getBMICategory(userBMI) : null;
   
   const [personalInfo, setPersonalInfo] = useState({
     firstName: "",
@@ -200,7 +204,7 @@ const Profile: React.FC = () => {
                 : 'Welcome'}
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-2">{personalInfo.email}</p>
-            <div className="flex items-center text-sm text-gray-500">
+            <div className="flex items-center text-sm text-gray-500 mb-1">
               <Activity className="h-4 w-4 mr-1" />
               <span>
                 {personalInfo.fitnessGoal === "weight-loss" ? "Weight Loss" : 
@@ -209,6 +213,12 @@ const Profile: React.FC = () => {
                 "General Fitness"} Goal
               </span>
             </div>
+            {userBMI && (
+              <div className="flex items-center text-sm text-gray-500">
+                <Activity className="h-4 w-4 mr-1" />
+                <span>BMI: {userBMI.toFixed(1)} ({bmiCategory})</span>
+              </div>
+            )}
           </div>
           <div className="md:ml-auto mt-4 md:mt-0">
             <Button variant="outline" className="flex items-center">
@@ -363,6 +373,27 @@ const Profile: React.FC = () => {
                     </RadioGroup>
                   </div>
                 </div>
+                
+                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <h4 className="font-medium mb-2">Body Mass Index (BMI)</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Your BMI</p>
+                      <p className="text-xl font-bold">{userBMI ? userBMI.toFixed(1) : "N/A"}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Category</p>
+                      <p className="text-xl font-bold">{bmiCategory || "Not calculated"}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Healthy BMI Range</p>
+                      <p className="font-medium">18.5 - 24.9</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    BMI is calculated based on your height and weight. It's a screening tool, not a diagnostic of body fatness or health.
+                  </p>
+                </div>
               </CardContent>
               <CardFooter>
                 <Button 
@@ -483,7 +514,7 @@ const Profile: React.FC = () => {
                       <RadioGroupItem value="light" id="light" className="sr-only" />
                       <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
                         <svg className="h-6 w-6 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z" />
+                          <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.59-1.591a.75.75 0 001.06 1.061l1.59 1.591zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z" />
                         </svg>
                       </div>
                       <Label htmlFor="light" className={appearance === "light" ? "font-medium" : ""}>

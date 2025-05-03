@@ -38,7 +38,7 @@ const ProtectedRoute = ({
   
   // If user is authenticated and trying to access auth pages
   if (user && !requiresAuth) {
-    // If user is onboarded, go to dashboard, otherwise to onboarding
+    // Always redirect to dashboard after login if user is onboarded
     if (profile) {
       return <Navigate to="/dashboard" />;
     } else {
