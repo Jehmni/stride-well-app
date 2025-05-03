@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { WorkoutLog } from "@/models/models";
+import { WorkoutLog, Workout, WorkoutExercise } from "@/models/models";
 import { format, parseISO, subDays } from "date-fns";
 
 const WorkoutHistory: React.FC = () => {
@@ -24,7 +24,7 @@ const WorkoutHistory: React.FC = () => {
         setIsLoading(true);
         
         // Fetch workout logs for the user
-        const { data: logs, error } = await supabase
+        const { data, error } = await supabase
           .from('workout_logs')
           .select(`
             *,
@@ -51,7 +51,15 @@ const WorkoutHistory: React.FC = () => {
           
         if (error) throw error;
         
-        setWorkoutLogs(logs || []);
+        // Filter out logs where workout relation failed
+        const validLogs = data
+          .filter(log => log.workout && !('error' in log.workout))
+          .map(log => ({
+            ...log,
+            workout: log.workout || null
+          })) as WorkoutLog[];
+        
+        setWorkoutLogs(validLogs);
       } catch (error) {
         console.error("Error fetching workout logs:", error);
       } finally {
@@ -140,7 +148,9 @@ const WorkoutHistory: React.FC = () => {
                     </h4>
                   </div>
                   <div className="flex items-center">
-                    <Badge className="mr-2">{log.workout?.exercises?.length || 0} exercises</Badge>
+                    <Badge className="mr-2">
+                      {log.workout?.exercises?.length || 0} exercises
+                    </Badge>
                     {expandedLog === log.id ? (
                       <ChevronUp className="h-5 w-5" />
                     ) : (
@@ -181,7 +191,7 @@ const WorkoutHistory: React.FC = () => {
                   
                   <h5 className="text-sm font-medium mb-2">Exercises</h5>
                   <div className="space-y-2">
-                    {log.workout?.exercises?.map((exercise, index) => (
+                    {log.workout?.exercises?.map((exercise) => (
                       <div 
                         key={exercise.id} 
                         className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
@@ -194,7 +204,7 @@ const WorkoutHistory: React.FC = () => {
                             </div>
                           </div>
                           <div className="text-sm">
-                            {exercise.sets} sets × {exercise.reps || exercise.duration ? `${exercise.duration}s` : '–'}
+                            {exercise.sets} sets × {exercise.reps || (exercise.duration ? `${exercise.duration}s` : '–')}
                           </div>
                         </div>
                       </div>

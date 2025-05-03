@@ -58,7 +58,7 @@ export interface WorkoutLog {
   calories_burned?: number;
   notes?: string;
   rating?: number;
-  workout?: Workout; // Added this property to fix the errors
+  workout?: Workout | null; // Changed to make it optional and nullable
 }
 
 // Types for meal data
