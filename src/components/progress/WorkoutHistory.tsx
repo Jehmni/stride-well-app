@@ -57,10 +57,13 @@ const WorkoutHistory: React.FC = () => {
             // Check if workout exists and is not an error object
             return log.workout && typeof log.workout === 'object' && !('error' in log.workout);
           })
-          .map(log => ({
-            ...log,
-            workout: log.workout as Workout
-          })) as WorkoutLog[];
+          .map(log => {
+            // Safe to cast workout to Workout since we've filtered out error cases
+            return {
+              ...log,
+              workout: log.workout as Workout
+            } as WorkoutLog;
+          });
         
         setWorkoutLogs(validLogs);
       } catch (error) {
