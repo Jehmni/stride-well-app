@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 // Mock data for grocery stores
@@ -76,14 +77,16 @@ export const seedGroceryStores = async () => {
       return;
     }
     
-    // RLS may be preventing insertion, try to use a special function call instead
-    const { data: result, error } = await supabase
-      .rpc('seed_grocery_stores');
+    // The issue is here - we're trying to call a stored function that doesn't exist
+    // Instead, let's directly insert the mock data
+    const { data, error } = await supabase
+      .from('grocery_stores')
+      .insert(mockGroceryStores);
       
     if (error) {
       console.error("Error seeding grocery store data:", error);
     } else {
-      console.log("Grocery stores seeded successfully:", result);
+      console.log("Grocery stores seeded successfully!");
     }
   } catch (err) {
     console.error("Error in seed function:", err);
