@@ -11,6 +11,7 @@ export interface UserProfile {
   fitness_goal: string;
   created_at: string;
   updated_at: string;
+  avatar_url?: string | null;
 }
 
 // Types for workout data

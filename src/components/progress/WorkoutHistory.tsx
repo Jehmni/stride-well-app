@@ -52,21 +52,21 @@ const WorkoutHistory: React.FC = () => {
         if (error) throw error;
 
         // Filter out logs where workout relation failed or is null
-        const validLogs = (data || [])
-          .filter(log => {
-            // Check if workout exists, is an object, and doesn't have an error property
-            return log.workout && 
-                  typeof log.workout === 'object' && 
-                  !('error' in log.workout);
-          })
-          .map(log => {
-            // At this point, we know log.workout is a valid Workout object
-            return {
-              ...log,
-              // TypeScript needs help understanding our filtering ensures this is a Workout
-              workout: log.workout as Workout
-            } as WorkoutLog;
-          });
+        const validLogs: WorkoutLog[] = [];
+        
+        for (const log of data || []) {
+          // First check if workout exists and is an object
+          if (log.workout && typeof log.workout === 'object') {
+            // Then check if it doesn't have an error property
+            if (!('error' in log.workout)) {
+              // It's safe to cast the workout as a Workout now
+              validLogs.push({
+                ...log,
+                workout: log.workout as Workout
+              });
+            }
+          }
+        }
         
         setWorkoutLogs(validLogs);
       } catch (error) {

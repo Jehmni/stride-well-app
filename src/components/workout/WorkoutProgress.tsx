@@ -24,6 +24,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
   const [completedExercises, setCompletedExercises] = useState<string[]>([]);
   const [progress, setProgress] = useState<number>(0);
   const [isWorkoutComplete, setIsWorkoutComplete] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   useEffect(() => {
     if (!exercises.length) return;
@@ -66,26 +67,98 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
   };
   
   const completeWorkout = async () => {
-    if (!userId) return;
+    if (!userId) {
+      toast.error("You must be logged in to save workout progress");
+      return;
+    }
     
     try {
+      setIsSaving(true);
+      
+      // Calculate some basic stats based on completed exercises
+      const totalDuration = Math.floor(
+        exercises.reduce((total, ex) => {
+          // Estimate time as sets * (rep time + rest time)
+          const repTime = ex.duration || 30; // Default 30s if no duration specified
+          return total + (ex.sets * (repTime + ex.rest_time));
+        }, 0) / 60
+      ); // Convert to minutes
+      
+      // Estimate calories burned (very rough formula based on duration and intensity)
+      const caloriesBurned = Math.floor(totalDuration * 8 + Math.random() * 50);
+      
+      // Make sure workoutId is a valid UUID if it's not "today-workout"
+      let actualWorkoutId = workoutId;
+      if (workoutId === 'today-workout') {
+        // For "today-workout", create a real workout entry first
+        const { data: workoutData, error: workoutError } = await supabase
+          .from('workouts')
+          .insert({
+            user_id: userId,
+            name: "Daily Workout",
+            description: "Completed daily workout",
+            day_of_week: new Date().getDay() === 0 ? 7 : new Date().getDay() // Convert Sunday from 0 to 7
+          })
+          .select('id')
+          .single();
+          
+        if (workoutError) {
+          console.error("Error creating workout record:", workoutError);
+          throw workoutError;
+        }
+        
+        actualWorkoutId = workoutData.id;
+        
+        // Now insert the exercises into workout_exercises table
+        for (let i = 0; i < exercises.length; i++) {
+          const ex = exercises[i];
+          
+          // Skip exercises with invalid exercise_id (e.g. "default-*" temporary IDs)
+          if (ex.exercise_id && !ex.exercise_id.startsWith('default-')) {
+            const { error: exerciseError } = await supabase
+              .from('workout_exercises')
+              .insert({
+                workout_id: actualWorkoutId,
+                exercise_id: ex.exercise_id,
+                sets: ex.sets,
+                reps: ex.reps,
+                duration: ex.duration,
+                rest_time: ex.rest_time,
+                order_position: i,
+                notes: ex.notes
+              });
+              
+            if (exerciseError) {
+              console.error("Error inserting workout exercise:", exerciseError);
+              // Continue even if one fails
+            }
+          }
+        }
+      }
+      
       // Insert into workout_logs table
-      const { data, error } = await supabase
+      const { data: logData, error: logError } = await supabase
         .from('workout_logs')
         .insert({
           user_id: userId,
-          workout_id: workoutId,
-          duration: Math.floor(Math.random() * 20) + 30, // Random duration between 30-50 min
-          calories_burned: Math.floor(Math.random() * 200) + 200 // Random calories between 200-400
-        });
+          workout_id: actualWorkoutId,
+          completed_at: new Date().toISOString(),
+          duration: totalDuration,
+          calories_burned: caloriesBurned
+        })
+        .select();
         
-      if (error) throw error;
+      if (logError) {
+        throw logError;
+      }
       
       toast.success("Workout completed! Great job!");
       onWorkoutCompleted();
     } catch (error: any) {
       console.error("Error saving completed workout:", error);
-      toast.error("Failed to save workout completion");
+      toast.error("Failed to save workout completion. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
   };
   

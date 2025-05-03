@@ -3,12 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { 
   Activity, 
   Bell, 
-  Camera, 
-  Edit2, 
   Lock, 
   LogOut, 
-  Mail, 
-  Share2, 
   User,
   AlertTriangle
 } from "lucide-react";
@@ -43,16 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useForm } from "react-hook-form";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import ProfileHeader from "@/components/profile/ProfileHeader";
 import { calculateBMI, getBMICategory } from "@/utils/healthCalculations";
 
 const Profile: React.FC = () => {
@@ -176,57 +163,11 @@ const Profile: React.FC = () => {
       setIsLoading(false);
     }
   };
-  
-  const getInitials = () => {
-    const first = personalInfo.firstName?.charAt(0) || '';
-    const last = personalInfo.lastName?.charAt(0) || '';
-    return (first + last).toUpperCase() || 'U';
-  };
 
   return (
     <DashboardLayout title="Profile">
       <div className="max-w-4xl mx-auto">
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8">
-          <div className="relative">
-            <Avatar className="h-24 w-24">
-              <AvatarFallback className="text-2xl font-bold">
-                {getInitials()}
-              </AvatarFallback>
-            </Avatar>
-            <button className="absolute bottom-0 right-0 bg-fitness-primary text-white p-1 rounded-full">
-              <Camera className="h-4 w-4" />
-            </button>
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold mb-1">
-              {personalInfo.firstName || personalInfo.lastName 
-                ? `${personalInfo.firstName} ${personalInfo.lastName}`.trim() 
-                : 'Welcome'}
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-2">{personalInfo.email}</p>
-            <div className="flex items-center text-sm text-gray-500 mb-1">
-              <Activity className="h-4 w-4 mr-1" />
-              <span>
-                {personalInfo.fitnessGoal === "weight-loss" ? "Weight Loss" : 
-                personalInfo.fitnessGoal === "muscle-gain" ? "Muscle Gain" : 
-                personalInfo.fitnessGoal === "endurance" ? "Endurance" : 
-                "General Fitness"} Goal
-              </span>
-            </div>
-            {userBMI && (
-              <div className="flex items-center text-sm text-gray-500">
-                <Activity className="h-4 w-4 mr-1" />
-                <span>BMI: {userBMI.toFixed(1)} ({bmiCategory})</span>
-              </div>
-            )}
-          </div>
-          <div className="md:ml-auto mt-4 md:mt-0">
-            <Button variant="outline" className="flex items-center">
-              <Share2 className="h-4 w-4 mr-2" />
-              Share Profile
-            </Button>
-          </div>
-        </div>
+        <ProfileHeader profile={profile} email={user?.email} />
         
         <Tabs defaultValue="personal" className="mb-8">
           <TabsList className="grid grid-cols-3">
