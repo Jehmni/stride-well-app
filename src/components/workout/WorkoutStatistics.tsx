@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { getUserWorkoutStatistics, getExerciseProgressHistory } from "@/services/workoutService";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { format, parseISO, subDays } from 'date-fns';
 import { Activity, Calendar, TrendingUp, BarChart3, Dumbbell } from "lucide-react";
@@ -29,19 +30,19 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({
       try {
         const userStats = await getUserWorkoutStatistics(user.id);
         setStats(userStats);
-        
-        // Fetch the user's most frequently logged exercises
+          // Fetch the user's most frequently logged exercises
         const { data: exerciseLogs, error } = await supabase
           .from('exercise_logs')
           .select(`
             exercise_id,
             exercises:exercise_id(id, name, muscle_group, equipment_required),
+            workout_logs:workout_log_id(user_id),
             count
           `)
           .eq('workout_logs.user_id', user.id)
           .order('count', { ascending: false })
           .limit(3)
-          .group('exercise_id');
+          .group('exercise_id, exercises(id, name, muscle_group, equipment_required)');
           
         if (error) throw error;
         

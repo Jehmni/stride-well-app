@@ -351,7 +351,7 @@ export const logWorkoutCompletion = async (
       .single();
 
     if (error) throw error;
-    return data;
+    return data?.id || null; // Return the ID explicitly for DetailedWorkoutLog
   } catch (error) {
     console.error("Error logging workout completion:", error);
     return null;
@@ -446,18 +446,58 @@ export const getUserWorkoutStatistics = async (userId: string) => {
     // Get total duration of all workouts
     const { data: durationData, error: durationError } = await supabase
       .from('workout_logs')
-      .select('duration')
-      .eq('user_id', userId);
+      .select('duration, completed_at')
+      .eq('user_id', userId)
+      .order('completed_at', { ascending: false });
       
     if (durationError) throw durationError;
     
     const totalDuration = durationData?.reduce((sum, log) => sum + (log.duration || 0), 0) || 0;
+    const avgDuration = totalWorkouts ? Math.round(totalDuration / totalWorkouts) : 0;
+    
+    // Get latest workout date
+    const lastWorkoutDate = durationData && durationData.length > 0 ? durationData[0].completed_at : null;
+    
+    // Calculate workout streak
+    let currentStreak = 0;
+    if (durationData && durationData.length > 0) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const workoutDates = durationData
+        .map(log => {
+          const date = new Date(log.completed_at);
+          date.setHours(0, 0, 0, 0);
+          return date.getTime();
+        })
+        .sort((a, b) => b - a);
+      
+      // Remove duplicate dates (more than one workout in a day)
+      const uniqueDates = [...new Set(workoutDates)];
+      
+      // Calculate current streak
+      let streakDates = [uniqueDates[0]];
+      for (let i = 1; i < uniqueDates.length; i++) {
+        const prevDate = new Date(uniqueDates[i-1]);
+        prevDate.setDate(prevDate.getDate() - 1);
+        
+        if (prevDate.getTime() === uniqueDates[i]) {
+          streakDates.push(uniqueDates[i]);
+        } else {
+          break;
+        }
+      }
+      
+      currentStreak = streakDates.length;
+    }
     
     return {
-      totalWorkouts: totalWorkouts || 0,
-      recentWorkouts: recentWorkouts || 0,
-      totalDuration,
-      averageDuration: totalWorkouts ? Math.round(totalDuration / totalWorkouts) : 0
+      total_workouts: totalWorkouts || 0,
+      recent_workouts: recentWorkouts || 0,
+      total_duration: totalDuration,
+      avg_duration: avgDuration,
+      last_workout_date: lastWorkoutDate,
+      current_streak: currentStreak
     };
   } catch (error) {
     console.error("Error fetching workout statistics:", error);
