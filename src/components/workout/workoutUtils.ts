@@ -14,8 +14,8 @@ export const insertWorkoutPlan = async (workoutPlans: WorkoutPlan[]) => {
         title: plan.title,
         description: plan.description,
         fitness_goal: plan.fitness_goal,
-        weekly_structure: plan.weekly_structure as Json,
-        exercises: plan.exercises as Json
+        weekly_structure: plan.weekly_structure as unknown as Json,
+        exercises: plan.exercises as unknown as Json
       };
 
       const { error } = await supabase
