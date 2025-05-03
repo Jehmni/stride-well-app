@@ -9,8 +9,10 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LoadingSpinner from "./components/ui/LoadingSpinner";
 import { seedGroceryStores } from "./utils/seedStoreData";
 
-// Lazy load page components
-const Index = lazy(() => import("./pages/Index"));
+// Import Index directly to avoid lazy loading issues
+import Index from "./pages/Index";
+
+// Lazy load other page components
 const Login = lazy(() => import("./pages/Login"));
 const Signup = lazy(() => import("./pages/Signup"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
@@ -38,10 +40,12 @@ function App() {
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Suspense fallback={<LoadingSpinner />}>
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<Index />} />
+            <Routes>
+              {/* Public Routes - Index is not lazy loaded */}
+              <Route path="/" element={<Index />} />
+              
+              <Suspense fallback={<LoadingSpinner />}>
+                {/* Other Public Routes */}
                 <Route 
                   path="/login" 
                   element={
@@ -129,8 +133,8 @@ function App() {
 
                 {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
+              </Suspense>
+            </Routes>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
