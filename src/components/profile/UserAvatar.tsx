@@ -44,8 +44,7 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
       setAvatarUrl(profile.avatar_url);
     }
   }, [profile]);
-  
-  // Upload new profile picture
+    // Upload new profile picture
   const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       if (!event.target.files || event.target.files.length === 0 || !user) {
@@ -69,6 +68,22 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
         return;
       }
       
+      // First check if 'profiles' bucket exists
+      const { data: bucketData, error: bucketError } = await supabase
+        .storage
+        .listBuckets();
+      
+      if (bucketError) {
+        throw new Error("Unable to access storage. Please try again later.");
+      }
+      
+      // Check if 'profiles' bucket exists
+      const profileBucketExists = bucketData.some(bucket => bucket.name === 'profiles');
+      
+      if (!profileBucketExists) {
+        throw new Error("Storage not properly configured. Please contact support.");
+      }
+      
       // Create a unique filename
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}-${uuidv4()}.${fileExt}`;
@@ -80,6 +95,9 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
         .upload(filePath, file);
         
       if (uploadError) {
+        if (uploadError.message.includes('permission') || uploadError.message.includes('policy')) {
+          throw new Error("Permission denied. Storage policies need to be configured.");
+        }
         throw uploadError;
       }
       
@@ -97,6 +115,8 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
         .eq('id', user.id);
         
       if (updateError) {
+        // If there's an error updating the profile, try to delete the uploaded image
+        await supabase.storage.from('profiles').remove([filePath]);
         throw updateError;
       }
       
@@ -112,15 +132,29 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
       if (onAvatarChange) {
         onAvatarChange(avatarUrl);
       }
-      
-      toast.success("Profile picture updated successfully");
+        toast.success("Profile picture updated successfully");
     } catch (error: any) {
       console.error("Error uploading avatar:", error);
-      toast.error(error.message || "Failed to upload profile picture");
+      
+      // Provide more specific error messages
+      if (error.message?.includes('permission') || error.message?.includes('policy')) {
+        toast.error(
+          "Permission denied. The administrator needs to configure storage policies on the Supabase dashboard: Storage > Policies > Add policies for profiles bucket."
+        );
+      } else if (error.message?.includes('bucket') || error.message?.includes('not found')) {
+        toast.error(
+          "Storage not properly configured. Administrator needs to create a 'profiles' bucket in Supabase storage."
+        );
+      } else if (error.message?.includes('update')) {
+        toast.error("Unable to update profile. Please check your profile permissions.");
+      } else {
+        toast.error(error.message || "Failed to upload profile picture");
+      }
     } finally {
       setUploading(false);
     }
   };
+  const [showTooltip, setShowTooltip] = useState(false);
 
   return (
     <div className="relative">
@@ -135,24 +169,37 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
       
       {showUploadButton && (
         <div className="absolute bottom-0 right-0">
-          <label 
-            htmlFor="avatar-upload" 
-            className="cursor-pointer bg-fitness-primary hover:bg-fitness-primary-dark text-white p-1.5 rounded-full flex items-center justify-center transition-colors"
+          <div 
+            className="relative"
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
           >
-            {uploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Camera className="h-4 w-4" />
+            <label 
+              htmlFor="avatar-upload" 
+              className="cursor-pointer bg-fitness-primary hover:bg-fitness-primary-dark text-white p-1.5 rounded-full flex items-center justify-center transition-colors"
+            >
+              {uploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Camera className="h-4 w-4" />
+              )}
+            </label>
+            <input
+              id="avatar-upload"
+              type="file"
+              accept="image/*"
+              onChange={uploadAvatar}
+              disabled={uploading}
+              className="hidden"
+            />
+            
+            {/* Tooltip for admin guidance */}
+            {showTooltip && (
+              <div className="absolute bottom-full right-0 mb-2 w-60 p-2 bg-black bg-opacity-90 text-white text-xs rounded shadow-lg z-50">
+                If you encounter permissions errors, ask your administrator to configure storage policies.
+              </div>
             )}
-          </label>
-          <input
-            id="avatar-upload"
-            type="file"
-            accept="image/*"
-            onChange={uploadAvatar}
-            disabled={uploading}
-            className="hidden"
-          />
+          </div>
         </div>
       )}
     </div>

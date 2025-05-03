@@ -30,6 +30,96 @@ A personalized fitness app that provides customized workout routines, nutrition 
 - Node.js & npm - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 - Supabase account - [create here](https://supabase.com/)
 
+### Supabase Storage Configuration
+
+To enable profile pictures uploads, you need to configure Supabase storage policies:
+
+#### Automatic Setup (Recommended)
+
+1. Set the following environment variables:
+   ```
+   SUPABASE_URL=your-supabase-url
+   SUPABASE_SERVICE_KEY=your-service-role-key
+   ```
+   
+2. Run the storage setup script:
+   ```bash
+   npx tsx src/utils/setupStorage.ts
+   ```
+
+#### Manual Setup
+
+If you prefer to configure storage manually, follow these steps in your Supabase dashboard:
+
+1. **Create Storage Bucket**:
+   - Go to Storage > Buckets > Create Bucket
+   - Name: `profiles`
+   - Make it public: Yes
+   - File size limit: 5MB
+
+2. **Add Storage Policies**:
+   - Go to Storage > Policies
+   - Add these policies for the `profiles` bucket:
+   
+   a. **Public Read Access**:
+   ```sql
+   -- Allow public access to avatars
+   CREATE POLICY "Avatars are publicly accessible"
+   ON storage.objects FOR SELECT
+   USING (bucket_id = 'profiles');
+   ```
+   
+   b. **User Upload Access**:
+   ```sql
+   -- Allow authenticated users to upload avatars
+   CREATE POLICY "Users can upload their own avatars"
+   ON storage.objects FOR INSERT
+   WITH CHECK (
+     bucket_id = 'profiles' 
+     AND auth.uid() IS NOT NULL
+     AND (storage.foldername(name))[1] = 'avatars'
+     AND position(auth.uid()::text in name) > 0
+   );
+   ```
+   
+   c. **User Update Access**:
+   ```sql
+   -- Allow users to update their own avatars
+   CREATE POLICY "Users can update their own avatars"
+   ON storage.objects FOR UPDATE
+   USING (
+     bucket_id = 'profiles'
+     AND auth.uid() IS NOT NULL
+     AND position(auth.uid()::text in name) > 0
+   );
+   ```
+   
+   d. **User Delete Access**:
+   ```sql
+   -- Allow users to delete their own avatars
+   CREATE POLICY "Users can delete their own avatars"
+   ON storage.objects FOR DELETE
+   USING (
+     bucket_id = 'profiles'
+     AND auth.uid() IS NOT NULL
+     AND position(auth.uid()::text in name) > 0
+   );
+   ```
+
+3. **Update User Profile Schema**:
+   - Go to the SQL Editor and run:
+   ```sql
+   -- Add avatar_url column to user_profiles table
+   ALTER TABLE public.user_profiles
+   ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+   
+   -- Add policy for user profiles to allow updates
+   CREATE POLICY "Users can update their own profile"
+   ON public.user_profiles
+   FOR UPDATE
+   USING (auth.uid() = id);
+   ```
+
 ### Step 1: Clone the Repository
 
 ```sh
