@@ -10,7 +10,7 @@ const Onboarding: React.FC = () => {
       <Routes>
         <Route index element={<PersonalInfoForm />} />
         <Route path="goals" element={<FitnessGoalsForm />} />
-        <Route path="*" element={<Navigate to="/onboarding" />} />
+        <Route path="*" element={<Navigate to="/onboarding" replace />} />
       </Routes>
     </div>
   );

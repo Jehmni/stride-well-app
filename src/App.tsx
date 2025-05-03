@@ -1,4 +1,3 @@
-
 import React, { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -41,11 +40,11 @@ function App() {
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Routes>
-              {/* Public Routes - Index is not lazy loaded */}
-              <Route path="/" element={<Index />} />
-              
-              <Suspense fallback={<LoadingSpinner />}>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                {/* Public Routes - Index is not lazy loaded */}
+                <Route path="/" element={<Index />} />
+                
                 {/* Other Public Routes */}
                 <Route 
                   path="/login" 
@@ -134,8 +133,8 @@ function App() {
 
                 {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />
-              </Suspense>
-            </Routes>
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
