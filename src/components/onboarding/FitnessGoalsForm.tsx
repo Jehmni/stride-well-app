@@ -21,6 +21,9 @@ const FitnessGoalsForm: React.FC = () => {
   const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  
+  // Check if this is really the first time the user logs in
+  const [isFirstLogin, setIsFirstLogin] = useState(true);
 
   const goals: GoalOption[] = [
     {
@@ -73,7 +76,37 @@ const FitnessGoalsForm: React.FC = () => {
     if (profile?.fitness_goal) {
       setSelectedGoal(profile.fitness_goal);
     }
-  }, [profile]);
+    
+    // Check if the user has already completed onboarding
+    const checkOnboardingStatus = async () => {
+      if (!user?.id) return;
+      
+      try {
+        // Check if user has a profile with fitness goal set
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('fitness_goal, first_name, last_name')
+          .eq('id', user.id)
+          .single();
+          
+        if (error) throw error;
+        
+        // If user has both a fitness goal AND name details, they've completed onboarding
+        if (data && data.fitness_goal && (data.first_name || data.last_name)) {
+          // Save that this is not the first login
+          localStorage.setItem('onboardingCompleted', 'true');
+          setIsFirstLogin(false);
+          
+          // Redirect to dashboard if they've already completed onboarding
+          navigate('/dashboard');
+        }
+      } catch (error) {
+        console.error("Error checking onboarding status:", error);
+      }
+    };
+    
+    checkOnboardingStatus();
+  }, [profile, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +127,9 @@ const FitnessGoalsForm: React.FC = () => {
       
       if (error) throw error;
       
+      // Mark onboarding as completed in localStorage
+      localStorage.setItem('onboardingCompleted', 'true');
+      
       // Refresh profile data in context
       await refreshProfile();
       
@@ -106,6 +142,11 @@ const FitnessGoalsForm: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  // If this is not the first login, don't render the form
+  if (!isFirstLogin) {
+    return null;
+  }
 
   return (
     <OnboardingLayout

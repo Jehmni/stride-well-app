@@ -1,9 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { Map, ExternalLink, List, Navigation2 } from 'lucide-react';
+import { Map, ExternalLink, List, Navigation2, ShoppingCart, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { getStoresWithIngredients, Store as StoreType } from '@/services/storeService';
+import { useGeolocation } from '@/hooks/useGeolocation';
 
 interface NearbyStoresProps {
   latitude: number;
@@ -23,7 +26,12 @@ const NearbyStores: React.FC<NearbyStoresProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [itemAvailability, setItemAvailability] = useState<Record<string, string[]>>({});
   const [viewMode, setViewMode] = useState<'map' | 'list'>('list');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedItems, setSelectedItems] = useState<string[]>(ingredients);
+  const [distance, setDistance] = useState<number>(radiusInKm);
+  const { calculateDistance } = useGeolocation();
 
+  // Use effect to fetch stores based on ingredients and location
   useEffect(() => {
     const fetchStores = async () => {
       try {
@@ -31,10 +39,10 @@ const NearbyStores: React.FC<NearbyStoresProps> = ({
         setError(null);
 
         const { stores, itemAvailability } = await getStoresWithIngredients(
-          ingredients,
+          selectedItems.length > 0 ? selectedItems : ingredients,
           latitude,
           longitude,
-          radiusInKm
+          distance
         );
 
         setStores(stores);
@@ -47,8 +55,11 @@ const NearbyStores: React.FC<NearbyStoresProps> = ({
       }
     };
 
-    fetchStores();
-  }, [latitude, longitude, radiusInKm, ingredients]);
+    // Only fetch if we have valid coordinates
+    if (latitude && longitude) {
+      fetchStores();
+    }
+  }, [latitude, longitude, distance, selectedItems]);
 
   // Get items available at a specific store
   const getAvailableItems = (storeId: string): string[] => {
@@ -67,6 +78,33 @@ const NearbyStores: React.FC<NearbyStoresProps> = ({
   const getDirections = (store: StoreType) => {
     const url = `https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destination=${store.coordinates.latitude},${store.coordinates.longitude}&travelmode=driving`;
     window.open(url, '_blank');
+  };
+
+  // Filter stores based on search query
+  const filteredStores = stores.filter(store => {
+    const searchLower = searchQuery.toLowerCase();
+    if (!searchQuery) return true;
+    
+    // Match store name or address
+    if (
+      store.name.toLowerCase().includes(searchLower) ||
+      store.address.toLowerCase().includes(searchLower)
+    ) {
+      return true;
+    }
+    
+    // Match items in stock
+    const availableItems = getAvailableItems(store.id);
+    return availableItems.some(item => item.toLowerCase().includes(searchLower));
+  });
+
+  // Handle ingredient selection
+  const toggleIngredient = (ingredient: string) => {
+    setSelectedItems(prev => 
+      prev.includes(ingredient)
+        ? prev.filter(item => item !== ingredient)
+        : [...prev, ingredient]
+    );
   };
 
   if (loading) {
@@ -92,27 +130,78 @@ const NearbyStores: React.FC<NearbyStoresProps> = ({
     );
   }
 
-  if (stores.length === 0) {
-    return (
-      <div className="text-center py-10">
-        <Map className="h-12 w-12 mx-auto text-gray-400" />
-        <h3 className="mt-4 text-lg font-medium">No Stores Found</h3>
-        <p className="mt-2 text-gray-500">
-          {ingredients.length > 0 
-            ? `We couldn't find any stores within ${radiusInKm}km that carry your items.`
-            : `We couldn't find any stores within ${radiusInKm}km of your location.`
-          }
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
+      {/* Filter section */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+        <div className="mb-4">
+          <h3 className="text-lg font-medium mb-2 flex items-center">
+            <Search className="mr-2 h-4 w-4" />
+            Find Stores
+          </h3>
+          <Input
+            placeholder="Search by store name or ingredient..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="mb-2"
+          />
+          <div className="flex flex-wrap gap-2 mb-4">
+            <span className="text-sm font-medium mr-2">Distance:</span>
+            <Button 
+              size="sm" 
+              variant={distance === 2 ? "default" : "outline"}
+              onClick={() => setDistance(2)}
+            >
+              2km
+            </Button>
+            <Button 
+              size="sm" 
+              variant={distance === 5 ? "default" : "outline"}
+              onClick={() => setDistance(5)}
+            >
+              5km
+            </Button>
+            <Button 
+              size="sm" 
+              variant={distance === 10 ? "default" : "outline"}
+              onClick={() => setDistance(10)}
+            >
+              10km
+            </Button>
+          </div>
+        </div>
+        
+        {ingredients.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-2 flex items-center">
+              <ShoppingCart className="mr-2 h-4 w-4" />
+              Ingredients needed:
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {ingredients.map((ingredient, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`ingredient-${index}`}
+                    checked={selectedItems.includes(ingredient)}
+                    onCheckedChange={() => toggleIngredient(ingredient)}
+                  />
+                  <label
+                    htmlFor={`ingredient-${index}`}
+                    className="text-sm cursor-pointer"
+                  >
+                    {ingredient}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="flex justify-between items-center">
         <div>
           <p className="text-sm text-gray-500">
-            Showing {stores.length} stores within {radiusInKm}km of your location
+            Showing {filteredStores.length} stores within {distance}km of your location
           </p>
         </div>
         <div className="flex space-x-2">
@@ -135,9 +224,20 @@ const NearbyStores: React.FC<NearbyStoresProps> = ({
         </div>
       </div>
 
-      {viewMode === 'list' ? (
+      {filteredStores.length === 0 ? (
+        <div className="text-center py-10">
+          <Map className="h-12 w-12 mx-auto text-gray-400" />
+          <h3 className="mt-4 text-lg font-medium">No Stores Found</h3>
+          <p className="mt-2 text-gray-500">
+            {selectedItems.length > 0 
+              ? `We couldn't find any stores within ${distance}km that carry your selected items.`
+              : `We couldn't find any stores within ${distance}km of your location.`
+            }
+          </p>
+        </div>
+      ) : viewMode === 'list' ? (
         <div className="space-y-4">
-          {stores.map((store) => {
+          {filteredStores.map((store) => {
             const availableItems = getAvailableItems(store.id);
 
             return (
@@ -179,7 +279,7 @@ const NearbyStores: React.FC<NearbyStoresProps> = ({
                         </Button>
                       </div>
 
-                      {availableItems.length > 0 && ingredients.length > 0 && (
+                      {availableItems.length > 0 && selectedItems.length > 0 && (
                         <div className="mt-4">
                           <h4 className="text-sm font-medium mb-1">Available Items</h4>
                           <div className="flex flex-wrap gap-1">
