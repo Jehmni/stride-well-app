@@ -2,6 +2,7 @@
 // Check if the log_exercise_completion RPC function exists
 import { logExerciseCompletionRPC } from '@/integrations/supabase/functions';
 
+// This function tests if the RPC function exists by attempting to call it with invalid parameters
 export const testLogExerciseCompletion = async () => {
   try {
     const { data, error } = await logExerciseCompletionRPC({
