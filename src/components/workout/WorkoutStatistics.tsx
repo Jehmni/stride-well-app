@@ -17,7 +17,11 @@ interface MuscleGroupData {
   percentage: number;
 }
 
-const WorkoutStatistics: React.FC = () => {
+interface WorkoutStatisticsProps {
+  onViewAllProgress?: () => void;
+}
+
+const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({ onViewAllProgress }) => {
   const { user } = useAuth();
   const [exerciseCounts, setExerciseCounts] = useState<ExerciseCount[]>([]);
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroupData[]>([]);
@@ -28,19 +32,17 @@ const WorkoutStatistics: React.FC = () => {
       if (!user?.id) return;
       
       try {
-        setIsLoading(true);
-        
-        // Use RPC function to get user's exercise counts
+        setIsLoading(true);          // Use RPC function to get user's exercise counts
         const { data, error } = await supabase
           .rpc('get_user_exercise_counts', { 
             user_id_param: user.id
-          });
+          } as any);
 
         if (error) throw error;
 
         if (data) {
           // Process exercise counts
-          const exercises = data.map(ex => ({
+          const exercises = (data as any[]).map(ex => ({
             exercise_id: ex.exercise_id,
             name: ex.name,
             muscle_group: ex.muscle_group,

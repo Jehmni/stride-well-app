@@ -3,12 +3,11 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export const testLogExerciseCompletion = async () => {
-  try {
-    const { data, error } = await supabase.rpc('log_exercise_completion', {
+  try {    const { data, error } = await supabase.rpc('log_exercise_completion', {
       workout_log_id_param: '00000000-0000-0000-0000-000000000000', // Invalid UUID for test
       exercise_id_param: '00000000-0000-0000-0000-000000000000',    // Invalid UUID for test
       sets_completed_param: 1,
-    });
+    } as any);
     
     console.log('RPC response:', { data, error });
     

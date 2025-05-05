@@ -1,5 +1,4 @@
 
-// Update the getExerciseProgressHistory and logExerciseCompletion functions to use proper type annotations
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile } from "@/models/models";
 import { WorkoutDay, WorkoutExercise, WorkoutPlan } from "@/components/workout/types";
@@ -360,20 +359,24 @@ export const logWorkoutCompletion = async (
   }
 };
 
+import { 
+  ExerciseProgressHistoryParams,
+  LogExerciseCompletionParams,
+  ExerciseProgressHistoryResponse
+} from '@/types/rpc';
+
 // Track user's exercise progress over time
 export const getExerciseProgressHistory = async (
   userId: string,
   exerciseId: string,
   limit: number = 10
-) => {
-  try {
-    // Use RPC function to get exercise progress history safely
+) => {  try {    // Use RPC function to get exercise progress history safely
     const { data, error } = await supabase
-      .rpc('get_exercise_progress_history', { 
+      .rpc<ExerciseProgressHistoryResponse[]>('get_exercise_progress_history', { 
         user_id_param: userId,
         exercise_id_param: exerciseId,
         limit_param: limit
-      });
+      } as ExerciseProgressHistoryParams);
 
     if (error) throw error;
     return data || [];
@@ -394,15 +397,14 @@ export const logExerciseCompletion = async (
 ) => {
   try {
     // Use RPC function to log exercise completion
-    const { data, error } = await supabase
-      .rpc('log_exercise_completion', { 
-        workout_log_id_param: workoutLogId, 
-        exercise_id_param: exerciseId,
-        sets_completed_param: setsCompleted,
-        reps_completed_param: repsCompleted || null,
-        weight_used_param: weightUsed || null,
-        notes_param: notes || null
-      });
+    const { data, error } = await supabase.rpc('log_exercise_completion', {
+      workout_log_id_param: workoutLogId,
+      exercise_id_param: exerciseId,
+      sets_completed_param: setsCompleted,
+      reps_completed_param: repsCompleted || null,
+      weight_used_param: weightUsed || null,
+      notes_param: notes || null
+    } as any);
 
     if (error) throw error;
     return data;

@@ -38,19 +38,17 @@ const ExerciseDashboard: React.FC = () => {
       if (!user?.id) return;
       
       try {
-        setIsLoading(true);
-        
-        // Use RPC function to get user's top exercises by count
+        setIsLoading(true);          // Use RPC function to get user's top exercises by count
         const { data, error } = await supabase
           .rpc('get_top_exercises', { 
             user_id_param: user.id,
             limit_param: 5
-          });
+          } as any);
         
         if (error) throw error;
         
         if (data) {
-          setTopExercises(data.map(exercise => ({
+          setTopExercises((data as any[]).map(exercise => ({
             exercise_id: exercise.exercise_id,
             name: exercise.name,
             muscle_group: exercise.muscle_group,

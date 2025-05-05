@@ -53,10 +53,10 @@ const WorkoutHistory: React.FC = () => {
 
         // Filter out logs where workout relation failed or is null
         const validLogs: WorkoutLog[] = [];
-        
-        for (const log of data || []) {
+          for (const log of data || []) {
           // Check if workout exists, is an object, and doesn't have an error property
-          if (log.workout && 
+          if (log.workout !== null && 
+              log.workout !== undefined && 
               typeof log.workout === 'object' && 
               !('error' in log.workout)) {
             validLogs.push(log as WorkoutLog);
