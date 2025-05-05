@@ -1,3 +1,4 @@
+
 -- Update log_exercise_completion function to fix auth check
 CREATE OR REPLACE FUNCTION public.log_exercise_completion(
   workout_log_id_param UUID,

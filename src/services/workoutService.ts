@@ -1,3 +1,5 @@
+
+// Update the getExerciseProgressHistory and logExerciseCompletion functions to use proper type annotations
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile } from "@/models/models";
 import { WorkoutDay, WorkoutExercise, WorkoutPlan } from "@/components/workout/types";
@@ -403,7 +405,8 @@ export const logExerciseCompletion = async (
       });
 
     if (error) throw error;
-    return data;  } catch (error) {
+    return data;
+  } catch (error) {
     console.error("Error logging exercise completion:", error);
     throw error; // Rethrow the error so the calling function can handle it
   }

@@ -1,3 +1,4 @@
+
 // Check if the log_exercise_completion RPC function exists
 import { supabase } from '@/integrations/supabase/client';
 
