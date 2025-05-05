@@ -33,7 +33,6 @@ const ExerciseLogForm: React.FC<ExerciseLogFormProps> = ({
   const [notes, setNotes] = useState<string>("");
   const [isLogging, setIsLogging] = useState<boolean>(false);
   const [isComplete, setIsComplete] = useState<boolean>(false);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -42,9 +41,24 @@ const ExerciseLogForm: React.FC<ExerciseLogFormProps> = ({
       return;
     }
 
+    if (!workoutLogId) {
+      toast.error("Missing workout log ID. Please try again or create a new workout log.");
+      console.error("Missing workoutLogId in ExerciseLogForm:", { workoutLogId, exerciseId });
+      return;
+    }
+
     setIsLogging(true);
     
     try {
+      console.log("Logging exercise completion:", {
+        workoutLogId,
+        exerciseId,
+        setsCompleted,
+        repsCompleted,
+        weightUsed,
+        notes
+      });
+      
       await logExerciseCompletion(
         workoutLogId,
         exerciseId,
@@ -56,7 +70,8 @@ const ExerciseLogForm: React.FC<ExerciseLogFormProps> = ({
       
       setIsComplete(true);
       toast.success(`${exerciseName} logged successfully!`);
-      onComplete();    } catch (error) {
+      onComplete();
+    } catch (error) {
       console.error("Error logging exercise:", error);
       // More detailed error message
       const errorMessage = error instanceof Error ? error.message : "Unknown error";

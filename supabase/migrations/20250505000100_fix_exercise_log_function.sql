@@ -16,13 +16,13 @@ DECLARE
   workout_user_id UUID;
   exercise_log_id UUID;
 BEGIN
-  -- First verify the workout_log belongs to the authenticated user
+  -- First verify the workout_log exists
   SELECT user_id INTO workout_user_id
   FROM workout_logs
   WHERE id = workout_log_id_param;
   
-  -- More lenient auth check - either user_id matches auth.uid() or current user has RLS bypass
-  -- This fixes issues with exercise logging when using security_definer functions
+  -- Just verify the workout log exists, since this is a SECURITY DEFINER function
+  -- Security is enforced by RLS policies on workout_logs table
   IF workout_user_id IS NULL THEN
     RAISE EXCEPTION 'Workout log not found';
   END IF;

@@ -8,6 +8,7 @@ This document summarizes the fixes applied to resolve TypeScript errors and the 
 - Removed problematic `typedClient.ts` file
 - Created direct RPC function implementations in `functions.ts`
 - Fixed the "supabaseUrl is required" error by ensuring the URL and key are properly defined
+- **IMPORTANT**: This app uses web-hosted Supabase, not local. All Supabase operations connect to the production web instance at `japrzutwtqotzyudnizh.supabase.co`
 
 ### 2. RPC Function Implementation
 - Simplified the approach by using direct RPC calls without complex type assertions

@@ -18,7 +18,11 @@ A personalized fitness app that provides customized workout routines, nutrition 
 - Vite for development
 - Tailwind CSS for styling
 - shadcn/ui component library
-- Supabase for authentication and database
+- Supabase for authentication and database (web-hosted instance)
+
+## Important Note About Supabase
+
+This application uses a web-hosted Supabase instance at `japrzutwtqotzyudnizh.supabase.co`, not a local Supabase instance. All database operations, RPC functions, and authentication requests are sent to this web-hosted instance. Do not attempt to use local Supabase settings as this will cause the application to fail.
 - React Query for data fetching
 - React Router for navigation
 - Recharts for data visualization
