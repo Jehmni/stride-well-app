@@ -1,4 +1,3 @@
-
 import { Exercise } from "@/models/models";
 
 export interface WorkoutDay {
@@ -67,5 +66,47 @@ export interface NewWorkoutFormData {
   name: string;
   description: string;
   dayOfWeek: string;
+}
+
+// Types for RPC function returns
+export interface ExerciseCount {
+  exercise_id: string;
+  count: number;
+  name: string;
+  muscle_group: string;
+}
+
+export interface TopExercise {
+  exercise_id: string;
+  name: string;
+  muscle_group: string;
+  count: number;
+}
+
+export interface ExerciseProgressEntry {
+  id: string;
+  workout_log_id: string;
+  completed_at: string;
+  sets_completed: number;
+  reps_completed: number | null;
+  weight_used: number | null;
+  notes: string | null;
+}
+
+export interface WorkoutStatistics {
+  total_workouts: number;
+  recent_workouts: number;
+  total_duration: number;
+  avg_duration: number;
+  last_workout_date: string | null;
+  current_streak: number;
+}
+
+export interface ChartDataPoint {
+  date: string;
+  weight: number;
+  reps: number;
+  sets: number;
+  timestamp: string;
 }
 

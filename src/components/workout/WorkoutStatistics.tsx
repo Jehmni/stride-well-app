@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { getUserWorkoutStatistics } from "@/services/workoutService";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { TopExercise, WorkoutStatistics as WorkoutStatsType } from "./types";
 import { format, parseISO, subDays } from 'date-fns';
 import { Activity, Calendar, TrendingUp, BarChart3, Dumbbell } from "lucide-react";
 import ExerciseProgressChart from "./ExerciseProgressChart";
@@ -19,8 +20,8 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({
   onViewAllProgress 
 }) => {
   const { user } = useAuth();
-  const [stats, setStats] = useState<any>(null);
-  const [topExercises, setTopExercises] = useState<any[]>([]);
+  const [stats, setStats] = useState<WorkoutStatsType | null>(null);
+  const [topExercises, setTopExercises] = useState<TopExercise[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
@@ -31,15 +32,14 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({
       try {
         const userStats = await getUserWorkoutStatistics(user.id);
         setStats(userStats);
-        
-        // Fetch the user's most frequently logged exercises using RPC function
+          // Fetch the user's most frequently logged exercises using RPC function
         const { data: exerciseLogs, error } = await supabase
           .rpc('get_top_exercises', { user_id_param: user.id, limit_param: 3 });
           
         if (error) throw error;
         
         if (exerciseLogs && exerciseLogs.length > 0) {
-          setTopExercises(exerciseLogs.map((log: any) => ({
+          setTopExercises(exerciseLogs.map((log: TopExercise) => ({
             id: log.exercise_id,
             name: log.name,
             muscleGroup: log.muscle_group,

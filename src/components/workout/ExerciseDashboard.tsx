@@ -52,15 +52,14 @@ const ExerciseDashboard: React.FC<ExerciseDashboardProps> = ({ userId }) => {
           const uniqueGroups = Array.from(new Set(muscleGroupData.map(item => item.muscle_group)));
           setMuscleGroups(uniqueGroups as string[]);
         }
-        
-        // Get logged exercises with counts by using RPC function
+          // Get logged exercises with counts by using RPC function
         const { data: logged, error: loggedError } = await supabase
           .rpc('get_user_exercise_counts', { user_id_param: activeUserId });
           
         if (loggedError) throw loggedError;
         
         if (logged && logged.length > 0) {
-          const formattedLogs = logged.map((log: any) => ({
+          const formattedLogs = logged.map((log: ExerciseCount) => ({
             exercise_id: log.exercise_id,
             count: log.count,
             name: log.name || 'Unknown Exercise',

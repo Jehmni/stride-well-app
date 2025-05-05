@@ -36,8 +36,7 @@ const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
       if (!user?.id) return;
       
       setIsLoading(true);
-      try {
-        const data = await getExerciseProgressHistory(user.id, exerciseId, 20);
+      try {        const data = await getExerciseProgressHistory(user.id, exerciseId, 20);
         
         // Transform data for the chart
         const formattedData = data.map((log: any) => ({
@@ -123,15 +122,18 @@ const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
             <CardTitle>{exerciseName}</CardTitle>
             <CardDescription>Your progress over time</CardDescription>
           </div>
-          
-          {activeMetric === 'weight' ? (
-            <Badge variant={weightImprovement.percentage > 0 ? "default" : "outline"} className="ml-auto">
-              {weightImprovement.percentage > 0 ? '+' : ''}{weightImprovement.value}kg ({weightImprovement.percentage}%)
-            </Badge>
+            {activeMetric === 'weight' ? (
+            <div>
+              <Badge variant={weightImprovement.percentage > 0 ? "default" : "outline"} className="ml-auto">
+                {weightImprovement.percentage > 0 ? '+' : ''}{weightImprovement.value}kg ({weightImprovement.percentage}%)
+              </Badge>
+            </div>
           ) : (
-            <Badge variant={repsImprovement.percentage > 0 ? "default" : "outline"} className="ml-auto">
-              {repsImprovement.percentage > 0 ? '+' : ''}{repsImprovement.value} reps ({repsImprovement.percentage}%)
-            </Badge>
+            <div>
+              <Badge variant={repsImprovement.percentage > 0 ? "default" : "outline"} className="ml-auto">
+                {repsImprovement.percentage > 0 ? '+' : ''}{repsImprovement.value} reps ({repsImprovement.percentage}%)
+              </Badge>
+            </div>
           )}
         </div>
       </CardHeader>
