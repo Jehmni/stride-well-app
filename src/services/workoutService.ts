@@ -359,11 +359,7 @@ export const logWorkoutCompletion = async (
   }
 };
 
-import { 
-  ExerciseProgressHistoryParams,
-  LogExerciseCompletionParams,
-  ExerciseProgressHistoryResponse
-} from '@/types/rpc';
+import { getExerciseProgressHistoryRPC, logExerciseCompletionRPC } from '@/integrations/supabase/functions';
 
 // Track user's exercise progress over time
 export const getExerciseProgressHistory = async (
@@ -372,13 +368,12 @@ export const getExerciseProgressHistory = async (
   limit: number = 10
 ) => {
   try {
-    // Use RPC function to get exercise progress history safely
-    const { data, error } = await supabase
-      .rpc<ExerciseProgressHistoryResponse[]>('get_exercise_progress_history', { 
-        user_id_param: userId,
-        exercise_id_param: exerciseId,
-        limit_param: limit
-      } as ExerciseProgressHistoryParams);
+    // Use RPC function wrapper to get exercise progress history safely
+    const { data, error } = await getExerciseProgressHistoryRPC({ 
+      user_id_param: userId,
+      exercise_id_param: exerciseId,
+      limit_param: limit
+    });
 
     if (error) throw error;
     return data || [];
@@ -398,15 +393,15 @@ export const logExerciseCompletion = async (
   notes?: string
 ) => {
   try {
-    // Use RPC function to log exercise completion
-    const { data, error } = await supabase.rpc('log_exercise_completion', {
+    // Use RPC function wrapper to log exercise completion
+    const { data, error } = await logExerciseCompletionRPC({
       workout_log_id_param: workoutLogId,
       exercise_id_param: exerciseId,
       sets_completed_param: setsCompleted,
       reps_completed_param: repsCompleted || null,
       weight_used_param: weightUsed || null,
       notes_param: notes || null
-    } as LogExerciseCompletionParams);
+    });
 
     if (error) throw error;
     return data;

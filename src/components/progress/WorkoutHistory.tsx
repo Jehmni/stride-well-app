@@ -51,14 +51,13 @@ const WorkoutHistory: React.FC = () => {
           
         if (error) throw error;
 
-        // Filter out logs where workout relation failed or is null
-        const validLogs: WorkoutLog[] = [];
+        // Filter out logs where workout relation failed or is null        const validLogs: WorkoutLog[] = [];
           for (const log of data || []) {
           // Check if workout exists, is an object, and doesn't have an error property
           if (log.workout !== null && 
               log.workout !== undefined && 
               typeof log.workout === 'object' && 
-              !('error' in log.workout)) {
+              !('error' in (log.workout as Record<string, any>))) {
             validLogs.push(log as WorkoutLog);
           }
         }
@@ -135,8 +134,7 @@ const WorkoutHistory: React.FC = () => {
         <div className="space-y-4">
           {workoutLogs.map((log) => {
             if (!log.workout) return null; // Skip logs without workout data
-            
-            return (
+              return (
               <Card key={log.id} className="overflow-hidden">
                 <CardHeader className="p-4 bg-gray-50 dark:bg-gray-800">
                   <div 
@@ -151,12 +149,11 @@ const WorkoutHistory: React.FC = () => {
                         <span className="text-gray-500 text-sm">{formatDate(log.completed_at)}</span>
                       </div>
                       <h4 className="text-lg font-medium mt-1">
-                        {log.workout.name || "Workout"}
+                        {log.workout?.name || "Workout"}
                       </h4>
-                    </div>
-                    <div className="flex items-center">
+                    </div>                    <div className="flex items-center">
                       <Badge className="mr-2">
-                        {log.workout && log.workout.exercises ? log.workout.exercises.length : 0} exercises
+                        {log.workout?.exercises ? log.workout.exercises.length : 0} exercises
                       </Badge>
                       {expandedLog === log.id ? (
                         <ChevronUp className="h-5 w-5" />

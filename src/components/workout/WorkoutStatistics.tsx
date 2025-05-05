@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { UserExerciseCountsParams, ExerciseCountResponse } from '@/types/rpc';
+import { ExerciseCountResponse } from '@/types/rpc';
+import { getUserExerciseCountsRPC } from '@/integrations/supabase/functions';
 
 interface ExerciseCount {
   exercise_id: string;
@@ -18,7 +18,11 @@ interface MuscleGroupData {
   percentage: number;
 }
 
-const WorkoutStatistics: React.FC = () => {
+interface WorkoutStatisticsProps {
+  onViewAllProgress?: () => void;
+}
+
+const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({ onViewAllProgress }) => {
   const { user } = useAuth();
   const [exerciseCounts, setExerciseCounts] = useState<ExerciseCount[]>([]);
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroupData[]>([]);
@@ -29,12 +33,10 @@ const WorkoutStatistics: React.FC = () => {
       if (!user?.id) return;
       
       try {
-        setIsLoading(true);
-        // Use RPC function to get user's exercise counts
-        const { data, error } = await supabase
-          .rpc<ExerciseCountResponse[]>('get_user_exercise_counts', { 
-            user_id_param: user.id
-          } as UserExerciseCountsParams);
+        setIsLoading(true);        // Use RPC function to get user's exercise counts
+        const { data, error } = await getUserExerciseCountsRPC({ 
+          user_id_param: user.id
+        });
 
         if (error) throw error;
 

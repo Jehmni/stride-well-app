@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { testLogExerciseCompletion } from "@/utils/testRpcFunction";
-import { TopExercisesParams, ExerciseCountResponse } from '@/types/rpc';
+import { ExerciseCountResponse } from '@/types/rpc';
+import { getTopExercisesRPC } from '@/integrations/supabase/functions';
 
 interface Exercise {
   exercise_id: string;
@@ -38,13 +38,11 @@ const ExerciseDashboard: React.FC = () => {
       if (!user?.id) return;
       
       try {
-        setIsLoading(true);
-        // Use RPC function to get user's top exercises by count
-        const { data, error } = await supabase
-          .rpc<ExerciseCountResponse[]>('get_top_exercises', { 
-            user_id_param: user.id,
-            limit_param: 5
-          } as TopExercisesParams);
+        setIsLoading(true);        // Use RPC function to get user's top exercises by count
+        const { data, error } = await getTopExercisesRPC({ 
+          user_id_param: user.id,
+          limit_param: 5
+        });
         
         if (error) throw error;
         

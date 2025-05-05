@@ -41,16 +41,13 @@ const setupStorage = async () => {
     } else {
       console.log('✅ Profiles bucket created')
     }
-    
-    // 2. Execute SQL to set up policies
+      // 2. Execute SQL to set up policies
     console.log('Setting up storage policies...')
-    const { error: policiesError } = await supabase.rpc('exec_sql', {
-      sql: `
+    const { error: policiesError } = await execSqlRPC(`
         -- Allow public access to avatars
         CREATE POLICY IF NOT EXISTS "Avatars are publicly accessible"
         ON storage.objects FOR SELECT
         USING (bucket_id = 'profiles');
-        
         -- Allow authenticated users to upload avatars
         CREATE POLICY IF NOT EXISTS "Users can upload their own avatars"
         ON storage.objects FOR INSERT
