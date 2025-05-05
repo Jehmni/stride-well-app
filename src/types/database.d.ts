@@ -1,3 +1,4 @@
+
 import { Database } from '../integrations/supabase/types';
 
 // Extend the Database type to include our RPC functions

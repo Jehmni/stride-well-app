@@ -370,7 +370,9 @@ export const getExerciseProgressHistory = async (
   userId: string,
   exerciseId: string,
   limit: number = 10
-) => {  try {    // Use RPC function to get exercise progress history safely
+) => {
+  try {
+    // Use RPC function to get exercise progress history safely
     const { data, error } = await supabase
       .rpc<ExerciseProgressHistoryResponse[]>('get_exercise_progress_history', { 
         user_id_param: userId,
@@ -404,7 +406,7 @@ export const logExerciseCompletion = async (
       reps_completed_param: repsCompleted || null,
       weight_used_param: weightUsed || null,
       notes_param: notes || null
-    } as any);
+    } as LogExerciseCompletionParams);
 
     if (error) throw error;
     return data;

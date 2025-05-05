@@ -1,8 +1,9 @@
-// Fix WorkoutStatistics component to properly handle RPC function results
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { UserExerciseCountsParams, ExerciseCountResponse } from '@/types/rpc';
 
 interface ExerciseCount {
   exercise_id: string;
@@ -17,11 +18,7 @@ interface MuscleGroupData {
   percentage: number;
 }
 
-interface WorkoutStatisticsProps {
-  onViewAllProgress?: () => void;
-}
-
-const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({ onViewAllProgress }) => {
+const WorkoutStatistics: React.FC = () => {
   const { user } = useAuth();
   const [exerciseCounts, setExerciseCounts] = useState<ExerciseCount[]>([]);
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroupData[]>([]);
@@ -32,17 +29,18 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({ onViewAllProgress
       if (!user?.id) return;
       
       try {
-        setIsLoading(true);          // Use RPC function to get user's exercise counts
+        setIsLoading(true);
+        // Use RPC function to get user's exercise counts
         const { data, error } = await supabase
-          .rpc('get_user_exercise_counts', { 
+          .rpc<ExerciseCountResponse[]>('get_user_exercise_counts', { 
             user_id_param: user.id
-          } as any);
+          } as UserExerciseCountsParams);
 
         if (error) throw error;
 
         if (data) {
           // Process exercise counts
-          const exercises = (data as any[]).map(ex => ({
+          const exercises = data.map(ex => ({
             exercise_id: ex.exercise_id,
             name: ex.name,
             muscle_group: ex.muscle_group,
@@ -119,7 +117,7 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({ onViewAllProgress
             <div>
               <h4 className="text-sm font-medium text-gray-500">Most Frequent Exercises</h4>
               <ul className="mt-2 space-y-2">
-                {exerciseCounts.map((exercise) => (
+                {exerciseCounts.slice(0, 5).map((exercise) => (
                   <li key={exercise.exercise_id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <div>
                       <h5 className="font-medium">{exercise.name}</h5>

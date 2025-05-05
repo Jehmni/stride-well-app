@@ -1,10 +1,10 @@
 
-// Update ExerciseDashboard component to correctly handle RPC function results
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { testLogExerciseCompletion } from "@/utils/testRpcFunction";
+import { TopExercisesParams, ExerciseCountResponse } from '@/types/rpc';
 
 interface Exercise {
   exercise_id: string;
@@ -38,17 +38,18 @@ const ExerciseDashboard: React.FC = () => {
       if (!user?.id) return;
       
       try {
-        setIsLoading(true);          // Use RPC function to get user's top exercises by count
+        setIsLoading(true);
+        // Use RPC function to get user's top exercises by count
         const { data, error } = await supabase
-          .rpc('get_top_exercises', { 
+          .rpc<ExerciseCountResponse[]>('get_top_exercises', { 
             user_id_param: user.id,
             limit_param: 5
-          } as any);
+          } as TopExercisesParams);
         
         if (error) throw error;
         
         if (data) {
-          setTopExercises((data as any[]).map(exercise => ({
+          setTopExercises(data.map(exercise => ({
             exercise_id: exercise.exercise_id,
             name: exercise.name,
             muscle_group: exercise.muscle_group,

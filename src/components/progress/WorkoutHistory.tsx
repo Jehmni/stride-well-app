@@ -133,95 +133,99 @@ const WorkoutHistory: React.FC = () => {
         </Card>
       ) : (
         <div className="space-y-4">
-          {workoutLogs.map((log) => (
-            <Card key={log.id} className="overflow-hidden">
-              <CardHeader className="p-4 bg-gray-50 dark:bg-gray-800">
-                <div 
-                  className="flex items-center justify-between cursor-pointer"
-                  onClick={() => toggleExpand(log.id)}
-                >
-                  <div>
+          {workoutLogs.map((log) => {
+            if (!log.workout) return null; // Skip logs without workout data
+            
+            return (
+              <Card key={log.id} className="overflow-hidden">
+                <CardHeader className="p-4 bg-gray-50 dark:bg-gray-800">
+                  <div 
+                    className="flex items-center justify-between cursor-pointer"
+                    onClick={() => toggleExpand(log.id)}
+                  >
+                    <div>
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-2 text-fitness-primary" />
+                        <span className="font-medium">{getRelativeDay(log.completed_at)}</span>
+                        <span className="mx-2 text-gray-400">•</span>
+                        <span className="text-gray-500 text-sm">{formatDate(log.completed_at)}</span>
+                      </div>
+                      <h4 className="text-lg font-medium mt-1">
+                        {log.workout.name || "Workout"}
+                      </h4>
+                    </div>
                     <div className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-2 text-fitness-primary" />
-                      <span className="font-medium">{getRelativeDay(log.completed_at)}</span>
-                      <span className="mx-2 text-gray-400">•</span>
-                      <span className="text-gray-500 text-sm">{formatDate(log.completed_at)}</span>
+                      <Badge className="mr-2">
+                        {log.workout && log.workout.exercises ? log.workout.exercises.length : 0} exercises
+                      </Badge>
+                      {expandedLog === log.id ? (
+                        <ChevronUp className="h-5 w-5" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5" />
+                      )}
                     </div>
-                    <h4 className="text-lg font-medium mt-1">
-                      {log.workout?.name || "Workout"}
-                    </h4>
                   </div>
-                  <div className="flex items-center">
-                    <Badge className="mr-2">
-                      {log.workout && log.workout.exercises ? log.workout.exercises.length : 0} exercises
-                    </Badge>
-                    {expandedLog === log.id ? (
-                      <ChevronUp className="h-5 w-5" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5" />
+                </CardHeader>
+                
+                {expandedLog === log.id && log.workout && (
+                  <CardContent className="p-4">
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div className="flex flex-col items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <Clock className="h-5 w-5 mb-1 text-fitness-primary" />
+                        <span className="text-sm text-gray-500">Duration</span>
+                        <span className="font-medium">{log.duration || '–'} min</span>
+                      </div>
+                      <div className="flex flex-col items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <Award className="h-5 w-5 mb-1 text-fitness-primary" />
+                        <span className="text-sm text-gray-500">Calories</span>
+                        <span className="font-medium">{log.calories_burned || '–'}</span>
+                      </div>
+                      <div className="flex flex-col items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <Dumbbell className="h-5 w-5 mb-1 text-fitness-primary" />
+                        <span className="text-sm text-gray-500">Rating</span>
+                        <span className="font-medium">{log.rating ? `${log.rating}/5` : '–'}</span>
+                      </div>
+                    </div>
+                    
+                    {log.notes && (
+                      <div className="mb-4">
+                        <h5 className="text-sm font-medium mb-1">Notes</h5>
+                        <p className="text-gray-600 dark:text-gray-400 text-sm p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          {log.notes}
+                        </p>
+                      </div>
                     )}
-                  </div>
-                </div>
-              </CardHeader>
-              
-              {expandedLog === log.id && log.workout && (
-                <CardContent className="p-4">
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div className="flex flex-col items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <Clock className="h-5 w-5 mb-1 text-fitness-primary" />
-                      <span className="text-sm text-gray-500">Duration</span>
-                      <span className="font-medium">{log.duration || '–'} min</span>
-                    </div>
-                    <div className="flex flex-col items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <Award className="h-5 w-5 mb-1 text-fitness-primary" />
-                      <span className="text-sm text-gray-500">Calories</span>
-                      <span className="font-medium">{log.calories_burned || '–'}</span>
-                    </div>
-                    <div className="flex flex-col items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <Dumbbell className="h-5 w-5 mb-1 text-fitness-primary" />
-                      <span className="text-sm text-gray-500">Rating</span>
-                      <span className="font-medium">{log.rating ? `${log.rating}/5` : '–'}</span>
-                    </div>
-                  </div>
-                  
-                  {log.notes && (
-                    <div className="mb-4">
-                      <h5 className="text-sm font-medium mb-1">Notes</h5>
-                      <p className="text-gray-600 dark:text-gray-400 text-sm p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        {log.notes}
-                      </p>
-                    </div>
-                  )}
-                  
-                  <h5 className="text-sm font-medium mb-2">Exercises</h5>
-                  <div className="space-y-2">
-                    {log.workout?.exercises && log.workout.exercises.length > 0 ? 
-                      log.workout.exercises.map((exercise) => (
-                        <div 
-                          key={exercise.id} 
-                          className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h6 className="font-medium">{exercise.exercise?.name}</h6>
-                              <div className="text-xs text-gray-500">
-                                {exercise.exercise?.muscle_group}
+                    
+                    <h5 className="text-sm font-medium mb-2">Exercises</h5>
+                    <div className="space-y-2">
+                      {log.workout?.exercises && log.workout.exercises.length > 0 ? 
+                        log.workout.exercises.map((exercise) => (
+                          <div 
+                            key={exercise.id} 
+                            className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h6 className="font-medium">{exercise.exercise?.name}</h6>
+                                <div className="text-xs text-gray-500">
+                                  {exercise.exercise?.muscle_group}
+                                </div>
+                              </div>
+                              <div className="text-sm">
+                                {exercise.sets} sets × {exercise.reps || (exercise.duration ? `${exercise.duration}s` : '–')}
                               </div>
                             </div>
-                            <div className="text-sm">
-                              {exercise.sets} sets × {exercise.reps || (exercise.duration ? `${exercise.duration}s` : '–')}
-                            </div>
                           </div>
-                        </div>
-                      )) : (
-                        <div className="text-gray-500 text-sm">No exercise details available</div>
-                      )
-                    }
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-          ))}
+                        )) : (
+                          <div className="text-gray-500 text-sm">No exercise details available</div>
+                        )
+                      }
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

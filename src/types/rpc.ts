@@ -1,3 +1,4 @@
+
 // RPC Function Type Definitions for Supabase
 // Use these types when calling RPC functions to avoid 'any' type assertions
 
