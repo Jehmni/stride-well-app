@@ -1,4 +1,3 @@
-
 // Types for user data
 export interface UserProfile {
   id: string;
@@ -22,6 +21,7 @@ export interface Exercise {
   muscle_group: string;
   difficulty: string;
   exercise_type: string;
+  equipment_required: string | null;
   created_at: string;
 }
 
@@ -183,4 +183,37 @@ export interface WorkoutPlanInsert {
   fitness_goal: string;
   weekly_structure: Json;
   exercises: Json;
+}
+
+// Adding the missing FitnessGoals enum
+export enum FitnessGoals {
+  WEIGHT_LOSS = "weight-loss",
+  MUSCLE_GAIN = "muscle-gain",
+  GENERAL_FITNESS = "general-fitness",
+  ENDURANCE = "endurance"
+}
+
+// Updating Exercise interface to match database schema
+export interface Exercise {
+  id: string;
+  name: string;
+  description: string | null;
+  muscle_group: string;
+  difficulty: string;
+  exercise_type: string;
+  equipment_required: string | null;
+  created_at: string;
+}
+
+// Adding ExerciseLog interface
+export interface ExerciseLog {
+  id: string;
+  workout_log_id: string;
+  exercise_id: string;
+  sets_completed: number;
+  reps_completed: number | null;
+  weight_used: number | null;
+  notes: string | null;
+  completed_at: string;
+  exercise?: Exercise;
 }

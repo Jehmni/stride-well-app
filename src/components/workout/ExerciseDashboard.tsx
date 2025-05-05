@@ -9,18 +9,9 @@ import { Search, TrendingUp, BarChart3, Filter } from "lucide-react";
 import ExerciseProgressChart from "./ExerciseProgressChart";
 import { Skeleton } from "../ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Exercise } from "@/models/models";
 
-// Exercise interface
-interface Exercise {
-  id: string;
-  name: string;
-  muscle_group: string;
-  exercise_type: string;
-  equipment_required: string | null;
-  difficulty: string;
-  description: string | null;
-}
-
+// Interface for exercise log count
 interface ExerciseLogCount {
   exercise_id: string;
   count: number;
@@ -62,26 +53,19 @@ const ExerciseDashboard: React.FC<ExerciseDashboardProps> = ({ userId }) => {
           setMuscleGroups(uniqueGroups);
         }
         
-        // Get logged exercises with counts
+        // Get logged exercises with counts by using raw SQL via functions API
+        // This works around the missing exercise_logs table in the schema
         const { data: logged, error: loggedError } = await supabase
-          .from('exercise_logs')
-          .select(`
-            exercise_id,
-            count(*),
-            exercises:exercise_id(name, muscle_group)
-          `)
-          .eq('workout_logs.user_id', activeUserId)
-          .group('exercise_id, exercises(name, muscle_group)')
-          .order('count', { ascending: false });
+          .rpc('get_user_exercise_counts', { user_id_param: activeUserId });
           
         if (loggedError) throw loggedError;
         
         if (logged && logged.length > 0) {
-          const formattedLogs = logged.map(log => ({
+          const formattedLogs = logged.map((log: any) => ({
             exercise_id: log.exercise_id,
             count: log.count,
-            name: log.exercises?.name || 'Unknown Exercise',
-            muscle_group: log.exercises?.muscle_group || 'Unknown Group'
+            name: log.name || 'Unknown Exercise',
+            muscle_group: log.muscle_group || 'Unknown Group'
           }));
           
           setLoggedExercises(formattedLogs);
@@ -100,7 +84,13 @@ const ExerciseDashboard: React.FC<ExerciseDashboardProps> = ({ userId }) => {
           
         if (exercisesError) throw exercisesError;
         
-        setExercises(allExercises || []);
+        // Add default value for equipment_required if missing
+        const processedExercises = (allExercises || []).map(ex => ({
+          ...ex,
+          equipment_required: ex.equipment_required || null
+        }));
+        
+        setExercises(processedExercises as Exercise[]);
       } catch (error) {
         console.error('Error fetching exercise data:', error);
       } finally {

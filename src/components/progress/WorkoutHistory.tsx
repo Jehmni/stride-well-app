@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Calendar, Award, Clock, Dumbbell, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";

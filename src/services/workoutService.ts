@@ -397,20 +397,13 @@ export const getExerciseProgressHistory = async (
   limit: number = 10
 ) => {
   try {
+    // Use RPC function to get exercise progress history safely
     const { data, error } = await supabase
-      .from('exercise_logs')
-      .select(`
-        *,
-        workout_logs:workout_logs(
-          id,
-          user_id,
-          completed_at
-        )
-      `)
-      .eq('exercise_id', exerciseId)
-      .eq('workout_logs.user_id', userId)
-      .order('completed_at', { ascending: false })
-      .limit(limit);
+      .rpc('get_exercise_progress_history', { 
+        user_id_param: userId,
+        exercise_id_param: exerciseId,
+        limit_param: limit
+      });
 
     if (error) throw error;
     return data || [];
