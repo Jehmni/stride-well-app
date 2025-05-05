@@ -1,3 +1,4 @@
+
 // Script to set up storage policies for the Stride Well app
 import { createClient } from '@supabase/supabase-js'
 

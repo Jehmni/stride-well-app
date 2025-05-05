@@ -229,7 +229,6 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
                 key={exercise.id}
                 exercise={exercise}
                 onComplete={handleExerciseComplete}
-                isCompleted={completedExercises.includes(exercise.id)}
               />
             ))}
           </div>

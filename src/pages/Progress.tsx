@@ -69,12 +69,6 @@ const Progress: React.FC = () => {
           <WorkoutStatistics />
         </TabsContent>
         
-        <TabsContent value="weight">
-          <div className="p-12 text-center">
-            <p className="text-gray-500">Weight tracking charts coming soon!</p>
-          </div>
-        </TabsContent>
-        
         <TabsContent value="measurements">
           <div className="p-12 text-center">
             <p className="text-gray-500">Body measurements tracking coming soon!</p>

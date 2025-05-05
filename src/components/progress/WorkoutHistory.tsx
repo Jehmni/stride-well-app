@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { WorkoutLog, Workout, WorkoutExercise, SelectQueryError } from "@/models/models";
+import { WorkoutLog, Workout, WorkoutExercise } from "@/models/models";
 import { format, parseISO, subDays } from "date-fns";
 
 const WorkoutHistory: React.FC = () => {
@@ -55,16 +55,11 @@ const WorkoutHistory: React.FC = () => {
         const validLogs: WorkoutLog[] = [];
         
         for (const log of data || []) {
-          // First check if workout exists and is an object
-          if (log.workout && typeof log.workout === 'object') {
-            // Then check if it doesn't have an error property
-            if (!('error' in log.workout)) {
-              // It's safe to cast the workout as a Workout now
-              validLogs.push({
-                ...log,
-                workout: log.workout as Workout
-              });
-            }
+          // Check if workout exists, is an object, and doesn't have an error property
+          if (log.workout && 
+              typeof log.workout === 'object' && 
+              !('error' in log.workout)) {
+            validLogs.push(log as WorkoutLog);
           }
         }
         
