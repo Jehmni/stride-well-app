@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile } from "@/models/models";
 import { WorkoutDay, WorkoutExercise, WorkoutPlan } from "@/components/workout/types";
+import { getExerciseProgressHistoryRPC, logExerciseCompletionRPC } from '@/integrations/supabase/functions';
 
 // Generate a personalized workout plan based on user data and fitness goal
 export const generatePersonalizedWorkoutPlan = async (
@@ -358,8 +359,6 @@ export const logWorkoutCompletion = async (
     return null;
   }
 };
-
-import { getExerciseProgressHistoryRPC, logExerciseCompletionRPC } from '@/integrations/supabase/functions';
 
 // Track user's exercise progress over time
 export const getExerciseProgressHistory = async (

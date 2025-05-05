@@ -27,18 +27,26 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({ onViewAllProgress
   const [exerciseCounts, setExerciseCounts] = useState<ExerciseCount[]>([]);
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroupData[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-
   useEffect(() => {
     const fetchExerciseData = async () => {
-      if (!user?.id) return;
+      if (!user?.id) {
+        setIsLoading(false);
+        return;
+      }
       
       try {
-        setIsLoading(true);        // Use RPC function to get user's exercise counts
+        setIsLoading(true);
+        // Use RPC function to get user's exercise counts
         const { data, error } = await getUserExerciseCountsRPC({ 
           user_id_param: user.id
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error("Failed to get exercise counts:", error);
+          setExerciseCounts([]);
+          setMuscleGroups([]);
+          return;
+        }
 
         if (data) {
           // Process exercise counts

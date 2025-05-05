@@ -1,12 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from './types';
 import { ExerciseProgressHistoryParams, ExerciseProgressHistoryResponse, TopExercisesParams, UserExerciseCountsParams, ExerciseCountResponse, LogExerciseCompletionParams } from '@/types/rpc';
+import { supabase } from './client';
 
-// Create a typed client for regular Supabase operations
-export const typedSupabaseClient = createClient<Database>(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+// Use the existing supabase client as the base for our typed client
+export const typedSupabaseClient = supabase;
 
 // Custom wrapper functions for RPC calls
 export const rpcFunctions = {
