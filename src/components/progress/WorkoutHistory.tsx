@@ -153,7 +153,7 @@ const WorkoutHistory: React.FC = () => {
                   </div>
                   <div className="flex items-center">
                     <Badge className="mr-2">
-                      {log.workout?.exercises?.length || 0} exercises
+                      {log.workout && log.workout.exercises ? log.workout.exercises.length : 0} exercises
                     </Badge>
                     {expandedLog === log.id ? (
                       <ChevronUp className="h-5 w-5" />
@@ -195,28 +195,28 @@ const WorkoutHistory: React.FC = () => {
                   
                   <h5 className="text-sm font-medium mb-2">Exercises</h5>
                   <div className="space-y-2">
-                    {log.workout?.exercises?.map((exercise) => (
-                      <div 
-                        key={exercise.id} 
-                        className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h6 className="font-medium">{exercise.exercise?.name}</h6>
-                            <div className="text-xs text-gray-500">
-                              {exercise.exercise?.muscle_group}
+                    {log.workout.exercises && log.workout.exercises.length > 0 ? 
+                      log.workout.exercises.map((exercise) => (
+                        <div 
+                          key={exercise.id} 
+                          className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h6 className="font-medium">{exercise.exercise?.name}</h6>
+                              <div className="text-xs text-gray-500">
+                                {exercise.exercise?.muscle_group}
+                              </div>
+                            </div>
+                            <div className="text-sm">
+                              {exercise.sets} sets × {exercise.reps || (exercise.duration ? `${exercise.duration}s` : '–')}
                             </div>
                           </div>
-                          <div className="text-sm">
-                            {exercise.sets} sets × {exercise.reps || (exercise.duration ? `${exercise.duration}s` : '–')}
-                          </div>
                         </div>
-                      </div>
-                    ))}
-                    
-                    {(!log.workout?.exercises || log.workout.exercises.length === 0) && (
-                      <div className="text-gray-500 text-sm">No exercise details available</div>
-                    )}
+                      )) : (
+                        <div className="text-gray-500 text-sm">No exercise details available</div>
+                      )
+                    }
                   </div>
                 </CardContent>
               )}

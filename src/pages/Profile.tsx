@@ -7,14 +7,17 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { FitnessGoals } from "@/models/models";
+
+// Removed the unused FitnessGoals import
 
 const Profile: React.FC = () => {
   const { user, profile } = useAuth();
   
   return (
     <DashboardLayout title="Your Profile">
-      <ProfileHeader profile={profile} email={user?.email || ""} />
+      {user && profile && (
+        <ProfileHeader profile={profile} email={user.email || ""} />
+      )}
 
       <Tabs defaultValue="account" className="w-full">
         <TabsList>

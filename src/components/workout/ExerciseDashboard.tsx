@@ -84,7 +84,7 @@ const ExerciseDashboard: React.FC<ExerciseDashboardProps> = ({ userId }) => {
           
         if (exercisesError) throw exercisesError;
         
-        // Add default value for equipment_required if missing
+        // Ensure equipment_required is set (even if null) on all exercises
         const processedExercises = (allExercises || []).map(ex => ({
           ...ex,
           equipment_required: ex.equipment_required || null

@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile } from "@/models/models";
 import { WorkoutDay, WorkoutExercise, WorkoutPlan } from "@/components/workout/types";
@@ -359,6 +358,29 @@ export const logWorkoutCompletion = async (
   }
 };
 
+// Track user's exercise progress over time
+export const getExerciseProgressHistory = async (
+  userId: string,
+  exerciseId: string,
+  limit: number = 10
+) => {
+  try {
+    // Use RPC function to get exercise progress history safely
+    const { data, error } = await supabase
+      .rpc('get_exercise_progress_history', { 
+        user_id_param: userId,
+        exercise_id_param: exerciseId,
+        limit_param: limit
+      });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching exercise progress:", error);
+    return [];
+  }
+};
+
 // Log individual exercise completion within a workout
 export const logExerciseCompletion = async (
   workoutLogId: string,
@@ -385,29 +407,6 @@ export const logExerciseCompletion = async (
   } catch (error) {
     console.error("Error logging exercise completion:", error);
     return null;
-  }
-};
-
-// Track user's exercise progress over time
-export const getExerciseProgressHistory = async (
-  userId: string,
-  exerciseId: string,
-  limit: number = 10
-) => {
-  try {
-    // Use RPC function to get exercise progress history safely
-    const { data, error } = await supabase
-      .rpc('get_exercise_progress_history', { 
-        user_id_param: userId,
-        exercise_id_param: exerciseId,
-        limit_param: limit
-      });
-
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error("Error fetching exercise progress:", error);
-    return [];
   }
 };
 

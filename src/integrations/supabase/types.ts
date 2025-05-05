@@ -14,6 +14,7 @@ export type Database = {
           created_at: string
           description: string | null
           difficulty: string
+          equipment_required: string | null
           exercise_type: string
           id: string
           muscle_group: string
@@ -23,6 +24,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           difficulty: string
+          equipment_required?: string | null
           exercise_type: string
           id?: string
           muscle_group: string
@@ -32,6 +34,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           difficulty?: string
+          equipment_required?: string | null
           exercise_type?: string
           id?: string
           muscle_group?: string

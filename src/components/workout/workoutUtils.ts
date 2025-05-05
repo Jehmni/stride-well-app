@@ -1,6 +1,6 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { WorkoutExerciseDetail } from "./types";
+import { Exercise } from "@/models/models";
 
 /**
  * Fetches workout exercises with detailed information
@@ -17,19 +17,17 @@ export const fetchWorkoutExercises = async (workoutId: string): Promise<WorkoutE
       `)
       .eq('workout_id', workoutId)
       .order('order_position', { ascending: true });
-      
+
     if (error) throw error;
-    
-    // Make sure all exercises have the equipment_required property
-    const processedData = (data || []).map(ex => ({
+
+    // Ensure equipment_required is set (even if null) on all exercises
+    return (data || []).map(ex => ({
       ...ex,
       exercise: {
         ...ex.exercise,
         equipment_required: ex.exercise?.equipment_required || null
-      }
+      } as Exercise
     })) as WorkoutExerciseDetail[];
-    
-    return processedData;
   } catch (error) {
     console.error("Error fetching workout exercises:", error);
     return [];
