@@ -73,8 +73,7 @@ const DetailedWorkoutLog: React.FC<DetailedWorkoutLogProps> = ({
     }
 
     setIsSubmitting(true);
-    try {
-      const logId = await logWorkoutCompletion(
+    try {      const logId = await logWorkoutCompletion(
         user.id,
         workoutId,
         values.duration,
@@ -84,10 +83,12 @@ const DetailedWorkoutLog: React.FC<DetailedWorkoutLogProps> = ({
       );
       
       if (logId) {
+        console.log("Workout log created with ID:", logId);
         setWorkoutLogId(logId);
         toast.success("Workout log created! Now let's log your exercises.");
         setActiveTab("exercises");
       } else {
+        console.error("Failed to create workout log - no ID returned");
         toast.error("Failed to create workout log");
       }
     } catch (error) {
@@ -276,8 +277,7 @@ const DetailedWorkoutLog: React.FC<DetailedWorkoutLogProps> = ({
                           <Check className="text-green-600 dark:text-green-400 mr-2" />
                           <span><strong>{exercise.exercise.name}</strong> completed</span>
                         </div>
-                      ) : (
-                        <ExerciseLogForm
+                      ) : (                        <ExerciseLogForm
                           workoutLogId={workoutLogId}
                           exerciseId={exercise.exercise_id}
                           exerciseName={exercise.exercise.name}

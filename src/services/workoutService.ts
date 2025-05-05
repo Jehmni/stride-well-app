@@ -403,10 +403,9 @@ export const logExerciseCompletion = async (
       });
 
     if (error) throw error;
-    return data;
-  } catch (error) {
+    return data;  } catch (error) {
     console.error("Error logging exercise completion:", error);
-    return null;
+    throw error; // Rethrow the error so the calling function can handle it
   }
 };
 
@@ -464,15 +463,14 @@ export const getUserWorkoutStatistics = async (userId: string) => {
       
       // Remove duplicate dates (more than one workout in a day)
       const uniqueDates = [...new Set(workoutDates)];
-      
-      // Calculate current streak
-      let streakDates = [uniqueDates[0]];
+        // Calculate current streak
+      let streakDates = uniqueDates.length > 0 ? [uniqueDates[0]] : [];
       for (let i = 1; i < uniqueDates.length; i++) {
-        const prevDate = new Date(uniqueDates[i-1]);
+        const prevDate = new Date(uniqueDates[i-1] as number);
         prevDate.setDate(prevDate.getDate() - 1);
         
         if (prevDate.getTime() === uniqueDates[i]) {
-          streakDates.push(uniqueDates[i]);
+          streakDates.push(uniqueDates[i] as number);
         } else {
           break;
         }

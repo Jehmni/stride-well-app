@@ -56,10 +56,21 @@ const ExerciseLogForm: React.FC<ExerciseLogFormProps> = ({
       
       setIsComplete(true);
       toast.success(`${exerciseName} logged successfully!`);
-      onComplete();
-    } catch (error) {
+      onComplete();    } catch (error) {
       console.error("Error logging exercise:", error);
-      toast.error("Failed to log exercise completion");
+      // More detailed error message
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to log exercise: ${errorMessage}`);
+      
+      // Log additional details for debugging
+      console.log("Exercise log attempt details:", {
+        workoutLogId,
+        exerciseId, 
+        exerciseName,
+        setsCompleted,
+        repsCompleted,
+        weightUsed
+      });
     } finally {
       setIsLogging(false);
     }
