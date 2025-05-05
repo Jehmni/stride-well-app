@@ -64,7 +64,16 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
           
         if (error) throw error;
         
-        setTodayExercises(exercises || []);
+        // Make sure all exercises have the equipment_required property
+        const processedExercises = (exercises || []).map(ex => ({
+          ...ex,
+          exercise: {
+            ...ex.exercise,
+            equipment_required: ex.exercise?.equipment_required || null
+          }
+        })) as WorkoutExerciseDetail[];
+        
+        setTodayExercises(processedExercises);
       } else {
         // Fetch default exercises based on the user's fitness goal
         const { data: profile, error: profileError } = await supabase
@@ -83,7 +92,7 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
           
         if (error) throw error;
         
-        // Create sample workout exercises from these exercises
+        // Create sample workout exercises from these exercises with equipment_required property
         const defaultExercises: WorkoutExerciseDetail[] = exercises.map((ex, index) => ({
           id: `default-${ex.id}`,
           workout_id: 'today-workout',
@@ -94,7 +103,10 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
           rest_time: 60,
           order_position: index,
           notes: null,
-          exercise: ex
+          exercise: {
+            ...ex,
+            equipment_required: ex.equipment_required || null
+          }
         }));
         
         setTodayExercises(defaultExercises);

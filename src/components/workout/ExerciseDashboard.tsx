@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -53,8 +54,7 @@ const ExerciseDashboard: React.FC<ExerciseDashboardProps> = ({ userId }) => {
           setMuscleGroups(uniqueGroups);
         }
         
-        // Get logged exercises with counts by using raw SQL via functions API
-        // This works around the missing exercise_logs table in the schema
+        // Get logged exercises with counts by using RPC function
         const { data: logged, error: loggedError } = await supabase
           .rpc('get_user_exercise_counts', { user_id_param: activeUserId });
           
@@ -99,7 +99,7 @@ const ExerciseDashboard: React.FC<ExerciseDashboardProps> = ({ userId }) => {
     };
     
     fetchData();
-  }, [activeUserId]);
+  }, [activeUserId, selectedExerciseId]);
   
   // Filter exercises based on search query and muscle groups
   const filteredExercises = exercises.filter(exercise => {

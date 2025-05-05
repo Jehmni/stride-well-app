@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile } from "@/models/models";
 import { WorkoutDay, WorkoutExercise, WorkoutPlan } from "@/components/workout/types";
@@ -368,19 +369,16 @@ export const logExerciseCompletion = async (
   notes?: string
 ) => {
   try {
+    // Use RPC function to log exercise completion
     const { data, error } = await supabase
-      .from('exercise_logs')
-      .insert({
-        workout_log_id: workoutLogId,
-        exercise_id: exerciseId,
-        sets_completed: setsCompleted,
-        reps_completed: repsCompleted || null,
-        weight_used: weightUsed || null,
-        notes: notes || null,
-        completed_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+      .rpc('log_exercise_completion', { 
+        workout_log_id_param: workoutLogId, 
+        exercise_id_param: exerciseId,
+        sets_completed_param: setsCompleted,
+        reps_completed_param: repsCompleted || null,
+        weight_used_param: weightUsed || null,
+        notes_param: notes || null
+      });
 
     if (error) throw error;
     return data;

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Calendar, Award, Clock, Dumbbell, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -163,7 +164,7 @@ const WorkoutHistory: React.FC = () => {
                 </div>
               </CardHeader>
               
-              {expandedLog === log.id && (
+              {expandedLog === log.id && log.workout && (
                 <CardContent className="p-4">
                   <div className="grid grid-cols-3 gap-4 mb-4">
                     <div className="flex flex-col items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">

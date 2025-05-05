@@ -1,38 +1,12 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { Json, WorkoutPlanInsert } from "@/models/models";
-import { toast } from "sonner";
-import { WorkoutExerciseDetail, WorkoutPlan } from "./types";
+import { WorkoutExerciseDetail } from "./types";
 
-// Fixed function to properly format the data for Supabase
-export const insertWorkoutPlan = async (workoutPlans: WorkoutPlan[]) => {
-  try {
-    // Insert one plan at a time to avoid array insertion issues
-    for (const plan of workoutPlans) {
-      // Make sure the plan object matches the expected structure for the workout_plans table
-      const formattedPlan: WorkoutPlanInsert = {
-        title: plan.title,
-        description: plan.description,
-        fitness_goal: plan.fitness_goal,
-        weekly_structure: plan.weekly_structure as unknown as Json,
-        exercises: plan.exercises as unknown as Json
-      };
-
-      const { error } = await supabase
-        .from('workout_plans')
-        .insert(formattedPlan);
-        
-      if (error) throw error;
-    }
-    
-    console.log("Workout plans inserted successfully");
-    return true;
-  } catch (error) {
-    console.error("Error inserting workout plans:", error);
-    return false;
-  }
-};
-
+/**
+ * Fetches workout exercises with detailed information
+ * @param workoutId The ID of the workout to fetch exercises for
+ * @returns Array of workout exercises with detailed information
+ */
 export const fetchWorkoutExercises = async (workoutId: string): Promise<WorkoutExerciseDetail[]> => {
   try {
     const { data, error } = await supabase
@@ -46,15 +20,28 @@ export const fetchWorkoutExercises = async (workoutId: string): Promise<WorkoutE
       
     if (error) throw error;
     
-    return data || [];
-  } catch (error: any) {
+    // Make sure all exercises have the equipment_required property
+    const processedData = (data || []).map(ex => ({
+      ...ex,
+      exercise: {
+        ...ex.exercise,
+        equipment_required: ex.exercise?.equipment_required || null
+      }
+    })) as WorkoutExerciseDetail[];
+    
+    return processedData;
+  } catch (error) {
     console.error("Error fetching workout exercises:", error);
-    toast.error("Failed to load workout details");
     return [];
   }
 };
 
-export const removeExerciseFromWorkout = async (exerciseId: string): Promise<boolean> => {
+/**
+ * Handles deleting a workout exercise
+ * @param exerciseId The ID of the workout exercise to delete
+ * @returns Boolean indicating if the deletion was successful
+ */
+export const deleteWorkoutExercise = async (exerciseId: string): Promise<boolean> => {
   try {
     const { error } = await supabase
       .from('workout_exercises')
@@ -63,29 +50,72 @@ export const removeExerciseFromWorkout = async (exerciseId: string): Promise<boo
       
     if (error) throw error;
     
-    toast.success("Exercise removed from workout!");
     return true;
-  } catch (error: any) {
-    console.error("Error removing exercise:", error);
-    toast.error("Failed to remove exercise");
+  } catch (error) {
+    console.error("Error deleting workout exercise:", error);
     return false;
   }
 };
 
-export const deleteWorkout = async (workoutId: string): Promise<boolean> => {
+/**
+ * Reorders workout exercises
+ * @param exerciseId The ID of the exercise to move
+ * @param workoutId The ID of the workout
+ * @param direction 'up' or 'down'
+ * @returns Boolean indicating if the reorder was successful
+ */
+export const reorderExercise = async (
+  exerciseId: string, 
+  workoutId: string, 
+  direction: 'up' | 'down'
+): Promise<boolean> => {
   try {
-    const { error } = await supabase
-      .from('workouts')
-      .delete()
-      .eq('id', workoutId);
+    // Fetch all exercises for this workout
+    const { data: exercises, error: fetchError } = await supabase
+      .from('workout_exercises')
+      .select('*')
+      .eq('workout_id', workoutId)
+      .order('order_position', { ascending: true });
       
-    if (error) throw error;
+    if (fetchError) throw fetchError;
     
-    toast.success("Workout deleted successfully!");
+    if (!exercises || exercises.length <= 1) {
+      return false; // Nothing to reorder
+    }
+    
+    // Find the current exercise and its index
+    const currentIndex = exercises.findIndex(ex => ex.id === exerciseId);
+    if (currentIndex === -1) return false;
+    
+    // Calculate the target index
+    const targetIndex = direction === 'up' 
+      ? Math.max(currentIndex - 1, 0) 
+      : Math.min(currentIndex + 1, exercises.length - 1);
+    
+    // If there's no change in position, return
+    if (targetIndex === currentIndex) return false;
+    
+    // Swap positions
+    const targetExercise = exercises[targetIndex];
+    const currentExercise = exercises[currentIndex];
+    
+    const { error: updateError } = await supabase
+      .from('workout_exercises')
+      .update({ order_position: targetExercise.order_position })
+      .eq('id', currentExercise.id);
+      
+    if (updateError) throw updateError;
+    
+    const { error: updateError2 } = await supabase
+      .from('workout_exercises')
+      .update({ order_position: currentExercise.order_position })
+      .eq('id', targetExercise.id);
+      
+    if (updateError2) throw updateError2;
+    
     return true;
-  } catch (error: any) {
-    console.error("Error deleting workout:", error);
-    toast.error("Failed to delete workout");
+  } catch (error) {
+    console.error("Error reordering exercise:", error);
     return false;
   }
 };

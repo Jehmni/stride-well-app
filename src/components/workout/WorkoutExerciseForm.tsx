@@ -61,7 +61,17 @@ const WorkoutExerciseForm: React.FC<WorkoutExerciseFormProps> = ({
       
       toast.success("Exercise added to workout!");
       if (data && data.length > 0) {
-        onExerciseAdded(data[0] as WorkoutExerciseDetail);
+        // Make sure the exercise has the equipment_required field
+        const exercise = data[0] as any;
+        const processedExercise: WorkoutExerciseDetail = {
+          ...exercise,
+          exercise: {
+            ...exercise.exercise,
+            equipment_required: exercise.exercise?.equipment_required || null
+          }
+        };
+        
+        onExerciseAdded(processedExercise);
       }
       
       // Reset form

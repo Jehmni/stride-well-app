@@ -1,3 +1,4 @@
+
 import React from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import ProfileHeader from "@/components/profile/ProfileHeader";
@@ -13,7 +14,7 @@ const Profile: React.FC = () => {
   
   return (
     <DashboardLayout title="Your Profile">
-      <ProfileHeader />
+      <ProfileHeader profile={profile} email={user?.email || ""} />
 
       <Tabs defaultValue="account" className="w-full">
         <TabsList>
