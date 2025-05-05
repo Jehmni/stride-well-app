@@ -195,7 +195,7 @@ const WorkoutHistory: React.FC = () => {
                   
                   <h5 className="text-sm font-medium mb-2">Exercises</h5>
                   <div className="space-y-2">
-                    {log.workout.exercises && log.workout.exercises.length > 0 ? 
+                    {log.workout?.exercises && log.workout.exercises.length > 0 ? 
                       log.workout.exercises.map((exercise) => (
                         <div 
                           key={exercise.id} 

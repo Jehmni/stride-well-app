@@ -125,7 +125,7 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              <p className="text-2xl font-bold">{streak} {streak === 1 ? 'day' : 'days'}</p>
+              <p className="text-2xl font-bold">{stats?.current_streak || 0} {stats?.current_streak === 1 ? 'day' : 'days'}</p>
             </CardContent>
           </Card>
           
@@ -147,7 +147,7 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              <p className="text-lg font-medium">{lastActiveDate}</p>
+              <p className="text-lg font-medium">{stats?.last_workout_date ? format(parseISO(stats.last_workout_date), 'MMMM d, yyyy') : 'N/A'}</p>
             </CardContent>
           </Card>
         </div>

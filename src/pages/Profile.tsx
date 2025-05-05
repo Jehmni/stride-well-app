@@ -8,8 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
-// Removed the unused FitnessGoals import
-
 const Profile: React.FC = () => {
   const { user, profile } = useAuth();
   
@@ -28,7 +26,7 @@ const Profile: React.FC = () => {
         <Separator className="my-4" />
         <TabsContent value="account">
           <Card>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-6">
               <h3 className="text-lg font-semibold">Account Information</h3>
               <p>
                 <strong>Email:</strong> {user?.email}

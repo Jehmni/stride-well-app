@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -51,7 +50,7 @@ const ExerciseDashboard: React.FC<ExerciseDashboardProps> = ({ userId }) => {
         
         if (muscleGroupData) {
           const uniqueGroups = Array.from(new Set(muscleGroupData.map(item => item.muscle_group)));
-          setMuscleGroups(uniqueGroups);
+          setMuscleGroups(uniqueGroups as string[]);
         }
         
         // Get logged exercises with counts by using RPC function
@@ -84,13 +83,7 @@ const ExerciseDashboard: React.FC<ExerciseDashboardProps> = ({ userId }) => {
           
         if (exercisesError) throw exercisesError;
         
-        // Ensure equipment_required is set (even if null) on all exercises
-        const processedExercises = (allExercises || []).map(ex => ({
-          ...ex,
-          equipment_required: ex.equipment_required || null
-        }));
-        
-        setExercises(processedExercises as Exercise[]);
+        setExercises(allExercises as Exercise[]);
       } catch (error) {
         console.error('Error fetching exercise data:', error);
       } finally {
