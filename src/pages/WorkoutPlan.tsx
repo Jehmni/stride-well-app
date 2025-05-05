@@ -80,34 +80,84 @@ const WorkoutPlan: React.FC = () => {
             });
           } else {
             // Fallback workout if plan generation fails
+            setTodayWorkout(
+              workoutByGoal[profile.fitness_goal as keyof typeof workoutByGoal] || workoutByGoal["general-fitness"]
+            );
+          }
+        } catch (error) {
+          console.error("Error loading workout plan:", error);
+          // Set fallback workout in case of error
+          setTodayWorkout(
+            workoutByGoal[profile.fitness_goal as keyof typeof workoutByGoal] || workoutByGoal["general-fitness"]
+          );
+        }
       };
 
-      setTodayWorkout(
-        workoutByGoal[profile.fitness_goal as keyof typeof workoutByGoal] || workoutByGoal["general-fitness"]
-      );
-    }
-    
-    // Fetch user's custom workouts
-    if (user?.id) {
-      fetchUserWorkouts(user.id);
+      loadWorkoutPlan();
+      
+      // Fetch user's custom workouts
+      if (user?.id) {
+        fetchUserWorkouts(user.id).then(workouts => {
+          setUserWorkouts(workouts);
+        }).catch(error => {
+          console.error("Error fetching workouts:", error);
+        });
+      }
     }
   }, [profile, user?.id]);
 
-  const fetchUserWorkouts = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('workouts')
-        .select('*')
-        .eq('user_id', userId);
-      
-      if (error) {
-        console.error("Error fetching workouts:", error);
-        return;
-      }
-      
-      setUserWorkouts(data || []);
-    } catch (error) {
-      console.error("Error fetching workouts:", error);
+  // Define workout image helper function
+  const getWorkoutImage = (focus: string): string => {
+    const focusLower = focus.toLowerCase();
+    if (focusLower.includes('upper') || focusLower.includes('chest') || focusLower.includes('arms')) {
+      return "/assets/images/upper-body.jpg";
+    } else if (focusLower.includes('lower') || focusLower.includes('leg')) {
+      return "/assets/images/lower-body.jpg";
+    } else if (focusLower.includes('core') || focusLower.includes('ab')) {
+      return "/assets/images/core-workout.jpg";
+    } else if (focusLower.includes('cardio')) {
+      return "/assets/images/cardio.jpg";
+    } else if (focusLower.includes('full')) {
+      return "/assets/images/full-body.jpg";
+    } else if (focusLower.includes('recovery') || focusLower.includes('rest')) {
+      return "/assets/images/recovery.jpg";
+    }
+    return "/assets/images/workout-generic.jpg";
+  };
+
+  // Define workout by goal mapping
+  const workoutByGoal = {
+    "weight-loss": {
+      title: "High-Intensity Fat Burning",
+      description: "A high-intensity workout designed to maximize calorie burn",
+      duration: 45,
+      exercises: 8,
+      date: "Today",
+      image: "/assets/images/weight-loss.jpg"
+    },
+    "muscle-gain": {
+      title: "Strength & Hypertrophy",
+      description: "Focus on progressive overload to build muscle mass",
+      duration: 60,
+      exercises: 6,
+      date: "Today",
+      image: "/assets/images/muscle-gain.jpg"
+    },
+    "general-fitness": {
+      title: "Full Body Conditioning",
+      description: "Balanced workout to improve overall fitness and health",
+      duration: 40,
+      exercises: 7,
+      date: "Today",
+      image: "/assets/images/general-fitness.jpg"
+    },
+    "endurance": {
+      title: "Endurance Training",
+      description: "Boost your stamina and cardiovascular health",
+      duration: 50,
+      exercises: 5,
+      date: "Today",
+      image: "/assets/images/endurance.jpg"
     }
   };
 
