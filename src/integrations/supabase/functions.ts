@@ -19,11 +19,11 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Create a direct client for RPC calls
 const rpcClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-// Execute SQL statements
+// Execute SQL statements - using a type assertion to fix the type error
 export const execSqlRPC = async (sql: string) => {
   try {
-    // Fix the type by explicitly defining return type
-    const result = await rpcClient.rpc('exec_sql', { sql });
+    // Use type assertion to fix TypeScript error
+    const result = await rpcClient.rpc('exec_sql', { sql }) as unknown as { data: any, error: any };
     return result;
   } catch (error) {
     console.error('Error executing SQL:', error);
@@ -31,11 +31,14 @@ export const execSqlRPC = async (sql: string) => {
   }
 };
 
-// Get exercise progress history
+// Get exercise progress history - fixed with type assertion
 export const getExerciseProgressHistoryRPC = async (params: ExerciseProgressHistoryParams) => {
   try {
-    // Fix the type signature with correct return type
-    const result = await rpcClient.rpc('get_exercise_progress_history', params);
+    // Use type assertion to fix TypeScript error
+    const result = await rpcClient.rpc('get_exercise_progress_history', params) as unknown as { 
+      data: ExerciseProgressHistoryResponse[],
+      error: any 
+    };
     return result;
   } catch (error) {
     console.error('Error getting exercise progress history:', error);
@@ -43,11 +46,14 @@ export const getExerciseProgressHistoryRPC = async (params: ExerciseProgressHist
   }
 };
 
-// Get top exercises by count
+// Get top exercises by count - fixed with type assertion
 export const getTopExercisesRPC = async (params: TopExercisesParams) => {
   try {
-    // Fix the type signature with correct return type
-    const result = await rpcClient.rpc('get_top_exercises', params);
+    // Use type assertion to fix TypeScript error
+    const result = await rpcClient.rpc('get_top_exercises', params) as unknown as {
+      data: ExerciseCountResponse[],
+      error: any
+    };
     return result;
   } catch (error) {
     console.error('Error getting top exercises:', error);
@@ -55,11 +61,14 @@ export const getTopExercisesRPC = async (params: TopExercisesParams) => {
   }
 };
 
-// Get user exercise counts
+// Get user exercise counts - fixed with type assertion
 export const getUserExerciseCountsRPC = async (params: UserExerciseCountsParams) => {
   try {
-    // Fix the type signature with correct return type
-    const result = await rpcClient.rpc('get_user_exercise_counts', params);
+    // Use type assertion to fix TypeScript error
+    const result = await rpcClient.rpc('get_user_exercise_counts', params) as unknown as {
+      data: ExerciseCountResponse[],
+      error: any
+    };
     return result;
   } catch (error) {
     console.error('Error getting user exercise counts:', error);
@@ -67,7 +76,7 @@ export const getUserExerciseCountsRPC = async (params: UserExerciseCountsParams)
   }
 };
 
-// Log exercise completion
+// Log exercise completion - fixed with type assertion
 export const logExerciseCompletionRPC = async (params: LogExerciseCompletionParams) => {
   try {
     console.log('Calling log_exercise_completion with params:', params);
@@ -78,8 +87,11 @@ export const logExerciseCompletionRPC = async (params: LogExerciseCompletionPara
       throw new Error('Missing required parameters for exercise logging');
     }
     
-    // Fix the type signature with correct return type
-    const response = await rpcClient.rpc('log_exercise_completion', params);
+    // Use type assertion to fix TypeScript error
+    const response = await rpcClient.rpc('log_exercise_completion', params) as unknown as {
+      data: any,
+      error: any
+    };
     
     if (response.error) {
       console.error('RPC error logging exercise completion:', response.error);
