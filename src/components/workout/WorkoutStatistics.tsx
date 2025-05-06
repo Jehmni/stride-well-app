@@ -18,15 +18,12 @@ interface MuscleGroupData {
   percentage: number;
 }
 
-interface WorkoutStatisticsProps {
-  onViewAllProgress?: () => void;
-}
-
-const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({ onViewAllProgress }) => {
+const WorkoutStatistics: React.FC = () => {
   const { user } = useAuth();
   const [exerciseCounts, setExerciseCounts] = useState<ExerciseCount[]>([]);
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroupData[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
   useEffect(() => {
     const fetchExerciseData = async () => {
       if (!user?.id) {
@@ -36,6 +33,7 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({ onViewAllProgress
       
       try {
         setIsLoading(true);
+        
         // Use RPC function to get user's exercise counts
         const { data, error } = await getUserExerciseCountsRPC({ 
           user_id_param: user.id
@@ -48,9 +46,9 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({ onViewAllProgress
           return;
         }
 
-        if (data) {
+        if (data && Array.isArray(data)) {
           // Process exercise counts
-          const exercises = data.map(ex => ({
+          const exercises = data.map((ex: ExerciseCountResponse) => ({
             exercise_id: ex.exercise_id,
             name: ex.name,
             muscle_group: ex.muscle_group,

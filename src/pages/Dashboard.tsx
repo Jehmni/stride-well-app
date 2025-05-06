@@ -1,189 +1,221 @@
-import React, { useState, useEffect } from "react";
-import { Activity, ChevronRight, Dumbbell, Utensils, Weight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import WorkoutCard from "@/components/dashboard/WorkoutCard";
-import NutritionCard from "@/components/dashboard/NutritionCard";
-import StatsCard from "@/components/dashboard/StatsCard";
-import WorkoutStatistics from "@/components/workout/WorkoutStatistics";
-import { useAuth } from "@/hooks/useAuth";
-import { calculateBMI } from "@/utils/healthCalculations";
-import { generatePersonalizedWorkoutPlan } from "@/services/workoutService";
 
-const Dashboard: React.FC = () => {
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { format } from 'date-fns';
+import { Dumbbell, Calendar, BarChart2, ArrowRight } from "lucide-react";
+
+import { useAuth } from "@/hooks/useAuth";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+
+import TodayWorkout from "@/components/workout/TodayWorkout";
+import WorkoutStatistics from "@/components/workout/WorkoutStatistics";
+import NutritionCard from "@/components/dashboard/NutritionCard";
+import WorkoutCard from "@/components/dashboard/WorkoutCard";
+import StatsCard from "@/components/dashboard/StatsCard";
+
+import { fetchUserWorkouts } from "@/services/workoutService";
+import { getUserWorkoutStatistics } from "@/services/workoutService";
+import { calculateBMI, getBMICategory } from "@/utils/healthCalculations";
+
+const Dashboard = () => {
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
-  const { profile } = useAuth();
-  const [selectedWorkout, setSelectedWorkout] = useState({
-    title: "Personalized Workout",
-    description: "Customized routine based on your fitness profile",
-    image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-4.0.3&auto=format&fit=crop&w=1740&q=80"
+  const [workouts, setWorkouts] = useState([]);
+  const [stats, setStats] = useState({
+    total_workouts: 0,
+    recent_workouts: 0,
+    total_duration: 0,
+    avg_duration: 0,
+    last_workout_date: null,
+    current_streak: 0
   });
   const [isLoading, setIsLoading] = useState(true);
-  
-  // Get user's first name for welcome message
-  const firstName = profile?.first_name || "there";
-  
-  // Calculate BMI if height and weight are available
-  const userBMI = profile ? calculateBMI(profile.height, profile.weight) : null;
-  
-  // Fetch personalized workout on component mount
+
   useEffect(() => {
-    const loadPersonalizedWorkout = async () => {
-      if (!profile) return;
+    const fetchData = async () => {
+      if (!user) return;
       
       try {
-        // Fetch personalized workout plan from AI service
-        const workoutPlan = await generatePersonalizedWorkoutPlan(profile);
+        // Fetch user's workouts
+        const userWorkouts = await fetchUserWorkouts(user.id);
+        setWorkouts(userWorkouts);
         
-        if (workoutPlan) {
-          // Select an appropriate image based on the fitness goal
-          let workoutImage = "https://images.unsplash.com/photo-1599058917212-d750089bc07e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1469&q=80";
-          
-          // Map fitness goals to appropriate images
-          if (profile.fitness_goal === "weight-loss") {
-            workoutImage = "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-4.0.3&auto=format&fit=crop&w=1740&q=80";
-          } else if (profile.fitness_goal === "muscle-gain") {
-            workoutImage = "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?ixlib=rb-4.0.3&auto=format&fit=crop&w=1469&q=80";
-          } else if (profile.fitness_goal === "endurance") {
-            workoutImage = "https://images.unsplash.com/photo-1596357395217-80de13130e92?ixlib=rb-4.0.3&auto=format&fit=crop&w=1742&q=80";
-          }
-          
-          // Update selected workout with data from the personalized plan
-          setSelectedWorkout({
-            title: workoutPlan.title,
-            description: workoutPlan.description,
-            image: workoutImage
-          });
-        }
+        // Fetch workout statistics
+        const workoutStats = await getUserWorkoutStatistics(user.id);
+        setStats(workoutStats);
       } catch (error) {
-        console.error("Error loading personalized workout:", error);
-        // Fallback to default workout if there's an error
+        console.error("Error fetching dashboard data:", error);
+        toast.error("Failed to load dashboard data");
       } finally {
         setIsLoading(false);
       }
     };
     
-    loadPersonalizedWorkout();
-  }, [profile]);
+    fetchData();
+  }, [user]);
+
+  // Calculate user's BMI if height and weight are available
+  const userBMI = profile ? calculateBMI(profile.height, profile.weight) : null;
+  const bmiCategory = userBMI ? getBMICategory(userBMI) : null;
+
+  // Format the last workout date
+  const formattedLastWorkoutDate = stats.last_workout_date 
+    ? format(new Date(stats.last_workout_date), 'PPP')
+    : 'No workouts yet';
+
+  // Calculate completion percentage for this month
+  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+  const currentDate = new Date().getDate();
+  const expectedWorkoutsThisMonth = Math.min(currentDate, daysInMonth);
+  const completionPercentage = expectedWorkoutsThisMonth > 0 
+    ? Math.min(Math.round((stats.recent_workouts / expectedWorkoutsThisMonth) * 100), 100) 
+    : 0;
+
+  const handleViewAllProgress = () => {
+    navigate('/progress');
+  };
 
   return (
     <DashboardLayout title="Dashboard">
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Welcome back, {firstName}!</h2>
-        <p className="text-gray-600 dark:text-gray-400">
-          Here's an overview of your fitness journey today.
-        </p>
-      </div>
-
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <StatsCard
-          title="Workouts Completed"
-          value="12"
-          icon={<Dumbbell className="h-6 w-6 text-fitness-primary" />}
-          change={{ value: 20, isPositive: true }}
+          title="Workout Streak"
+          value={stats.current_streak}
+          unit="days"
+          icon={<Calendar className="h-5 w-5" />}
+          trend="up"
+          trendValue="2"
+          loading={isLoading}
         />
+        
         <StatsCard
-          title="Current Weight"
-          value={`${profile?.weight || 70} kg`}
-          icon={<Weight className="h-6 w-6 text-fitness-primary" />}
-          change={{ value: 2.5, isPositive: true }}
+          title="Workouts This Month"
+          value={stats.recent_workouts}
+          icon={<Dumbbell className="h-5 w-5" />}
+          subtitle={`${completionPercentage}% of goal`}
+          progress={completionPercentage}
+          loading={isLoading}
         />
+        
         <StatsCard
-          title="BMI"
-          value={userBMI ? userBMI.toFixed(1) : "N/A"}
-          icon={<Activity className="h-6 w-6 text-fitness-primary" />}
-          description={userBMI ? getBMICategory(userBMI) : "Not calculated"}
-        />
-        <StatsCard
-          title="Active Calories"
-          value="1,248"
-          icon={<Activity className="h-6 w-6 text-fitness-primary" />}
-          description="Daily Burn"
+          title="Avg. Workout Time"
+          value={stats.avg_duration}
+          unit="min"
+          icon={<BarChart2 className="h-5 w-5" />}
+          trend="up"
+          trendValue="5"
+          loading={isLoading}
         />
       </div>
-
-      {/* Today's Workout */}
-      <h2 className="text-xl font-semibold mb-4">Today's Workout</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <WorkoutCard
-          title={selectedWorkout.title}
-          description={selectedWorkout.description}
-          duration={45}
-          exercises={8}
-          date="Today"
-          image={selectedWorkout.image}
-          onClick={() => navigate('/workouts')}
-        />
-
-        <NutritionCard
-          calories={1450}
-          protein={92}
-          carbs={145}
-          fat={48}
-          target={{
-            calories: 2000,
-            protein: 150,
-            carbs: 200,
-            fat: 60
-          }}
-          onClick={() => navigate('/meal-plan')}
-        />
-      </div>      {/* Workout Progress Statistics */}
-      <div className="mb-8">
-        <WorkoutStatistics onViewAllProgress={() => navigate('/progress')} />
-      </div>
-
-      {/* Upcoming Workouts */}
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Upcoming Workouts</h2>
-        <button 
-          className="text-fitness-primary flex items-center text-sm font-medium"
-          onClick={() => navigate('/workouts')}
-        >
-          View All
-          <ChevronRight size={16} className="ml-1" />
-        </button>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <WorkoutCard
-          title="Core Strength"
-          description="Focus on abs and lower back for a stronger core"
-          duration={30}
-          exercises={6}
-          date="Tomorrow"
-          image="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-          onClick={() => navigate('/workouts')}
-        />
-        <WorkoutCard
-          title="Mobility & Flexibility"
-          description="Improve range of motion and prevent injuries"
-          duration={35}
-          exercises={8}
-          date="Wed, Apr 11"
-          image="https://images.unsplash.com/photo-1518611012118-696072aa579a?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-          onClick={() => navigate('/workouts')}
-        />
-        <WorkoutCard
-          title="Active Recovery"
-          description="Light activity to promote recovery and reduce soreness"
-          duration={25}
-          exercises={5}
-          date="Thu, Apr 12"
-          image="https://images.unsplash.com/photo-1603287681836-b174ce5074c2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1471&q=80"
-          onClick={() => navigate('/workouts')}
-        />
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Today's Workout */}
+          <TodayWorkout />
+          
+          {/* Workout Statistics */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div>
+                <CardTitle className="text-lg font-medium">Workout Statistics</CardTitle>
+                <CardDescription>Your fitness activity overview</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={handleViewAllProgress}>
+                View all <ArrowRight className="ml-1 h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <WorkoutStatistics />
+            </CardContent>
+          </Card>
+          
+          {/* Nutrition Card */}
+          <NutritionCard />
+        </div>
+        
+        <div className="space-y-6">
+          {/* User Profile Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-medium">Profile Overview</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center text-center">
+              <Avatar className="h-20 w-20">
+                <AvatarImage src={profile?.avatar_url || ''} alt={profile?.first_name || 'User'} />
+                <AvatarFallback className="text-lg">
+                  {profile?.first_name ? profile?.first_name[0] : 'U'}
+                </AvatarFallback>
+              </Avatar>
+              
+              <h3 className="mt-4 text-xl font-semibold">
+                {profile?.first_name 
+                  ? `${profile.first_name} ${profile.last_name || ''}`
+                  : 'Welcome!'
+                }
+              </h3>
+              
+              <Badge className="mt-2 font-normal">
+                {profile?.fitness_goal === 'weight-loss' 
+                  ? 'Weight Loss' 
+                  : profile?.fitness_goal === 'muscle-gain' 
+                    ? 'Muscle Gain' 
+                    : profile?.fitness_goal === 'endurance' 
+                      ? 'Endurance Training' 
+                      : 'General Fitness'
+                }
+              </Badge>
+              
+              <Separator className="my-4" />
+              
+              <div className="w-full grid grid-cols-2 gap-4">
+                <div className="text-center">
+                  <p className="text-sm text-gray-500">Weight</p>
+                  <p className="text-lg font-medium">{profile?.weight || '--'} kg</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-500">Height</p>
+                  <p className="text-lg font-medium">{profile?.height || '--'} cm</p>
+                </div>
+              </div>
+              
+              <Separator className="my-4" />
+              
+              <div className="w-full">
+                <div className="flex justify-between mb-2">
+                  <span className="text-sm">BMI</span>
+                  <span className="text-sm font-medium">
+                    {userBMI ? `${userBMI.toFixed(1)} - ${bmiCategory}` : '--'}
+                  </span>
+                </div>
+                {userBMI && (
+                  <Progress value={Math.min((userBMI / 40) * 100, 100)} className="h-2" />
+                )}
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button variant="outline" className="w-full" onClick={() => navigate('/profile')}>
+                Edit Profile
+              </Button>
+            </CardFooter>
+          </Card>
+          
+          {/* Recent Workouts */}
+          <WorkoutCard
+            title="Last Workout"
+            date={formattedLastWorkoutDate}
+            loading={isLoading}
+          />
+        </div>
       </div>
     </DashboardLayout>
   );
-};
-
-// Helper function to determine BMI category
-const getBMICategory = (bmi: number): string => {
-  if (bmi < 18.5) return "Underweight";
-  if (bmi < 25) return "Normal Weight";
-  if (bmi < 30) return "Overweight";
-  return "Obese";
 };
 
 export default Dashboard;

@@ -18,6 +18,7 @@ const ExerciseDashboard: React.FC = () => {
   const [topExercises, setTopExercises] = useState<Exercise[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [rpcFunctionExists, setRpcFunctionExists] = useState<boolean | null>(null);
+
   useEffect(() => {
     const testRpcFunction = async () => {
       try {
@@ -25,7 +26,6 @@ const ExerciseDashboard: React.FC = () => {
         setRpcFunctionExists(exists);
       } catch (err) {
         console.error("Error testing RPC function:", err);
-        // Still set to false but don't let this error block other functionality
         setRpcFunctionExists(false);
       } finally {
         // Ensure loading state isn't affected by this check
@@ -36,6 +36,7 @@ const ExerciseDashboard: React.FC = () => {
     // Run this test in the background without blocking
     testRpcFunction();
   }, []);
+
   useEffect(() => {
     const fetchTopExercises = async () => {
       if (!user?.id) {
@@ -45,6 +46,7 @@ const ExerciseDashboard: React.FC = () => {
       
       try {
         setIsLoading(true);
+        
         // Use RPC function to get user's top exercises by count
         const { data, error } = await getTopExercisesRPC({ 
           user_id_param: user.id,
@@ -57,8 +59,8 @@ const ExerciseDashboard: React.FC = () => {
           return;
         }
         
-        if (data) {
-          setTopExercises(data.map(exercise => ({
+        if (data && Array.isArray(data)) {
+          setTopExercises(data.map((exercise: ExerciseCountResponse) => ({
             exercise_id: exercise.exercise_id,
             name: exercise.name,
             muscle_group: exercise.muscle_group,

@@ -42,13 +42,12 @@ export interface TopExercisesParams {
  * Response type for get_exercise_progress_history RPC function
  */
 export interface ExerciseProgressHistoryResponse {
-  id: string;
-  workout_log_id: string;
+  log_id: string;
+  exercise_id: string;
   completed_at: string;
   sets_completed: number;
   reps_completed: number | null;
   weight_used: number | null;
-  notes: string | null;
 }
 
 /**

@@ -393,14 +393,16 @@ export const logExerciseCompletion = async (
 ) => {
   try {
     // Use RPC function wrapper to log exercise completion
-    const { data, error } = await logExerciseCompletionRPC({
+    const params: LogExerciseCompletionParams = {
       workout_log_id_param: workoutLogId,
       exercise_id_param: exerciseId,
       sets_completed_param: setsCompleted,
       reps_completed_param: repsCompleted || null,
       weight_used_param: weightUsed || null,
       notes_param: notes || null
-    });
+    };
+    
+    const { data, error } = await logExerciseCompletionRPC(params);
 
     if (error) throw error;
     return data;
