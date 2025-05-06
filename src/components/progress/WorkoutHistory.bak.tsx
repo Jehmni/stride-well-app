@@ -7,23 +7,29 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { WorkoutLog, Workout, WorkoutExercise } from "@/models/models";
+import { format, parseISO, subDays } from "date-fns";ct, { useState, useEffect } from "react";
+import { Calendar, Award, Clock, Dumbbell, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { WorkoutLog, Workout, WorkoutExercise } from "@/models/models";
 import { format, parseISO, subDays } from "date-fns";
 
-// Define the completed exercise type
 interface CompletedExercise {
   id: string;
-  workout_log_id: string;
-  exercise_id: string;
+  exercise: {
+    id: string;
+    name: string;
+    muscle_group: string;
+  };
   sets_completed: number;
   reps_completed: number | null;
   weight_used: number | null;
   notes: string | null;
   completed_at: string;
-  exercise: {
-    id: string;
-    name: string;
-    muscle_group: string;
-  } | null;
 }
 
 // Extended WorkoutLog interface to include completed exercises
@@ -44,8 +50,8 @@ const WorkoutHistory: React.FC = () => {
       try {
         setIsLoading(true);
         
-        // Fetch workout logs for the user
-        const { data: workoutsData, error: workoutsError } = await supabase
+        // Fetch workout logs for the user, including both planned exercises and completed exercises
+        const { data, error } = await supabase
           .from('workout_logs')
           .select(`
             *,
@@ -65,73 +71,42 @@ const WorkoutHistory: React.FC = () => {
                   muscle_group
                 )
               )
+            ),
+            completed_exercises:exercise_logs(
+              id,
+              sets_completed,
+              reps_completed,
+              weight_used,
+              notes,
+              completed_at,
+              exercise:exercises(
+                id,
+                name,
+                muscle_group
+              )
             )
           `)
           .eq('user_id', user.id)
           .order('completed_at', { ascending: false })
           .limit(20);
           
-        if (workoutsError) throw workoutsError;        // Also fetch completed exercises for these workout logs
-        const workoutLogIds = workoutsData?.map(log => log.id) || [];
-        let completedExercises: Record<string, CompletedExercise[]> = {};
-        
-        if (workoutLogIds.length > 0) {
-          try {
-            // Fetch all exercise logs in batches since we can't use IN with too many IDs
-            // Fetch directly from exercise_logs table instead of using exec_sql
-            const { data: exerciseLogsData, error: exerciseLogsError } = await supabase
-              .from('exercise_logs')
-              .select(`
-                id,
-                workout_log_id,
-                exercise_id,
-                sets_completed,
-                reps_completed,
-                weight_used,
-                notes,
-                completed_at,
-                exercise:exercises (
-                  id,
-                  name,
-                  muscle_group
-                )
-              `)
-              .in('workout_log_id', workoutLogIds);
-            
-            if (exerciseLogsError) {
-              console.error("Error fetching exercise logs:", exerciseLogsError);
-            } else if (exerciseLogsData) {
-              console.log("Raw exercise logs data:", exerciseLogsData);
-              
-              // Group exercise logs by workout_log_id
-              completedExercises = (exerciseLogsData as any[]).reduce((acc: Record<string, CompletedExercise[]>, item) => {
-                const workout_log_id = item.workout_log_id;
-                if (!acc[workout_log_id]) {
-                  acc[workout_log_id] = [];
-                }
-                acc[workout_log_id].push(item as CompletedExercise);
-                return acc;
-              }, {});
-              
-              console.log("Completed exercises data:", completedExercises);
-            }
-          } catch (error) {
-            console.error("Error fetching exercise logs:", error);
+        if (error) throw error;
+
+        // Filter out logs where workout relation failed or is null
+        const validLogs: ExtendedWorkoutLog[] = [];
+        for (const log of data || []) {
+          // Check if workout exists, is an object, and doesn't have an error property
+          if ((log.workout !== null && 
+              log.workout !== undefined && 
+              typeof log.workout === 'object' && 
+              !('error' in (log.workout as Record<string, any>))) ||
+              // Or if it has completed exercises
+              (log.completed_exercises && 
+               log.completed_exercises.length > 0)) {
+            validLogs.push(log as ExtendedWorkoutLog);
           }
         }
         
-        // Combine workout logs with their completed exercises
-        const validLogs: ExtendedWorkoutLog[] = [];
-        for (const log of workoutsData || []) {
-          // We want all logs, even if workout relation failed
-          const extendedLog = {
-            ...log,
-            completed_exercises: completedExercises[log.id] || []
-          } as unknown as ExtendedWorkoutLog;
-          validLogs.push(extendedLog);
-        }
-        
-        console.log("Final workout logs with exercises:", validLogs);
         setWorkoutLogs(validLogs);
       } catch (error) {
         console.error("Error fetching workout logs:", error);
@@ -188,6 +163,11 @@ const WorkoutHistory: React.FC = () => {
     return log.workout?.exercises ? log.workout.exercises.length : 0;
   };
 
+  // Get workout name or fallback
+  const getWorkoutName = (log: ExtendedWorkoutLog): string => {
+    return log.workout?.name || "Custom Workout";
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -201,13 +181,16 @@ const WorkoutHistory: React.FC = () => {
   // Empty state
   if (workoutLogs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-10 text-center">
-        <Dumbbell className="h-12 w-12 mb-4 text-gray-400" />
-        <h3 className="text-xl font-semibold mb-2">No workout history yet</h3>
-        <p className="text-gray-500 mb-6 max-w-md">
-          Complete your first workout to start tracking your progress.
-        </p>
-      </div>
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Dumbbell className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+          <h4 className="text-lg font-medium mb-2">No Workouts Yet</h4>
+          <p className="text-gray-500 mb-4">
+            You haven't completed any workouts yet. Start working out to track your progress.
+          </p>
+          <Button>Schedule a Workout</Button>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -232,7 +215,7 @@ const WorkoutHistory: React.FC = () => {
                   <span className="text-gray-500 text-sm">{formatDate(log.completed_at)}</span>
                 </div>
                 <h4 className="text-lg font-medium mt-1">
-                  {log.workout?.name || "Custom Workout"}
+                  {getWorkoutName(log)}
                 </h4>
               </div>
               <div className="flex items-center">
@@ -290,10 +273,10 @@ const WorkoutHistory: React.FC = () => {
                         <div>
                           <div className="flex items-center">
                             <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                            <h6 className="font-medium">{exercise.exercise?.name || "Unknown Exercise"}</h6>
+                            <h6 className="font-medium">{exercise.exercise?.name}</h6>
                           </div>
                           <div className="text-xs text-gray-500 ml-6">
-                            {exercise.exercise?.muscle_group || ""}
+                            {exercise.exercise?.muscle_group}
                           </div>
                         </div>
                         <div className="text-sm">

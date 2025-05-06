@@ -1,9 +1,8 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile } from "@/models/models";
 import { WorkoutDay, WorkoutExercise, WorkoutPlan } from "@/components/workout/types";
 import { getExerciseProgressHistoryRPC, logExerciseCompletionRPC } from '@/integrations/supabase/functions';
-import { v4 as uuidv4 } from 'uuid';
-import { LogExerciseCompletionParams } from '@/types/rpc';
 
 // Generate a personalized workout plan based on user data and fitness goal
 export const generatePersonalizedWorkoutPlan = async (
@@ -339,10 +338,6 @@ export const logWorkoutCompletion = async (
   rating: number | null = null
 ) => {
   try {
-    console.log('Logging workout completion in workoutService:', { 
-      userId, workoutId, duration, caloriesBurned, notes, rating 
-    });
-    
     const { data, error } = await supabase
       .from('workout_logs')
       .insert({
@@ -397,33 +392,21 @@ export const logExerciseCompletion = async (
   notes?: string
 ) => {
   try {
-    console.log('Logging exercise completion in workoutService:', { 
-      workoutLogId, exerciseId, setsCompleted, repsCompleted, weightUsed, notes 
-    });
-    
-    // Create the params object with the correct type
-    const params: LogExerciseCompletionParams = {
+    // Use RPC function wrapper to log exercise completion
+    const { data, error } = await logExerciseCompletionRPC({
       workout_log_id_param: workoutLogId,
       exercise_id_param: exerciseId,
       sets_completed_param: setsCompleted,
-      reps_completed_param: repsCompleted || null, 
+      reps_completed_param: repsCompleted || null,
       weight_used_param: weightUsed || null,
       notes_param: notes || null
-    };
-    
-    // Call the RPC function
-    const { data, error } = await logExerciseCompletionRPC(params);
-    
-    if (error) {
-      console.error('Error in logExerciseCompletion:', error);
-      throw error;
-    }
-    
-    console.log('Exercise logged successfully:', data);
+    });
+
+    if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error logging exercise completion:', error);
-    throw error;
+    console.error("Error logging exercise completion:", error);
+    throw error; // Rethrow the error so the calling function can handle it
   }
 };
 

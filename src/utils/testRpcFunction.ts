@@ -1,21 +1,18 @@
 
 // Check if the log_exercise_completion RPC function exists
 import { logExerciseCompletionRPC } from '@/integrations/supabase/functions';
-import { LogExerciseCompletionParams } from '@/types/rpc';
 
 // This function tests if the RPC function exists by attempting to call it with invalid parameters
 export const testLogExerciseCompletion = async () => {
   try {
-    const testParams: LogExerciseCompletionParams = {
+    const { data, error } = await logExerciseCompletionRPC({
       workout_log_id_param: '00000000-0000-0000-0000-000000000000', // Invalid UUID for test
       exercise_id_param: '00000000-0000-0000-0000-000000000000',    // Invalid UUID for test
       sets_completed_param: 1,
       reps_completed_param: null,
       weight_used_param: null,
       notes_param: null
-    };
-
-    const { data, error } = await logExerciseCompletionRPC(testParams);
+    });
     
     console.log('RPC response:', { data, error });
     
