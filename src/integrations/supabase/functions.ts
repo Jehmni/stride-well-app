@@ -9,6 +9,7 @@ import {
   ExerciseProgressHistoryResponse,
   ExerciseCountResponse
 } from '@/types/rpc';
+import { Database } from './types';
 
 // IMPORTANT: This app uses web-hosted Supabase, not local
 // These credentials are for the production web Supabase instance
@@ -16,7 +17,7 @@ const SUPABASE_URL = "https://japrzutwtqotzyudnizh.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphcHJ6dXR3dHFvdHp5dWRuaXpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2NjYyMjgsImV4cCI6MjA2MDI0MjIyOH0.wFQPzwhwMzgu3P2fnqqH2Hw0RD5IDA5hF2bcwHVlLe0";
 
 // Create a direct client for RPC calls
-const rpcClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const rpcClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 // Execute SQL statements
 export const execSqlRPC = async (sql: string) => {
@@ -31,7 +32,7 @@ export const execSqlRPC = async (sql: string) => {
 // Get exercise progress history
 export const getExerciseProgressHistoryRPC = async (params: ExerciseProgressHistoryParams) => {
   try {
-    return await rpcClient.rpc<ExerciseProgressHistoryResponse[]>('get_exercise_progress_history', params);
+    return await rpcClient.rpc<ExerciseProgressHistoryResponse>('get_exercise_progress_history', params);
   } catch (error) {
     console.error('Error getting exercise progress history:', error);
     throw error;
@@ -41,7 +42,7 @@ export const getExerciseProgressHistoryRPC = async (params: ExerciseProgressHist
 // Get top exercises by count
 export const getTopExercisesRPC = async (params: TopExercisesParams) => {
   try {
-    return await rpcClient.rpc<ExerciseCountResponse[]>('get_top_exercises', params);
+    return await rpcClient.rpc<ExerciseCountResponse>('get_top_exercises', params);
   } catch (error) {
     console.error('Error getting top exercises:', error);
     throw error;
@@ -51,7 +52,7 @@ export const getTopExercisesRPC = async (params: TopExercisesParams) => {
 // Get user exercise counts
 export const getUserExerciseCountsRPC = async (params: UserExerciseCountsParams) => {
   try {
-    return await rpcClient.rpc<ExerciseCountResponse[]>('get_user_exercise_counts', params);
+    return await rpcClient.rpc<ExerciseCountResponse>('get_user_exercise_counts', params);
   } catch (error) {
     console.error('Error getting user exercise counts:', error);
     throw error;

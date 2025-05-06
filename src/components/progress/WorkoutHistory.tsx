@@ -71,15 +71,17 @@ const WorkoutHistory: React.FC = () => {
           .order('completed_at', { ascending: false })
           .limit(20);
           
-        if (workoutsError) throw workoutsError;        // Also fetch completed exercises for these workout logs
+        if (workoutsError) throw workoutsError;
+        
+        // Also fetch completed exercises for these workout logs
         const workoutLogIds = workoutsData?.map(log => log.id) || [];
         let completedExercises: Record<string, CompletedExercise[]> = {};
         
         if (workoutLogIds.length > 0) {
           try {
-            // Fetch all exercise logs in batches since we can't use IN with too many IDs
-            // Fetch directly from exercise_logs table instead of using exec_sql
-            const { data: exerciseLogsData, error: exerciseLogsError } = await supabase
+            // Use a more direct query approach that doesn't rely on exercise_logs being in the schema types
+            // Using a custom query with additional type safety
+            const { data: exerciseLogsQuery, error: exerciseLogsError } = await supabase
               .from('exercise_logs')
               .select(`
                 id,
@@ -100,11 +102,11 @@ const WorkoutHistory: React.FC = () => {
             
             if (exerciseLogsError) {
               console.error("Error fetching exercise logs:", exerciseLogsError);
-            } else if (exerciseLogsData) {
-              console.log("Raw exercise logs data:", exerciseLogsData);
+            } else if (exerciseLogsQuery) {
+              console.log("Raw exercise logs data:", exerciseLogsQuery);
               
               // Group exercise logs by workout_log_id
-              completedExercises = (exerciseLogsData as any[]).reduce((acc: Record<string, CompletedExercise[]>, item) => {
+              completedExercises = (exerciseLogsQuery as any[]).reduce((acc: Record<string, CompletedExercise[]>, item: any) => {
                 const workout_log_id = item.workout_log_id;
                 if (!acc[workout_log_id]) {
                   acc[workout_log_id] = [];
@@ -123,11 +125,11 @@ const WorkoutHistory: React.FC = () => {
         // Combine workout logs with their completed exercises
         const validLogs: ExtendedWorkoutLog[] = [];
         for (const log of workoutsData || []) {
-          // We want all logs, even if workout relation failed
+          // Cast as any to handle type compatibility issues
           const extendedLog = {
             ...log,
             completed_exercises: completedExercises[log.id] || []
-          } as unknown as ExtendedWorkoutLog;
+          } as ExtendedWorkoutLog;
           validLogs.push(extendedLog);
         }
         
