@@ -1,13 +1,13 @@
-// Update Dashboard.tsx to use correct props for StatsCard
-// We'll focus on just fixing the type issues without changing functionality
+
+// Update Dashboard.tsx to use correct imports
 
 import React, { useState, useEffect } from 'react';
 import { Calendar, Dumbbell, Target, Clock } from 'lucide-react';
-import { StatsCard } from "@/components/dashboard/StatsCard";
-import { TodayWorkout } from "@/components/workout/TodayWorkout";
-import { NutritionCard } from "@/components/dashboard/NutritionCard";
-import { WorkoutCard } from "@/components/dashboard/WorkoutCard";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import StatsCard from "@/components/dashboard/StatsCard";
+import TodayWorkout from "@/components/workout/TodayWorkout";
+import NutritionCard from "@/components/dashboard/NutritionCard";
+import WorkoutCard from "@/components/dashboard/WorkoutCard";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 

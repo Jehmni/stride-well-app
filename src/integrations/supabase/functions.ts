@@ -32,7 +32,7 @@ export const execSqlRPC = async (sql: string) => {
 // Get exercise progress history
 export const getExerciseProgressHistoryRPC = async (params: ExerciseProgressHistoryParams) => {
   try {
-    return await rpcClient.rpc<ExerciseProgressHistoryResponse>('get_exercise_progress_history', params);
+    return await rpcClient.rpc<ExerciseProgressHistoryResponse[]>('get_exercise_progress_history', params);
   } catch (error) {
     console.error('Error getting exercise progress history:', error);
     throw error;
@@ -42,7 +42,7 @@ export const getExerciseProgressHistoryRPC = async (params: ExerciseProgressHist
 // Get top exercises by count
 export const getTopExercisesRPC = async (params: TopExercisesParams) => {
   try {
-    return await rpcClient.rpc<ExerciseCountResponse>('get_top_exercises', params);
+    return await rpcClient.rpc<ExerciseCountResponse[]>('get_top_exercises', params);
   } catch (error) {
     console.error('Error getting top exercises:', error);
     throw error;
@@ -52,7 +52,7 @@ export const getTopExercisesRPC = async (params: TopExercisesParams) => {
 // Get user exercise counts
 export const getUserExerciseCountsRPC = async (params: UserExerciseCountsParams) => {
   try {
-    return await rpcClient.rpc<ExerciseCountResponse>('get_user_exercise_counts', params);
+    return await rpcClient.rpc<ExerciseCountResponse[]>('get_user_exercise_counts', params);
   } catch (error) {
     console.error('Error getting user exercise counts:', error);
     throw error;
@@ -70,7 +70,7 @@ export const logExerciseCompletionRPC = async (params: LogExerciseCompletionPara
       throw new Error('Missing required parameters for exercise logging');
     }
     
-    const response = await rpcClient.rpc('log_exercise_completion', params);
+    const response = await rpcClient.rpc<string>('log_exercise_completion', params);
     
     if (response.error) {
       console.error('RPC error logging exercise completion:', response.error);

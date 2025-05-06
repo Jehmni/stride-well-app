@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Calendar, Award, Clock, Dumbbell, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -8,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { WorkoutLog, Workout, WorkoutExercise } from "@/models/models";
 import { format, parseISO, subDays } from "date-fns";
+import { execSqlRPC } from "@/integrations/supabase/functions";
 
 // Define the completed exercise type
 interface CompletedExercise {
@@ -79,26 +81,31 @@ const WorkoutHistory: React.FC = () => {
         
         if (workoutLogIds.length > 0) {
           try {
-            // Use a more direct query approach that doesn't rely on exercise_logs being in the schema types
-            // Using a custom query with additional type safety
-            const { data: exerciseLogsQuery, error: exerciseLogsError } = await supabase
-              .from('exercise_logs')
-              .select(`
-                id,
-                workout_log_id,
-                exercise_id,
-                sets_completed,
-                reps_completed,
-                weight_used,
-                notes,
-                completed_at,
-                exercise:exercises (
-                  id,
-                  name,
-                  muscle_group
-                )
-              `)
-              .in('workout_log_id', workoutLogIds);
+            // Use the execSqlRPC function to query exercise_logs
+            const exerciseLogSql = `
+              SELECT 
+                el.id,
+                el.workout_log_id,
+                el.exercise_id,
+                el.sets_completed,
+                el.reps_completed,
+                el.weight_used,
+                el.notes,
+                el.completed_at,
+                json_build_object(
+                  'id', e.id,
+                  'name', e.name,
+                  'muscle_group', e.muscle_group
+                ) as exercise
+              FROM 
+                exercise_logs el
+              JOIN 
+                exercises e ON el.exercise_id = e.id
+              WHERE 
+                el.workout_log_id IN ('${workoutLogIds.join("','")}')
+            `;
+
+            const { data: exerciseLogsQuery, error: exerciseLogsError } = await execSqlRPC(exerciseLogSql);
             
             if (exerciseLogsError) {
               console.error("Error fetching exercise logs:", exerciseLogsError);
@@ -125,7 +132,6 @@ const WorkoutHistory: React.FC = () => {
         // Combine workout logs with their completed exercises
         const validLogs: ExtendedWorkoutLog[] = [];
         for (const log of workoutsData || []) {
-          // Cast as any to handle type compatibility issues
           const extendedLog = {
             ...log,
             completed_exercises: completedExercises[log.id] || []
