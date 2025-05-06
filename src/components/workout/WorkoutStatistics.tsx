@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
@@ -46,6 +45,7 @@ const WorkoutStatistics: React.FC = () => {
           return;
         }
 
+        // Fix TypeScript error by checking if data exists and is array before mapping
         if (data && Array.isArray(data)) {
           // Process exercise counts
           const exercises = data.map((ex: ExerciseCountResponse) => ({
@@ -77,6 +77,10 @@ const WorkoutStatistics: React.FC = () => {
           muscleGroupData.sort((a, b) => b.count - a.count);
           
           setMuscleGroups(muscleGroupData);
+        } else {
+          console.log("No exercise data received or data is not an array:", data);
+          setExerciseCounts([]);
+          setMuscleGroups([]);
         }
       } catch (error) {
         console.error("Error fetching exercise data:", error);

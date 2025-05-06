@@ -174,7 +174,10 @@ const Dashboard: React.FC = () => {
         {user && todayWorkout ? (
           <div className="md:col-span-2">
             <TodayWorkout 
-              todayWorkout={todayWorkout} 
+              todayWorkout={{
+                ...todayWorkout,
+                exercises: todayWorkout.exercises.length
+              }}
               userId={user.id} 
             />
           </div>
@@ -196,11 +199,17 @@ const Dashboard: React.FC = () => {
         <div>
           {userProfile && (
             <NutritionCard
-              calories={{ current: 1800, target: 2200 }}
-              protein={{ current: 120, target: 150 }}
-              carbs={{ current: 180, target: 220 }}
-              fat={{ current: 60, target: 70 }}
-              target={userProfile.fitness_goal}
+              calories={1800}
+              protein={120}
+              carbs={180}
+              fat={60}
+              target={{
+                calories: 2200,
+                protein: 150,
+                carbs: 220,
+                fat: 70
+              }}
+              onClick={() => console.log("View meal plan")}
             />
           )}
         </div>
@@ -225,7 +234,7 @@ const Dashboard: React.FC = () => {
                   title="Leg Day"
                   description="Focus on quadriceps and hamstrings"
                   duration={60}
-                  exercises={["Squats", "Lunges", "Leg Press"]}
+                  exercises={3}
                   date="Tomorrow"
                   image="/images/leg-day.jpg"
                 />
@@ -233,7 +242,7 @@ const Dashboard: React.FC = () => {
                   title="Upper Body"
                   description="Chest, shoulders and back workout"
                   duration={45}
-                  exercises={["Bench Press", "Shoulder Press", "Pull-ups"]}
+                  exercises={3}
                   date="Thursday"
                   image="/images/upper-body.jpg"
                 />

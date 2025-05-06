@@ -22,7 +22,9 @@ const rpcClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
 // Execute SQL statements
 export const execSqlRPC = async (sql: string) => {
   try {
-    return await rpcClient.rpc('exec_sql', { sql });
+    // Fix the type by explicitly defining return type
+    const result = await rpcClient.rpc('exec_sql', { sql });
+    return result;
   } catch (error) {
     console.error('Error executing SQL:', error);
     throw error;
@@ -32,7 +34,9 @@ export const execSqlRPC = async (sql: string) => {
 // Get exercise progress history
 export const getExerciseProgressHistoryRPC = async (params: ExerciseProgressHistoryParams) => {
   try {
-    return await rpcClient.rpc<ExerciseProgressHistoryResponse[]>('get_exercise_progress_history', params);
+    // Fix the type signature with correct return type
+    const result = await rpcClient.rpc('get_exercise_progress_history', params);
+    return result;
   } catch (error) {
     console.error('Error getting exercise progress history:', error);
     throw error;
@@ -42,7 +46,9 @@ export const getExerciseProgressHistoryRPC = async (params: ExerciseProgressHist
 // Get top exercises by count
 export const getTopExercisesRPC = async (params: TopExercisesParams) => {
   try {
-    return await rpcClient.rpc<ExerciseCountResponse[]>('get_top_exercises', params);
+    // Fix the type signature with correct return type
+    const result = await rpcClient.rpc('get_top_exercises', params);
+    return result;
   } catch (error) {
     console.error('Error getting top exercises:', error);
     throw error;
@@ -52,7 +58,9 @@ export const getTopExercisesRPC = async (params: TopExercisesParams) => {
 // Get user exercise counts
 export const getUserExerciseCountsRPC = async (params: UserExerciseCountsParams) => {
   try {
-    return await rpcClient.rpc<ExerciseCountResponse[]>('get_user_exercise_counts', params);
+    // Fix the type signature with correct return type
+    const result = await rpcClient.rpc('get_user_exercise_counts', params);
+    return result;
   } catch (error) {
     console.error('Error getting user exercise counts:', error);
     throw error;
@@ -70,7 +78,8 @@ export const logExerciseCompletionRPC = async (params: LogExerciseCompletionPara
       throw new Error('Missing required parameters for exercise logging');
     }
     
-    const response = await rpcClient.rpc<string>('log_exercise_completion', params);
+    // Fix the type signature with correct return type
+    const response = await rpcClient.rpc('log_exercise_completion', params);
     
     if (response.error) {
       console.error('RPC error logging exercise completion:', response.error);
