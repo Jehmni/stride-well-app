@@ -1,13 +1,13 @@
-
-// Update Dashboard.tsx to use correct imports
+// Update Dashboard.tsx to use correct props for StatsCard
+// We'll focus on just fixing the type issues without changing functionality
 
 import React, { useState, useEffect } from 'react';
 import { Calendar, Dumbbell, Target, Clock } from 'lucide-react';
-import StatsCard from "@/components/dashboard/StatsCard";
-import TodayWorkout from "@/components/workout/TodayWorkout";
-import NutritionCard from "@/components/dashboard/NutritionCard";
-import WorkoutCard from "@/components/dashboard/WorkoutCard";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { StatsCard } from "@/components/dashboard/StatsCard";
+import { TodayWorkout } from "@/components/workout/TodayWorkout";
+import { NutritionCard } from "@/components/dashboard/NutritionCard";
+import { WorkoutCard } from "@/components/dashboard/WorkoutCard";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -174,10 +174,7 @@ const Dashboard: React.FC = () => {
         {user && todayWorkout ? (
           <div className="md:col-span-2">
             <TodayWorkout 
-              todayWorkout={{
-                ...todayWorkout,
-                exercises: todayWorkout.exercises.length
-              }}
+              todayWorkout={todayWorkout} 
               userId={user.id} 
             />
           </div>
@@ -199,17 +196,11 @@ const Dashboard: React.FC = () => {
         <div>
           {userProfile && (
             <NutritionCard
-              calories={1800}
-              protein={120}
-              carbs={180}
-              fat={60}
-              target={{
-                calories: 2200,
-                protein: 150,
-                carbs: 220,
-                fat: 70
-              }}
-              onClick={() => console.log("View meal plan")}
+              calories={{ current: 1800, target: 2200 }}
+              protein={{ current: 120, target: 150 }}
+              carbs={{ current: 180, target: 220 }}
+              fat={{ current: 60, target: 70 }}
+              target={userProfile.fitness_goal}
             />
           )}
         </div>
@@ -234,7 +225,7 @@ const Dashboard: React.FC = () => {
                   title="Leg Day"
                   description="Focus on quadriceps and hamstrings"
                   duration={60}
-                  exercises={3}
+                  exercises={["Squats", "Lunges", "Leg Press"]}
                   date="Tomorrow"
                   image="/images/leg-day.jpg"
                 />
@@ -242,7 +233,7 @@ const Dashboard: React.FC = () => {
                   title="Upper Body"
                   description="Chest, shoulders and back workout"
                   duration={45}
-                  exercises={3}
+                  exercises={["Bench Press", "Shoulder Press", "Pull-ups"]}
                   date="Thursday"
                   image="/images/upper-body.jpg"
                 />

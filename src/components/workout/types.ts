@@ -1,4 +1,3 @@
-
 import { Exercise } from "@/models/models";
 
 export interface WorkoutDay {
@@ -49,7 +48,7 @@ export interface TodayWorkoutProps {
   title: string;
   description: string;
   duration: number;
-  exercises: number; // Changed from string[] to number to match how it's used
+  exercises: number;
   date: string;
   image: string;
 }

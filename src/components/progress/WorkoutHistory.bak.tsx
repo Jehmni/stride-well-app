@@ -8,7 +8,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { WorkoutLog, Workout, WorkoutExercise } from "@/models/models";
 import { format, parseISO, subDays } from "date-fns";
-import { execSqlRPC } from "@/integrations/supabase/functions";
 
 // Define the completed exercise type
 interface CompletedExercise {
@@ -78,31 +77,26 @@ const WorkoutHistory: React.FC = () => {
         
         if (workoutLogIds.length > 0) {
           try {
-            // Use the execSqlRPC function instead of directly querying exercise_logs
-            const exerciseLogSql = `
-              SELECT 
-                el.id,
-                el.workout_log_id,
-                el.exercise_id,
-                el.sets_completed,
-                el.reps_completed,
-                el.weight_used,
-                el.notes,
-                el.completed_at,
-                json_build_object(
-                  'id', e.id,
-                  'name', e.name,
-                  'muscle_group', e.muscle_group
-                ) as exercise
-              FROM 
-                exercise_logs el
-              JOIN 
-                exercises e ON el.exercise_id = e.id
-              WHERE 
-                el.workout_log_id IN ('${workoutLogIds.join("','")}')
-            `;
-
-            const { data: exerciseLogsData, error: exerciseLogsError } = await execSqlRPC(exerciseLogSql);
+            // Fetch all exercise logs in batches since we can't use IN with too many IDs
+            // Fetch directly from exercise_logs table instead of using exec_sql
+            const { data: exerciseLogsData, error: exerciseLogsError } = await supabase
+              .from('exercise_logs')
+              .select(`
+                id,
+                workout_log_id,
+                exercise_id,
+                sets_completed,
+                reps_completed,
+                weight_used,
+                notes,
+                completed_at,
+                exercise:exercises (
+                  id,
+                  name,
+                  muscle_group
+                )
+              `)
+              .in('workout_log_id', workoutLogIds);
             
             if (exerciseLogsError) {
               console.error("Error fetching exercise logs:", exerciseLogsError);

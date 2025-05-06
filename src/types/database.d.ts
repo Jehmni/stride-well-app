@@ -59,61 +59,6 @@ declare module '../integrations/supabase/types' {
           ];
         };
       };
-      Functions: {
-        exec_sql: {
-          Args: { sql: string };
-          Returns: unknown[];
-        };
-        get_exercise_progress_history: {
-          Args: {
-            user_id_param: string;
-            exercise_id_param: string;
-            limit_param: number;
-          };
-          Returns: {
-            log_id: string;
-            exercise_id: string;
-            completed_at: string;
-            sets_completed: number;
-            reps_completed: number | null;
-            weight_used: number | null;
-          }[];
-        };
-        get_top_exercises: {
-          Args: {
-            user_id_param: string;
-            limit_param: number;
-          };
-          Returns: {
-            exercise_id: string;
-            name: string;
-            muscle_group: string;
-            count: number;
-          }[];
-        };
-        get_user_exercise_counts: {
-          Args: {
-            user_id_param: string;
-          };
-          Returns: {
-            exercise_id: string;
-            name: string;
-            muscle_group: string;
-            count: number;
-          }[];
-        };
-        log_exercise_completion: {
-          Args: {
-            workout_log_id_param: string;
-            exercise_id_param: string;
-            sets_completed_param: number;
-            reps_completed_param: number | null;
-            weight_used_param: number | null;
-            notes_param: string | null;
-          };
-          Returns: string;
-        };
-      };
     };
   }
 }

@@ -19,55 +19,47 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Create a direct client for RPC calls
 const rpcClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-// Execute SQL statements - using a type assertion to fix the type error
+// Execute SQL statements
 export const execSqlRPC = async (sql: string) => {
   try {
-    // Use type assertion to bypass TypeScript error with RPC function name
-    const result = await (rpcClient.rpc as any)('exec_sql', { sql });
-    return result;
+    return await rpcClient.rpc('exec_sql', { sql });
   } catch (error) {
     console.error('Error executing SQL:', error);
     throw error;
   }
 };
 
-// Get exercise progress history - fixed with type assertion
+// Get exercise progress history
 export const getExerciseProgressHistoryRPC = async (params: ExerciseProgressHistoryParams) => {
   try {
-    // Use type assertion to bypass TypeScript error with RPC function name
-    const result = await (rpcClient.rpc as any)('get_exercise_progress_history', params);
-    return result;
+    return await rpcClient.rpc<ExerciseProgressHistoryResponse>('get_exercise_progress_history', params);
   } catch (error) {
     console.error('Error getting exercise progress history:', error);
     throw error;
   }
 };
 
-// Get top exercises by count - fixed with type assertion
+// Get top exercises by count
 export const getTopExercisesRPC = async (params: TopExercisesParams) => {
   try {
-    // Use type assertion to bypass TypeScript error with RPC function name
-    const result = await (rpcClient.rpc as any)('get_top_exercises', params);
-    return result;
+    return await rpcClient.rpc<ExerciseCountResponse>('get_top_exercises', params);
   } catch (error) {
     console.error('Error getting top exercises:', error);
     throw error;
   }
 };
 
-// Get user exercise counts - fixed with type assertion
+// Get user exercise counts
 export const getUserExerciseCountsRPC = async (params: UserExerciseCountsParams) => {
   try {
-    // Use type assertion to bypass TypeScript error with RPC function name
-    const result = await (rpcClient.rpc as any)('get_user_exercise_counts', params);
-    return result;
+    return await rpcClient.rpc<ExerciseCountResponse>('get_user_exercise_counts', params);
   } catch (error) {
     console.error('Error getting user exercise counts:', error);
     throw error;
   }
 };
 
-// Log exercise completion - fixed with type assertion
+// Log exercise completion
 export const logExerciseCompletionRPC = async (params: LogExerciseCompletionParams) => {
   try {
     console.log('Calling log_exercise_completion with params:', params);
@@ -78,8 +70,7 @@ export const logExerciseCompletionRPC = async (params: LogExerciseCompletionPara
       throw new Error('Missing required parameters for exercise logging');
     }
     
-    // Use type assertion to bypass TypeScript error with RPC function name
-    const response = await (rpcClient.rpc as any)('log_exercise_completion', params);
+    const response = await rpcClient.rpc('log_exercise_completion', params);
     
     if (response.error) {
       console.error('RPC error logging exercise completion:', response.error);
