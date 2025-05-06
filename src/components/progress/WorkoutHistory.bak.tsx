@@ -7,15 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { WorkoutLog, Workout, WorkoutExercise } from "@/models/models";
-import { format, parseISO, subDays } from "date-fns";ct, { useState, useEffect } from "react";
-import { Calendar, Award, Clock, Dumbbell, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
-import { WorkoutLog, Workout, WorkoutExercise } from "@/models/models";
 import { format, parseISO, subDays } from "date-fns";
 
 interface CompletedExercise {

@@ -41,8 +41,18 @@ const setupStorage = async () => {
     } else {
       console.log('✅ Profiles bucket created')
     }
-      // 2. Execute SQL to set up policies
+    
+    // 2. Execute SQL to set up policies
     console.log('Setting up storage policies...')
+    
+    // execSqlRPC function needs to be defined
+    const execSqlRPC = async (sql: string) => {
+      // Here we would call the exec_sql RPC function
+      const { data, error } = await supabase.rpc('exec_sql', { sql });
+      if (error) throw error;
+      return { data, error: null };
+    };
+    
     const { error: policiesError } = await execSqlRPC(`
         -- Allow public access to avatars
         CREATE POLICY IF NOT EXISTS "Avatars are publicly accessible"
@@ -96,10 +106,10 @@ const setupStorage = async () => {
         END
         $$;
       `
-    })
+    );
     
     if (policiesError) {
-      throw policiesError
+      throw policiesError;
     }
     
     console.log('✅ Storage policies configured successfully!')
@@ -109,7 +119,7 @@ const setupStorage = async () => {
     console.error('❌ Error setting up storage:', error)
     process.exit(1)
   }
-}
+};
 
 // Run the setup
-setupStorage()
+setupStorage();
