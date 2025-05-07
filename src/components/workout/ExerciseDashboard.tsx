@@ -9,13 +9,15 @@ import ExerciseProgressChart from "./ExerciseProgressChart";
 import KeyExercises from "./KeyExercises";
 import { useAuth } from "@/hooks/useAuth";
 import { getUserExerciseCountsRPC } from "@/integrations/supabase/functions";
+import { ExerciseCount } from "./types";
 
 const ExerciseDashboard = () => {
   const { user } = useAuth();
-  const [exerciseData, setExerciseData] = useState<any[]>([]);
+  const [exerciseData, setExerciseData] = useState<ExerciseCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
+  const [selectedExerciseName, setSelectedExerciseName] = useState<string | null>(null);
 
   useEffect(() => {
     const loadExerciseData = async () => {
@@ -38,7 +40,7 @@ const ExerciseDashboard = () => {
         }
         
         // If function exists, get exercise counts
-        if (funcCheck && funcCheck[0]?.exists) {
+        if (funcCheck && Array.isArray(funcCheck) && funcCheck.length > 0 && funcCheck[0].exists === true) {
           const { data, error } = await getUserExerciseCountsRPC({ 
             user_id_param: user.id 
           });
@@ -49,6 +51,7 @@ const ExerciseDashboard = () => {
           } else if (data && data.length > 0) {
             setExerciseData(data);
             setSelectedExerciseId(data[0].exercise_id);
+            setSelectedExerciseName(data[0].name);
           } else {
             setExerciseData([]);
           }
@@ -68,6 +71,11 @@ const ExerciseDashboard = () => {
 
   const handleExerciseSelect = (exerciseId: string) => {
     setSelectedExerciseId(exerciseId);
+    // Find the name of the selected exercise
+    const selectedExercise = exerciseData.find(ex => ex.exercise_id === exerciseId);
+    if (selectedExercise) {
+      setSelectedExerciseName(selectedExercise.name);
+    }
   };
 
   if (loading) {
@@ -118,8 +126,8 @@ const ExerciseDashboard = () => {
             <CardContent>
               {selectedExerciseId && (
                 <ExerciseProgressChart 
-                  exerciseId={selectedExerciseId} 
-                  userId={user?.id || ''} 
+                  exerciseId={selectedExerciseId}
+                  exerciseName={selectedExerciseName || undefined}
                 />
               )}
             </CardContent>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   LineChart,
@@ -16,27 +17,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Badge } from '../ui/badge';
 import { Skeleton } from '../ui/skeleton';
+import { ChartDataPoint } from './types';
 
 interface ExerciseProgressChartProps {
   exerciseId: string;
-  exerciseName: string;
+  exerciseName?: string;
 }
 
 const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
   exerciseId,
-  exerciseName
+  exerciseName = "Exercise"
 }) => {
   const { user } = useAuth();
-  const [progressData, setProgressData] = useState<any[]>([]);
+  const [progressData, setProgressData] = useState<ChartDataPoint[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [activeMetric, setActiveMetric] = useState<'weight' | 'reps'>('weight');
+  const [exercise, setExercise] = useState<string>(exerciseName);
 
   useEffect(() => {
     const fetchProgressData = async () => {
       if (!user?.id) return;
       
       setIsLoading(true);
-      try {        const data = await getExerciseProgressHistory(user.id, exerciseId, 20);
+      try {
+        const data = await getExerciseProgressHistory(user.id, exerciseId, 20);
         
         // Transform data for the chart
         const formattedData = data.map((log: any) => ({
@@ -102,7 +106,7 @@ const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{exerciseName}</CardTitle>
+          <CardTitle>{exercise}</CardTitle>
           <CardDescription>No progress data available yet</CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-[200px] bg-gray-50 dark:bg-gray-800/30 rounded-md">
@@ -119,10 +123,10 @@ const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle>{exerciseName}</CardTitle>
+            <CardTitle>{exercise}</CardTitle>
             <CardDescription>Your progress over time</CardDescription>
           </div>
-            {activeMetric === 'weight' ? (
+          {activeMetric === 'weight' ? (
             <div>
               <Badge variant={weightImprovement.percentage > 0 ? "default" : "outline"} className="ml-auto">
                 {weightImprovement.percentage > 0 ? '+' : ''}{weightImprovement.value}kg ({weightImprovement.percentage}%)

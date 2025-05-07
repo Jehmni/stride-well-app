@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile } from "@/models/models";
 import { WorkoutDay, WorkoutExercise, WorkoutPlan } from "@/components/workout/types";
@@ -234,23 +235,27 @@ const processExercises = async (
     const exerciseDetails = exerciseMap[ex.exercise_id] || null;
     
     // If we can't find the exercise, try to find a similar one or use a default
-    let exercise_id = ex.exercise_id;
-    if (!exerciseDetails) {
+    let exerciseId = ex.exercise_id;
+    let exerciseName = "Unknown Exercise";
+    let muscleName = "General";
+    
+    if (exerciseDetails) {
+      exerciseId = exerciseDetails.id;
+      exerciseName = exerciseDetails.name;
+      muscleName = exerciseDetails.muscle_group;
+    } else if (availableExercises.length > 0) {
       // Find a fallback exercise
       const fallbackExercise = availableExercises[index % availableExercises.length];
-      exercise_id = fallbackExercise.id;
+      exerciseId = fallbackExercise.id;
+      exerciseName = fallbackExercise.name;
+      muscleName = fallbackExercise.muscle_group;
     }
     
     return {
-      id: `ai-exercise-${index}`,
-      workout_id: 'ai-generated',
-      exercise_id: exercise_id,
+      name: exerciseName,
       sets: ex.sets || 3,
       reps: ex.reps || "10",
-      duration: null,
-      rest_time: ex.rest_time || 60,
-      order_position: index,
-      notes: null
+      muscle: muscleName
     };
   });
 };

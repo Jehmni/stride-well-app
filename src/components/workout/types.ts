@@ -1,3 +1,4 @@
+
 import { Exercise } from "@/models/models";
 
 export interface WorkoutDay {
@@ -110,4 +111,3 @@ export interface ChartDataPoint {
   sets: number;
   timestamp: string;
 }
-

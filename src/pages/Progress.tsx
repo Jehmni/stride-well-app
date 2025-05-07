@@ -42,8 +42,17 @@ const Progress: React.FC = () => {
           sql: "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'ai_configurations');"
         });
         
-        const loggingOk = loggingCheck?.[0]?.exists && !loggingError;
-        const aiOk = aiCheck?.[0]?.exists && !aiError;
+        const loggingOk = loggingCheck && 
+          Array.isArray(loggingCheck) && 
+          loggingCheck.length > 0 && 
+          loggingCheck[0].exists === true && 
+          !loggingError;
+          
+        const aiOk = aiCheck && 
+          Array.isArray(aiCheck) && 
+          aiCheck.length > 0 && 
+          aiCheck[0].exists === true && 
+          !aiError;
         
         if (!loggingOk && !aiOk) {
           setDbIssueType("both");

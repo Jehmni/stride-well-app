@@ -4,7 +4,6 @@ import { UserProfile } from "@/models/models";
 import { WorkoutDay, WorkoutExercise, WorkoutPlan } from "@/components/workout/types";
 import { getExerciseProgressHistoryRPC, logExerciseCompletionRPC } from '@/integrations/supabase/functions';
 import { generateAIWorkoutPlan } from '@/integrations/ai/workoutAIService';
-import { generateRuleBasedWorkoutPlan } from './ruleBasedWorkoutGenerator';
 
 /**
  * Generate a personalized workout plan based on user data and fitness goal
@@ -31,7 +30,7 @@ export const generatePersonalizedWorkoutPlan = async (
     
     // Fallback to rule-based generation
     console.log("AI generation unavailable, falling back to rule-based workout generation");
-    const plan = await generateRuleBasedWorkoutPlan(
+    const plan = await generateRuleBasedWorkoutPlanInternal(
       userProfile.fitness_goal,
       userProfile.age,
       userProfile.sex,
@@ -150,7 +149,7 @@ async function saveWorkoutPlan(
  * @param weight User's weight in kg
  * @returns Generated workout plan or null if generation failed
  */
-export const generateRuleBasedWorkoutPlan = async (
+const generateRuleBasedWorkoutPlanInternal = async (
   fitnessGoal: string,
   age: number,
   sex: string,
