@@ -452,17 +452,25 @@ export const logExerciseCompletion = async (
   notes?: string
 ) => {
   try {
+    // Validate parameters before calling the RPC function
+    if (!workoutLogId || !exerciseId) {
+      throw new Error("Missing required parameters: workout log ID or exercise ID");
+    }
+    
     // Use RPC function wrapper to log exercise completion
     const { data, error } = await logExerciseCompletionRPC({
       workout_log_id_param: workoutLogId,
       exercise_id_param: exerciseId,
       sets_completed_param: setsCompleted,
-      reps_completed_param: repsCompleted || null,
-      weight_used_param: weightUsed || null,
+      reps_completed_param: repsCompleted !== undefined ? repsCompleted : null,
+      weight_used_param: weightUsed !== undefined ? weightUsed : null,
       notes_param: notes || null
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error("RPC returned error:", error);
+      throw new Error(error.message || "Error logging exercise completion");
+    }
     return data;
   } catch (error) {
     console.error("Error logging exercise completion:", error);

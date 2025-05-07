@@ -1,10 +1,11 @@
 @echo off
 REM This script applies database migrations to fix the exercise logging issues
 
-echo Applying database migrations to fix exercise logging...
+echo Running manual database fix script...
 
-REM Apply migrations using Supabase CLI
-npx supabase db push
+REM Run the Node.js script to apply the database fixes
+cd %~dp0\..
+node scripts/manual_db_fix.js
 
-echo Migrations applied successfully!
+echo Database fixes applied!
 echo Restart the application to ensure changes take effect.

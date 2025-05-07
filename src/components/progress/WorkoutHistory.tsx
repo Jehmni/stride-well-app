@@ -75,28 +75,46 @@ const WorkoutHistory: React.FC = () => {
         const workoutLogIds = workoutsData?.map(log => log.id) || [];
         let completedExercises: Record<string, CompletedExercise[]> = {};
         
-        if (workoutLogIds.length > 0) {
-          try {
+        if (workoutLogIds.length > 0) {          try {
             // Fetch all exercise logs in batches since we can't use IN with too many IDs
             // Fetch directly from exercise_logs table instead of using exec_sql
-            const { data: exerciseLogsData, error: exerciseLogsError } = await supabase
-              .from('exercise_logs')
-              .select(`
-                id,
-                workout_log_id,
-                exercise_id,
-                sets_completed,
-                reps_completed,
-                weight_used,
-                notes,
-                completed_at,
-                exercise:exercises (
+            // Use a loop to handle batches of workout log IDs for better reliability
+            let allExerciseLogs: CompletedExercise[] = [];
+            
+            // Process in batches of 10 to avoid query size limits
+            for (let i = 0; i < workoutLogIds.length; i += 10) {
+              const batchIds = workoutLogIds.slice(i, i + 10);
+              console.log(`Fetching exercise logs batch ${i/10 + 1}, IDs:`, batchIds);
+              
+              const { data: batchExerciseLogs, error: batchError } = await supabase
+                .from('exercise_logs')
+                .select(`
                   id,
-                  name,
-                  muscle_group
-                )
-              `)
-              .in('workout_log_id', workoutLogIds);
+                  workout_log_id,
+                  exercise_id,
+                  sets_completed,
+                  reps_completed,
+                  weight_used,
+                  notes,
+                  completed_at,
+                  exercise:exercises (
+                    id,
+                    name,
+                    muscle_group
+                  )
+                `)
+                .in('workout_log_id', batchIds);
+                
+              if (batchError) {
+                console.error(`Error fetching exercise logs batch ${i/10 + 1}:`, batchError);
+              } else if (batchExerciseLogs) {
+                console.log(`Retrieved ${batchExerciseLogs.length} exercise logs for batch ${i/10 + 1}`);
+                allExerciseLogs = [...allExerciseLogs, ...batchExerciseLogs];
+              }
+            }
+            
+            const exerciseLogsData = allExerciseLogs;
+            const exerciseLogsError = null;
             
             if (exerciseLogsError) {
               console.error("Error fetching exercise logs:", exerciseLogsError);

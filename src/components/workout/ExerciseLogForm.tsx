@@ -32,8 +32,7 @@ const ExerciseLogForm: React.FC<ExerciseLogFormProps> = ({
   const [weightUsed, setWeightUsed] = useState<number | undefined>(undefined);
   const [notes, setNotes] = useState<string>("");
   const [isLogging, setIsLogging] = useState<boolean>(false);
-  const [isComplete, setIsComplete] = useState<boolean>(false);
-  const handleSubmit = async (e: React.FormEvent) => {
+  const [isComplete, setIsComplete] = useState<boolean>(false);  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!setsCompleted || setsCompleted < 1) {
@@ -44,6 +43,12 @@ const ExerciseLogForm: React.FC<ExerciseLogFormProps> = ({
     if (!workoutLogId) {
       toast.error("Missing workout log ID. Please try again or create a new workout log.");
       console.error("Missing workoutLogId in ExerciseLogForm:", { workoutLogId, exerciseId });
+      return;
+    }
+    
+    if (!exerciseId) {
+      toast.error("Missing exercise ID. Please try again or select a different exercise.");
+      console.error("Missing exerciseId in ExerciseLogForm:", { workoutLogId, exerciseId });
       return;
     }
 

@@ -14,6 +14,7 @@ import { TodayWorkoutProps, WorkoutDay, WorkoutExercise, UserWorkout, WorkoutPla
 import { Activity, Calendar, RefreshCw } from "lucide-react";
 import { generatePersonalizedWorkoutPlan, fetchUserWorkouts } from "@/services/workoutService";
 import { regenerateWorkoutPlan } from "@/integrations/ai/workoutAIService";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 
@@ -56,47 +57,71 @@ const WorkoutPlan: React.FC = () => {
       const loadWorkoutPlan = async () => {
         try {
           setIsGeneratingAIPlan(true);
+          console.log("Generating personalized workout plan for user profile:", profile.id);
           
           // Fetch personalized workout plan from the service
           const workoutPlan = await generatePersonalizedWorkoutPlan(profile);
           
+          // Always set isGeneratingAIPlan to false once we have a response
+          setIsGeneratingAIPlan(false);
+          
           if (workoutPlan) {
+            console.log("Received workout plan:", workoutPlan);
+            
             // Check if the plan was AI-generated
             setIsAIGenerated(workoutPlan.ai_generated === true);
             
             // Update weekly structure state
-            setWeeklyStructure(workoutPlan.weekly_structure);
+            if (Array.isArray(workoutPlan.weekly_structure) && workoutPlan.weekly_structure.length > 0) {
+              setWeeklyStructure(workoutPlan.weekly_structure);
+            } else {
+              console.warn("Invalid weekly_structure format received:", workoutPlan.weekly_structure);
+            }
             
             // Update key exercises state
-            setKeyExercises(workoutPlan.exercises);
+            if (Array.isArray(workoutPlan.exercises) && workoutPlan.exercises.length > 0) {
+              setKeyExercises(workoutPlan.exercises);
+            } else {
+              console.warn("Invalid exercises format received:", workoutPlan.exercises);
+            }
             
             // Get today's day of the week (0-6, starting with Sunday)
             const today = new Date().getDay();
             // Adjust to match our weekly structure (starting with Monday)
             const todayIndex = today === 0 ? 6 : today - 1;
             
-            const todaysWorkout = workoutPlan.weekly_structure[todayIndex];
+            if (workoutPlan.weekly_structure && workoutPlan.weekly_structure[todayIndex]) {
+              const todaysWorkout = workoutPlan.weekly_structure[todayIndex];
               // Get an image based on workout focus
-            const workoutImage = getWorkoutImage(todaysWorkout.focus);
-            
-            // Define today's workout based on the personalized plan
-            setTodayWorkout({
-              title: `${todaysWorkout.focus} Workout`,
-              description: `${workoutPlan.description} - Focused on ${todaysWorkout.focus.toLowerCase()}`,
-              duration: todaysWorkout.duration,
-              exercises: Math.min(8, workoutPlan.exercises.length),
-              date: "Today",
-              image: workoutImage
-            });
+              const workoutImage = getWorkoutImage(todaysWorkout.focus);
+              
+              // Define today's workout based on the personalized plan
+              setTodayWorkout({
+                title: `${todaysWorkout.focus} Workout`,
+                description: `${workoutPlan.description || 'Personalized workout plan'} - Focused on ${todaysWorkout.focus.toLowerCase()}`,
+                duration: todaysWorkout.duration || 30,
+                exercises: Array.isArray(workoutPlan.exercises) ? Math.min(8, workoutPlan.exercises.length) : 0,
+                date: "Today",
+                image: workoutImage
+              });
+            } else {
+              console.warn("Could not find today's workout in weekly structure");
+              // Fallback workout if today's workout is missing
+              setTodayWorkout(
+                workoutByGoal[profile.fitness_goal as keyof typeof workoutByGoal] || workoutByGoal["general-fitness"]
+              );
+            }
           } else {
+            console.warn("Failed to generate workout plan, falling back to default");
             // Fallback workout if plan generation fails
             setIsAIGenerated(false);
             setTodayWorkout(
               workoutByGoal[profile.fitness_goal as keyof typeof workoutByGoal] || workoutByGoal["general-fitness"]
-            );
-          }
+            );          }
         } catch (error) {
           console.error("Error loading workout plan:", error);
+          setIsGeneratingAIPlan(false);
+          toast.error("Error loading your workout plan. Using default workout instead.");
           // Set fallback workout in case of error
           setTodayWorkout(
             workoutByGoal[profile.fitness_goal as keyof typeof workoutByGoal] || workoutByGoal["general-fitness"]

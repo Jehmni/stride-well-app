@@ -87,11 +87,10 @@ const AIGeneratedNotice: React.FC<AIGeneratedNoticeProps> = ({
               {isGenerating ? statusMessage : "This plan was intelligently created by AI based on your specific needs and goals"}
             </p>
           </div>
-        </div>
-          {isGenerating && progress > 0 && (
+        </div>          {isGenerating && (
           <Progress 
             value={progress} 
-            className={`h-1.5 mt-2 ${type === 'nutrition' ? "bg-emerald-100" : "bg-indigo-100"}`}
+            className={`h-1.5 mt-2 ${type === 'nutrition' ? "bg-emerald-100 dark:bg-emerald-900/50" : "bg-indigo-100 dark:bg-indigo-900/50"}`}
           />
         )}</CardContent>
     </Card>
