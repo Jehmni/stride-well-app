@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { UserProfile } from "@/models/models";
 import { WorkoutDay, WorkoutExercise, WorkoutPlan } from "@/components/workout/types";
 import { getExerciseProgressHistoryRPC, logExerciseCompletionRPC } from '@/integrations/supabase/functions';
+import { generateAIWorkoutPlan } from '@/integrations/ai/workoutAI';
 
 // Generate a personalized workout plan based on user data and fitness goal
 export const generatePersonalizedWorkoutPlan = async (
@@ -14,11 +15,11 @@ export const generatePersonalizedWorkoutPlan = async (
       .from('workout_plans')
       .select('*')
       .eq('fitness_goal', userProfile.fitness_goal)
+      .eq('user_id', userProfile.id) // Get user-specific plans
+      .order('created_at', { ascending: false })
       .limit(1);
 
-    if (fetchError) throw fetchError;
-
-    // If we found a matching plan, return it
+    if (fetchError) throw fetchError;    // If we found a matching plan, return it
     if (existingPlans && existingPlans.length > 0) {
       return {
         id: existingPlans[0].id,
@@ -26,11 +27,22 @@ export const generatePersonalizedWorkoutPlan = async (
         description: existingPlans[0].description,
         fitness_goal: existingPlans[0].fitness_goal,
         weekly_structure: existingPlans[0].weekly_structure as unknown as WorkoutDay[],
-        exercises: existingPlans[0].exercises as unknown as WorkoutExercise[]
+        exercises: existingPlans[0].exercises as unknown as WorkoutExercise[],
+        ai_generated: existingPlans[0].ai_generated || false
       };
     }
 
-    // If no plan exists, generate one based on the user's profile
+    // Try to generate a plan using AI first
+    const aiPlan = await generateAIWorkoutPlan(userProfile);
+    
+    // If AI plan generation succeeds, return it
+    if (aiPlan) {
+      console.log("Using AI-generated workout plan");
+      return aiPlan;
+    }
+    
+    // Fallback: If AI generation fails, use the rule-based approach
+    console.log("AI generation unavailable, falling back to rule-based workout generation");
     const plan = await generateWorkoutPlanForGoal(
       userProfile.fitness_goal,
       userProfile.age,
@@ -48,7 +60,9 @@ export const generatePersonalizedWorkoutPlan = async (
           description: plan.description,
           fitness_goal: plan.fitness_goal,
           weekly_structure: plan.weekly_structure as any,
-          exercises: plan.exercises as any
+          exercises: plan.exercises as any,
+          user_id: userProfile.id, // Associate with specific user
+          ai_generated: false
         })
         .select()
         .single();

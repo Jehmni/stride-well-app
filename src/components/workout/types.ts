@@ -20,6 +20,7 @@ export interface WorkoutPlan {
   fitness_goal: string;
   weekly_structure: WorkoutDay[];
   exercises: WorkoutExercise[];
+  ai_generated?: boolean;
 }
 
 export interface UserWorkout {

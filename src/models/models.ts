@@ -15,6 +15,16 @@ export interface UserProfile {
 }
 
 // Types for workout data
+export interface AIPoweredWorkoutPlan {
+  id: string;
+  title: string;
+  description: string;
+  fitness_goal: string;
+  ai_generated: boolean;
+  user_id: string | null;
+  created_at: string;
+}
+
 export interface Exercise {
   id: string;
   name: string;

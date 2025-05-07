@@ -6,11 +6,12 @@ import WeeklyStructure from "@/components/workout/WeeklyStructure";
 import KeyExercises from "@/components/workout/KeyExercises";
 import TodayWorkout from "@/components/workout/TodayWorkout";
 import CustomWorkoutList from "@/components/workout/CustomWorkoutList";
+import AIGeneratedNotice from "@/components/common/AIGeneratedNotice";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { TodayWorkoutProps, WorkoutDay, WorkoutExercise, UserWorkout, WorkoutPlan as WorkoutPlanType } from "@/components/workout/types";
-import { Activity, Calendar } from "lucide-react";
+import { Activity, Calendar, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { generatePersonalizedWorkoutPlan, fetchUserWorkouts } from "@/services/workoutService";
 import { toast } from "sonner";
@@ -18,6 +19,8 @@ import { toast } from "sonner";
 const WorkoutPlan: React.FC = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const [isGeneratingAIPlan, setIsGeneratingAIPlan] = useState<boolean>(false);
+  const [isAIGenerated, setIsAIGenerated] = useState<boolean>(false);
   const [todayWorkout, setTodayWorkout] = useState<TodayWorkoutProps>({
     title: "Loading workout...",
     description: "Please wait",
@@ -43,16 +46,20 @@ const WorkoutPlan: React.FC = () => {
     { name: "Deadlifts", sets: 3, reps: "6-8", muscle: "Back" },
     { name: "Shoulder Press", sets: 3, reps: "8-10", muscle: "Shoulders" },
     { name: "Pull-ups", sets: 3, reps: "Max", muscle: "Back" }
-  ]);
-  useEffect(() => {
+  ]);  useEffect(() => {
     if (profile) {
       // Load personalized workout plan using the AI-driven service
       const loadWorkoutPlan = async () => {
         try {
+          setIsGeneratingAIPlan(true);
+          
           // Fetch personalized workout plan from the service
           const workoutPlan = await generatePersonalizedWorkoutPlan(profile);
           
           if (workoutPlan) {
+            // Check if the plan was AI-generated
+            setIsAIGenerated(workoutPlan.ai_generated === true);
+            
             // Update weekly structure state
             setWeeklyStructure(workoutPlan.weekly_structure);
             
@@ -65,8 +72,7 @@ const WorkoutPlan: React.FC = () => {
             const todayIndex = today === 0 ? 6 : today - 1;
             
             const todaysWorkout = workoutPlan.weekly_structure[todayIndex];
-            
-            // Get an image based on workout focus
+              // Get an image based on workout focus
             const workoutImage = getWorkoutImage(todaysWorkout.focus);
             
             // Define today's workout based on the personalized plan
@@ -80,6 +86,7 @@ const WorkoutPlan: React.FC = () => {
             });
           } else {
             // Fallback workout if plan generation fails
+            setIsAIGenerated(false);
             setTodayWorkout(
               workoutByGoal[profile.fitness_goal as keyof typeof workoutByGoal] || workoutByGoal["general-fitness"]
             );
@@ -187,9 +194,45 @@ const WorkoutPlan: React.FC = () => {
   const handleWorkoutCreated = (workout: UserWorkout) => {
     setUserWorkouts([...userWorkouts, workout]);
   };
-
   return (
     <DashboardLayout title="Workout Plan">
+      {/* AI Workout Generation Notice */}
+      {isGeneratingAIPlan && (
+        <AIGeneratedNotice 
+          title="Creating your AI workout plan" 
+          isGenerating={true} 
+        />
+      )}
+      
+      {!isGeneratingAIPlan && isAIGenerated && (
+        <div className="flex items-center justify-between">
+          <AIGeneratedNotice title="AI-Powered Workout Plan" />
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center"
+            onClick={() => {
+              if (profile) {
+                toast.info("Regenerating your AI workout plan...");
+                setIsGeneratingAIPlan(true);
+                // Force regeneration by clearing the cache
+                supabase
+                  .from('workout_plans')
+                  .delete()
+                  .eq('user_id', profile.id)
+                  .then(() => {
+                    // Reload the page to trigger plan regeneration
+                    window.location.reload();
+                  });
+              }
+            }}
+          >
+            <RefreshCw className="h-3 w-3 mr-2" />
+            Regenerate Plan
+          </Button>
+        </div>
+      )}
+      
       {/* Quick link to progress tracking */}
       <div className="mb-6 flex justify-between items-center">
         <p className="text-gray-600 dark:text-gray-400">
