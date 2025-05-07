@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Tabs, 
   TabsContent, 
@@ -13,12 +13,64 @@ import ExerciseDashboard from "@/components/workout/ExerciseDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { calculateBMI, getBMICategory } from "@/utils/healthCalculations";
 import UserAvatar from "@/components/profile/UserAvatar"; 
+import DbFixesNotice from "@/components/common/DbFixesNotice";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 const Progress: React.FC = () => {
   const { profile } = useAuth();
+  const { toast } = useToast();
+  const [dbIssueType, setDbIssueType] = useState<"exercise-logging" | "ai-workouts" | "both" | null>(null);
+  const [isChecking, setIsChecking] = useState(true);
+  
   // Calculate BMI if height and weight are available
   const userBMI = profile ? calculateBMI(profile.height, profile.weight) : null;
   const bmiCategory = userBMI ? getBMICategory(userBMI) : null;
+  
+  useEffect(() => {
+    const checkDatabaseConfig = async () => {
+      try {
+        setIsChecking(true);
+        
+        // Check exercise logging function
+        const { data: loggingCheck, error: loggingError } = await supabase.rpc('exec_sql', {
+          sql: "SELECT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'log_exercise_completion');"
+        });
+        
+        // Check AI workout configuration
+        const { data: aiCheck, error: aiError } = await supabase.rpc('exec_sql', {
+          sql: "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'ai_configurations');"
+        });
+        
+        const loggingOk = loggingCheck?.[0]?.exists && !loggingError;
+        const aiOk = aiCheck?.[0]?.exists && !aiError;
+        
+        if (!loggingOk && !aiOk) {
+          setDbIssueType("both");
+        } else if (!loggingOk) {
+          setDbIssueType("exercise-logging");
+        } else if (!aiOk) {
+          setDbIssueType("ai-workouts");
+        } else {
+          setDbIssueType(null);
+        }
+      } catch (error) {
+        console.error("Error checking database configuration:", error);
+        setDbIssueType("both"); // Assume both need fixing if error occurs
+      } finally {
+        setIsChecking(false);
+      }
+    };
+    
+    checkDatabaseConfig();
+  }, []);
+  
+  const handleApplyFixes = async () => {
+    toast({
+      title: "Applying database fixes...",
+      description: "Please run the script: scripts/apply_database_fixes.bat",
+    });
+  };
   
   return (
     <DashboardLayout title="Progress Tracking">
@@ -30,6 +82,14 @@ const Progress: React.FC = () => {
           </p>
         </div>
       </div>
+      
+      {!isChecking && dbIssueType && (
+        <DbFixesNotice 
+          hasIssues={true} 
+          issueType={dbIssueType} 
+          onFixClick={handleApplyFixes}
+        />
+      )}
       
       {/* Health Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

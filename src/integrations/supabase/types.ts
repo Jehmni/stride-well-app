@@ -9,6 +9,39 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      ai_configurations: {
+        Row: {
+          api_endpoint: string | null
+          api_key: string | null
+          created_at: string | null
+          id: string
+          is_enabled: boolean | null
+          model_name: string | null
+          service_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          api_endpoint?: string | null
+          api_key?: string | null
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          model_name?: string | null
+          service_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          api_endpoint?: string | null
+          api_key?: string | null
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          model_name?: string | null
+          service_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       exercise_logs: {
         Row: {
           completed_at: string | null
@@ -430,6 +463,7 @@ export type Database = {
       }
       workout_plans: {
         Row: {
+          ai_generated: boolean | null
           created_at: string | null
           description: string | null
           exercises: Json
@@ -437,9 +471,11 @@ export type Database = {
           id: string
           title: string
           updated_at: string | null
+          user_id: string | null
           weekly_structure: Json
         }
         Insert: {
+          ai_generated?: boolean | null
           created_at?: string | null
           description?: string | null
           exercises: Json
@@ -447,9 +483,11 @@ export type Database = {
           id?: string
           title: string
           updated_at?: string | null
+          user_id?: string | null
           weekly_structure: Json
         }
         Update: {
+          ai_generated?: boolean | null
           created_at?: string | null
           description?: string | null
           exercises?: Json
@@ -457,9 +495,18 @@ export type Database = {
           id?: string
           title?: string
           updated_at?: string | null
+          user_id?: string | null
           weekly_structure?: Json
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workout_plans_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workouts: {
         Row: {

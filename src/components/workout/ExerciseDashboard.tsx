@@ -1,124 +1,146 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import ExerciseProgressChart from "./ExerciseProgressChart";
+import KeyExercises from "./KeyExercises";
 import { useAuth } from "@/hooks/useAuth";
-import { testLogExerciseCompletion } from "@/utils/testRpcFunction";
-import { ExerciseCountResponse } from '@/types/rpc';
-import { getTopExercisesRPC } from '@/integrations/supabase/functions';
+import { getUserExerciseCountsRPC } from "@/integrations/supabase/functions";
 
-interface Exercise {
-  exercise_id: string;
-  name: string;
-  muscle_group: string;
-  count: number;
-}
-
-const ExerciseDashboard: React.FC = () => {
+const ExerciseDashboard = () => {
   const { user } = useAuth();
-  const [topExercises, setTopExercises] = useState<Exercise[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [rpcFunctionExists, setRpcFunctionExists] = useState<boolean | null>(null);
-  useEffect(() => {
-    const testRpcFunction = async () => {
-      try {
-        const exists = await testLogExerciseCompletion();
-        setRpcFunctionExists(exists);
-      } catch (err) {
-        console.error("Error testing RPC function:", err);
-        // Still set to false but don't let this error block other functionality
-        setRpcFunctionExists(false);
-      } finally {
-        // Ensure loading state isn't affected by this check
-        setIsLoading(prev => prev);
-      }
-    };
+  const [exerciseData, setExerciseData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
 
-    // Run this test in the background without blocking
-    testRpcFunction();
-  }, []);
   useEffect(() => {
-    const fetchTopExercises = async () => {
-      if (!user?.id) {
-        setIsLoading(false);
-        return;
-      }
+    const loadExerciseData = async () => {
+      if (!user) return;
       
       try {
-        setIsLoading(true);
-        // Use RPC function to get user's top exercises by count
-        const { data, error } = await getTopExercisesRPC({ 
-          user_id_param: user.id,
-          limit_param: 5
+        setLoading(true);
+        setError(null);
+        
+        // Check if exercise_logs function exists
+        const { data: funcCheck, error: funcError } = await supabase.rpc('exec_sql', {
+          sql: "SELECT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'log_exercise_completion');"
         });
         
-        if (error) {
-          console.error("Failed to fetch top exercises:", error);
-          setTopExercises([]);
+        if (funcError) {
+          console.error("Error checking function:", funcError);
+          setError("The exercise logging function is not properly configured. Run the database fix script.");
+          setLoading(false);
           return;
         }
         
-        if (data) {
-          setTopExercises(data.map(exercise => ({
-            exercise_id: exercise.exercise_id,
-            name: exercise.name,
-            muscle_group: exercise.muscle_group,
-            count: exercise.count
-          })));
+        // If function exists, get exercise counts
+        if (funcCheck && funcCheck[0]?.exists) {
+          const { data, error } = await getUserExerciseCountsRPC({ 
+            user_id_param: user.id 
+          });
+          
+          if (error) {
+            console.error("Error fetching exercise counts:", error);
+            setError("Error loading your exercise data. Please try again later.");
+          } else if (data && data.length > 0) {
+            setExerciseData(data);
+            setSelectedExerciseId(data[0].exercise_id);
+          } else {
+            setExerciseData([]);
+          }
+        } else {
+          setError("The exercise logging function is not properly configured. Run the database fix script.");
         }
-      } catch (error) {
-        console.error("Error fetching top exercises:", error);
-        setTopExercises([]);
+      } catch (err) {
+        console.error("Error in ExerciseDashboard:", err);
+        setError("An unexpected error occurred. Please try again.");
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
-    
-    fetchTopExercises();
-  }, [user?.id]);
+
+    loadExerciseData();
+  }, [user]);
+
+  const handleExerciseSelect = (exerciseId: string) => {
+    setSelectedExerciseId(exerciseId);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center p-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert className="mb-4 bg-red-50 dark:bg-red-900/20 border-red-200">
+        <AlertDescription className="text-red-700 dark:text-red-300">
+          {error}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (exerciseData.length === 0) {
+    return (
+      <div className="p-6">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">
+              No exercise data found. Start logging your workouts to see your progress here.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <Card className="w-full shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-lg font-medium">Most Used Exercises</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {rpcFunctionExists === false ? (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800">
-            <p className="text-sm">
-              <strong>Note:</strong> The RPC function for exercise logging is not properly configured.
-              Database migrations may need to be run.
-            </p>
-          </div>
-        ) : isLoading ? (
-          <div className="flex items-center justify-center h-48">
-            <div className="animate-spin h-8 w-8 border-4 border-fitness-primary border-t-transparent rounded-full"></div>
-          </div>
-        ) : topExercises.length === 0 ? (
-          <div className="text-center py-10 text-gray-500">
-            <p>You haven't logged any exercises yet.</p>
-            <p className="text-sm mt-2">Complete workouts to see your most used exercises here.</p>
-          </div>
-        ) : (
-          <ul className="space-y-3">
-            {topExercises.map((exercise) => (
-              <li 
-                key={exercise.exercise_id}
-                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-              >
-                <div>
-                  <h4 className="font-medium">{exercise.name}</h4>
-                  <p className="text-sm text-gray-500">{exercise.muscle_group}</p>
-                </div>
-                <div className="flex items-center">
-                  <span className="text-lg font-semibold">{exercise.count}</span>
-                  <span className="ml-1 text-sm text-gray-500">times</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <Tabs defaultValue="progress" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="progress">Progress Charts</TabsTrigger>
+          <TabsTrigger value="summary">Exercise Summary</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="progress" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Exercise Progress</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {selectedExerciseId && (
+                <ExerciseProgressChart 
+                  exerciseId={selectedExerciseId} 
+                  userId={user?.id || ''} 
+                />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="summary">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Most Used Exercises</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <KeyExercises 
+                exerciseData={exerciseData} 
+                onExerciseSelect={handleExerciseSelect} 
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 
