@@ -9,6 +9,54 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      exercise_logs: {
+        Row: {
+          completed_at: string | null
+          exercise_id: string
+          id: string
+          notes: string | null
+          reps_completed: number | null
+          sets_completed: number
+          weight_used: number | null
+          workout_log_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          exercise_id: string
+          id?: string
+          notes?: string | null
+          reps_completed?: number | null
+          sets_completed: number
+          weight_used?: number | null
+          workout_log_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          exercise_id?: string
+          id?: string
+          notes?: string | null
+          reps_completed?: number | null
+          sets_completed?: number
+          weight_used?: number | null
+          workout_log_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_logs_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercise_logs_workout_log_id_fkey"
+            columns: ["workout_log_id"]
+            isOneToOne: false
+            referencedRelation: "workout_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exercises: {
         Row: {
           created_at: string
@@ -448,7 +496,55 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      exec_sql: {
+        Args: { sql: string }
+        Returns: Json[]
+      }
+      get_exercise_progress_history: {
+        Args: {
+          user_id_param: string
+          exercise_id_param: string
+          limit_param?: number
+        }
+        Returns: {
+          log_id: string
+          workout_log_id: string
+          completed_at: string
+          sets_completed: number
+          reps_completed: number
+          weight_used: number
+          notes: string
+        }[]
+      }
+      get_top_exercises: {
+        Args: { user_id_param: string; limit_param?: number }
+        Returns: {
+          exercise_id: string
+          name: string
+          muscle_group: string
+          count: number
+        }[]
+      }
+      get_user_exercise_counts: {
+        Args: { user_id_param: string }
+        Returns: {
+          exercise_id: string
+          name: string
+          muscle_group: string
+          count: number
+        }[]
+      }
+      log_exercise_completion: {
+        Args: {
+          workout_log_id_param: string
+          exercise_id_param: string
+          sets_completed_param: number
+          reps_completed_param?: number
+          weight_used_param?: number
+          notes_param?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
