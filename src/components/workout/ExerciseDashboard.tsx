@@ -39,21 +39,32 @@ const ExerciseDashboard = () => {
           return;
         }
         
-        // If function exists, get exercise counts
-        if (funcCheck && Array.isArray(funcCheck) && funcCheck.length > 0 && funcCheck[0].exists === true) {
-          const { data, error } = await getUserExerciseCountsRPC({ 
-            user_id_param: user.id 
-          });
+        // Make sure we're handling the response correctly
+        if (funcCheck && Array.isArray(funcCheck) && funcCheck.length > 0) {
+          // Check if the property exists in the first element of the array
+          const firstItem = funcCheck[0];
+          // Check for exists field in different ways since it could be a boolean or string "true"/"false"
+          const functionExists = typeof firstItem === 'object' && 
+            (firstItem.exists === true || firstItem.exists === 'true' || firstItem.exists === 't');
           
-          if (error) {
-            console.error("Error fetching exercise counts:", error);
-            setError("Error loading your exercise data. Please try again later.");
-          } else if (data && data.length > 0) {
-            setExerciseData(data);
-            setSelectedExerciseId(data[0].exercise_id);
-            setSelectedExerciseName(data[0].name);
+          // If function exists, get exercise counts
+          if (functionExists) {
+            const { data, error } = await getUserExerciseCountsRPC({ 
+              user_id_param: user.id 
+            });
+            
+            if (error) {
+              console.error("Error fetching exercise counts:", error);
+              setError("Error loading your exercise data. Please try again later.");
+            } else if (data && data.length > 0) {
+              setExerciseData(data);
+              setSelectedExerciseId(data[0].exercise_id);
+              setSelectedExerciseName(data[0].name);
+            } else {
+              setExerciseData([]);
+            }
           } else {
-            setExerciseData([]);
+            setError("The exercise logging function is not properly configured. Run the database fix script.");
           }
         } else {
           setError("The exercise logging function is not properly configured. Run the database fix script.");

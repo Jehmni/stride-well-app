@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { 
   Tabs, 
@@ -42,16 +41,20 @@ const Progress: React.FC = () => {
           sql: "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'ai_configurations');"
         });
         
+        // Process logging check response
         const loggingOk = loggingCheck && 
           Array.isArray(loggingCheck) && 
           loggingCheck.length > 0 && 
-          loggingCheck[0].exists === true && 
+          typeof loggingCheck[0] === 'object' && 
+          (loggingCheck[0].exists === true || loggingCheck[0].exists === 'true' || loggingCheck[0].exists === 't') && 
           !loggingError;
           
+        // Process AI check response
         const aiOk = aiCheck && 
           Array.isArray(aiCheck) && 
           aiCheck.length > 0 && 
-          aiCheck[0].exists === true && 
+          typeof aiCheck[0] === 'object' && 
+          (aiCheck[0].exists === true || aiCheck[0].exists === 'true' || aiCheck[0].exists === 't') && 
           !aiError;
         
         if (!loggingOk && !aiOk) {
