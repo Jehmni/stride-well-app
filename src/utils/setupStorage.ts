@@ -2,6 +2,20 @@
 // Script to set up storage policies for the Stride Well app
 import { createClient } from '@supabase/supabase-js'
 
+// Define a helper function for executing SQL RPC
+const execSqlRPC = async (sql: string) => {
+  // Get environment variables
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing Supabase credentials');
+  }
+  
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  return await supabase.rpc('exec_sql', { sql });
+};
+
 // Configure Supabase client
 const setupStorage = async () => {
   // Get environment variables
@@ -41,7 +55,8 @@ const setupStorage = async () => {
     } else {
       console.log('✅ Profiles bucket created')
     }
-      // 2. Execute SQL to set up policies
+    
+    // 2. Execute SQL to set up policies
     console.log('Setting up storage policies...')
     const { error: policiesError } = await execSqlRPC(`
         -- Allow public access to avatars
@@ -95,21 +110,20 @@ const setupStorage = async () => {
           END IF;
         END
         $$;
-      `
-    })
+    `);
     
     if (policiesError) {
-      throw policiesError
+      throw policiesError;
     }
     
-    console.log('✅ Storage policies configured successfully!')
-    console.log('\n✨ Setup complete! Users can now upload profile pictures.')
+    console.log('✅ Storage policies configured successfully!');
+    console.log('\n✨ Setup complete! Users can now upload profile pictures.');
     
   } catch (error) {
-    console.error('❌ Error setting up storage:', error)
-    process.exit(1)
+    console.error('❌ Error setting up storage:', error);
+    process.exit(1);
   }
-}
+};
 
 // Run the setup
-setupStorage()
+setupStorage();
