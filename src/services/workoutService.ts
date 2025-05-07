@@ -138,33 +138,59 @@ async function saveWorkoutPlan(
     return null;
   }
 }
-    .from('exercises')
-    .select('*')
-    .filter('difficulty', 'in', getAppropriateDifficulty(age))
-    .filter('exercise_type', 'in', getExerciseTypes(fitnessGoal))
-    .limit(30);
 
-  if (error) {
-    console.error("Error fetching exercises:", error);
+// Helper functions for rule-based workout generation
+
+/**
+ * Generate rule-based workout plan based on fitness goal
+ * @param fitnessGoal User's fitness goal
+ * @param age User's age
+ * @param sex User's biological sex
+ * @param height User's height in cm
+ * @param weight User's weight in kg
+ * @returns Generated workout plan or null if generation failed
+ */
+export const generateRuleBasedWorkoutPlan = async (
+  fitnessGoal: string,
+  age: number,
+  sex: string,
+  height: number,
+  weight: number
+): Promise<Omit<WorkoutPlan, "id"> | null> => {
+  try {
+    // Fetch exercises from the database
+    const { data: exercises, error } = await supabase
+      .from('exercises')
+      .select('*')
+      .filter('difficulty', 'in', getAppropriateDifficulty(age))
+      .filter('exercise_type', 'in', getExerciseTypes(fitnessGoal))
+      .limit(30);
+
+    if (error) {
+      console.error("Error fetching exercises:", error);
+      return null;
+    }
+
+    // Group exercises by muscle group
+    const exercisesByMuscle = groupExercisesByMuscleGroup(exercises);
+
+    // Generate weekly structure based on fitness goal
+    const weeklyStructure = generateWeeklyStructure(fitnessGoal);
+
+    // Select key exercises for the plan
+    const keyExercises = selectKeyExercises(exercisesByMuscle, fitnessGoal);
+
+    return {
+      title: getPlanTitle(fitnessGoal),
+      description: getPlanDescription(fitnessGoal),
+      fitness_goal: fitnessGoal,
+      weekly_structure: weeklyStructure,
+      exercises: keyExercises
+    };
+  } catch (error) {
+    console.error("Error generating rule-based workout plan:", error);
     return null;
   }
-
-  // Group exercises by muscle group
-  const exercisesByMuscle = groupExercisesByMuscleGroup(exercises);
-
-  // Generate weekly structure based on fitness goal
-  const weeklyStructure = generateWeeklyStructure(fitnessGoal);
-
-  // Select key exercises for the plan
-  const keyExercises = selectKeyExercises(exercisesByMuscle, fitnessGoal);
-
-  return {
-    title: getPlanTitle(fitnessGoal),
-    description: getPlanDescription(fitnessGoal),
-    fitness_goal: fitnessGoal,
-    weekly_structure: weeklyStructure,
-    exercises: keyExercises
-  };
 };
 
 // Helper function to get appropriate difficulty based on user age
