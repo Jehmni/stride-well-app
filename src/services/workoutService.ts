@@ -3,47 +3,35 @@ import { supabase } from "@/integrations/supabase/client";
 import { UserProfile } from "@/models/models";
 import { WorkoutDay, WorkoutExercise, WorkoutPlan } from "@/components/workout/types";
 import { getExerciseProgressHistoryRPC, logExerciseCompletionRPC } from '@/integrations/supabase/functions';
-import { generateAIWorkoutPlan } from '@/integrations/ai/workoutAI';
+import { generateAIWorkoutPlan } from '@/integrations/ai/workoutAIService';
+import { generateRuleBasedWorkoutPlan } from './ruleBasedWorkoutGenerator';
 
-// Generate a personalized workout plan based on user data and fitness goal
+/**
+ * Generate a personalized workout plan based on user data and fitness goal
+ * Tries AI-generation first, then falls back to rule-based if needed
+ * @param userProfile User's profile data
+ * @returns A workout plan or null if generation failed
+ */
 export const generatePersonalizedWorkoutPlan = async (
   userProfile: UserProfile
 ): Promise<WorkoutPlan | null> => {
   try {
-    // First, check if there's an existing workout plan for this goal in our database
-    const { data: existingPlans, error: fetchError } = await supabase
-      .from('workout_plans')
-      .select('*')
-      .eq('fitness_goal', userProfile.fitness_goal)
-      .eq('user_id', userProfile.id) // Get user-specific plans
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (fetchError) throw fetchError;    // If we found a matching plan, return it
-    if (existingPlans && existingPlans.length > 0) {
-      return {
-        id: existingPlans[0].id,
-        title: existingPlans[0].title,
-        description: existingPlans[0].description,
-        fitness_goal: existingPlans[0].fitness_goal,
-        weekly_structure: existingPlans[0].weekly_structure as unknown as WorkoutDay[],
-        exercises: existingPlans[0].exercises as unknown as WorkoutExercise[],
-        ai_generated: existingPlans[0].ai_generated || false
-      };
+    // First, check for existing plans in the database
+    const existingPlan = await getExistingWorkoutPlan(userProfile);
+    if (existingPlan) {
+      return existingPlan;
     }
 
-    // Try to generate a plan using AI first
+    // Try AI-based generation first
     const aiPlan = await generateAIWorkoutPlan(userProfile);
-    
-    // If AI plan generation succeeds, return it
     if (aiPlan) {
       console.log("Using AI-generated workout plan");
       return aiPlan;
     }
     
-    // Fallback: If AI generation fails, use the rule-based approach
+    // Fallback to rule-based generation
     console.log("AI generation unavailable, falling back to rule-based workout generation");
-    const plan = await generateWorkoutPlanForGoal(
+    const plan = await generateRuleBasedWorkoutPlan(
       userProfile.fitness_goal,
       userProfile.age,
       userProfile.sex,
@@ -51,28 +39,9 @@ export const generatePersonalizedWorkoutPlan = async (
       userProfile.weight
     );
 
-    // Store the generated plan in the database for future use
+    // Store the rule-based plan in the database
     if (plan) {
-      const { data: insertedPlan, error: insertError } = await supabase
-        .from('workout_plans')
-        .insert({
-          title: plan.title,
-          description: plan.description,
-          fitness_goal: plan.fitness_goal,
-          weekly_structure: plan.weekly_structure as any,
-          exercises: plan.exercises as any,
-          user_id: userProfile.id, // Associate with specific user
-          ai_generated: false
-        })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      return {
-        ...plan,
-        id: insertedPlan.id
-      };
+      return await saveWorkoutPlan(plan, userProfile.id);
     }
 
     return null;
@@ -82,16 +51,93 @@ export const generatePersonalizedWorkoutPlan = async (
   }
 };
 
-// Generate a workout plan based on fitness goal and user attributes
-const generateWorkoutPlanForGoal = async (
-  fitnessGoal: string,
-  age: number,
-  sex: string,
-  height: number,
-  weight: number
-): Promise<Omit<WorkoutPlan, "id"> | null> => {
-  // Fetch appropriate exercises from the database based on fitness goal
-  const { data: exercises, error } = await supabase
+/**
+ * Check if a user already has a workout plan in the database
+ * @param userProfile User profile to check for
+ * @returns Existing workout plan or null
+ */
+async function getExistingWorkoutPlan(userProfile: UserProfile): Promise<WorkoutPlan | null> {
+  try {
+    const { data: existingPlans, error } = await supabase
+      .from('workout_plans')
+      .select('*')
+      .eq('fitness_goal', userProfile.fitness_goal)
+      .eq('user_id', userProfile.id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error("Error fetching existing workout plans:", error);
+      return null;
+    }
+
+    if (existingPlans && existingPlans.length > 0) {      // Convert from database format to WorkoutPlan format
+      const dbPlan = existingPlans[0];
+      
+      // Ensure the ai_generated property is a boolean
+      let isAIGenerated = false;
+      if ('ai_generated' in dbPlan && typeof dbPlan.ai_generated === 'boolean') {
+        isAIGenerated = dbPlan.ai_generated;
+      }
+      
+      return {
+        id: dbPlan.id,
+        title: dbPlan.title,
+        description: dbPlan.description,
+        fitness_goal: dbPlan.fitness_goal,
+        weekly_structure: dbPlan.weekly_structure as unknown as WorkoutDay[],
+        exercises: dbPlan.exercises as unknown as WorkoutExercise[],
+        ai_generated: isAIGenerated
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error checking for existing workout plans:", error);
+    return null;
+  }
+}
+
+/**
+ * Save a workout plan to the database
+ * @param plan Workout plan to save
+ * @param userId User ID to associate with the plan
+ * @returns Saved workout plan with ID
+ */
+async function saveWorkoutPlan(
+  plan: Omit<WorkoutPlan, "id">, 
+  userId: string
+): Promise<WorkoutPlan | null> {
+  try {
+    const { data: insertedPlan, error } = await supabase
+      .from('workout_plans')
+      .insert({
+        title: plan.title,
+        description: plan.description,
+        fitness_goal: plan.fitness_goal,
+        weekly_structure: plan.weekly_structure as any,
+        exercises: plan.exercises as any,
+        user_id: userId,
+        ai_generated: plan.ai_generated || false,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error saving workout plan:", error);
+      return null;
+    }
+
+    return {
+      ...plan,
+      id: insertedPlan.id
+    };
+  } catch (error) {
+    console.error("Error saving workout plan:", error);
+    return null;
+  }
+}
     .from('exercises')
     .select('*')
     .filter('difficulty', 'in', getAppropriateDifficulty(age))

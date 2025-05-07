@@ -12,15 +12,19 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { TodayWorkoutProps, WorkoutDay, WorkoutExercise, UserWorkout, WorkoutPlan as WorkoutPlanType } from "@/components/workout/types";
 import { Activity, Calendar, RefreshCw } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { generatePersonalizedWorkoutPlan, fetchUserWorkouts } from "@/services/workoutService";
+import { regenerateWorkoutPlan } from "@/integrations/ai/workoutAIService";
 import { toast } from "sonner";
+import { Progress } from "@/components/ui/progress";
 
 const WorkoutPlan: React.FC = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [isGeneratingAIPlan, setIsGeneratingAIPlan] = useState<boolean>(false);
   const [isAIGenerated, setIsAIGenerated] = useState<boolean>(false);
+  const [regenerationProgress, setRegenerationProgress] = useState<number>(0);
+  const [regenerationStatus, setRegenerationStatus] = useState<string>("");
+  const [isRegenerating, setIsRegenerating] = useState<boolean>(false);
   const [todayWorkout, setTodayWorkout] = useState<TodayWorkoutProps>({
     title: "Loading workout...",
     description: "Please wait",
@@ -202,33 +206,61 @@ const WorkoutPlan: React.FC = () => {
           title="Creating your AI workout plan" 
           isGenerating={true} 
         />
+      )}      {/* Regeneration Progress UI */}
+      {isRegenerating && (
+        <AIGeneratedNotice
+          title="Regenerating Your Workout Plan"
+          isGenerating={true}
+          progress={regenerationProgress}
+          statusMessage={regenerationStatus}
+          type="workout"
+        />
       )}
       
-      {!isGeneratingAIPlan && isAIGenerated && (
+      {/* AI Generated Notice with Regenerate Button */}
+      {!isGeneratingAIPlan && !isRegenerating && isAIGenerated && (
         <div className="flex items-center justify-between">
           <AIGeneratedNotice title="AI-Powered Workout Plan" />
           <Button
             variant="outline"
             size="sm"
             className="flex items-center"
-            onClick={() => {
-              if (profile) {
+            onClick={async () => {
+              if (profile && user?.id) {
+                // Prevent multiple regeneration attempts
+                if (isRegenerating) return;
+                
+                setIsRegenerating(true);
                 toast.info("Regenerating your AI workout plan...");
-                setIsGeneratingAIPlan(true);
-                // Force regeneration by clearing the cache
-                supabase
-                  .from('workout_plans')
-                  .delete()
-                  .eq('user_id', profile.id)
-                  .then(() => {
-                    // Reload the page to trigger plan regeneration
-                    window.location.reload();
-                  });
+                
+                try {
+                  const success = await regenerateWorkoutPlan(
+                    user.id,
+                    (message, progress) => {
+                      setRegenerationStatus(message);
+                      setRegenerationProgress(progress);
+                    }
+                  );
+                  
+                  if (success) {
+                    toast.success("Workout plan regenerated successfully!");
+                    // Reload the page to show the new plan
+                    setTimeout(() => window.location.reload(), 1500);
+                  } else {
+                    toast.error("Failed to regenerate workout plan. Please try again.");
+                    setIsRegenerating(false);
+                  }
+                } catch (error) {
+                  console.error("Error regenerating workout plan:", error);
+                  toast.error("An error occurred while regenerating your workout plan");
+                  setIsRegenerating(false);
+                }
               }
             }}
+            disabled={isRegenerating}
           >
-            <RefreshCw className="h-3 w-3 mr-2" />
-            Regenerate Plan
+            <RefreshCw className={`h-3 w-3 mr-2 ${isRegenerating ? 'animate-spin' : ''}`} />
+            {isRegenerating ? 'Regenerating...' : 'Regenerate Plan'}
           </Button>
         </div>
       )}

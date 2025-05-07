@@ -2,8 +2,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { UserProfile } from "@/models/models";
 import { WorkoutDay, WorkoutExercise, WorkoutPlan } from "@/components/workout/types";
 import { getAIConfig } from "@/integrations/supabase/aiConfig";
+import { createOpenAIClient, OpenAIClient } from "./openAIClient";
 
-// Define the response format for AI-generated workout plans
+/**
+ * Response format for AI-generated workout plans
+ */
 interface AIWorkoutResponse {
   weekly_structure: WorkoutDay[];
   exercises: {
@@ -14,6 +17,18 @@ interface AIWorkoutResponse {
   }[];
   title: string;
   description: string;
+}
+
+/**
+ * Available exercises from the database
+ */
+interface AvailableExercise {
+  id: string;
+  name: string;
+  description: string;
+  muscle_group: string;
+  difficulty: string;
+  exercise_type: string;
 }
 
 /**
