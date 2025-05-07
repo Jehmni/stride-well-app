@@ -43,29 +43,25 @@ const Progress: React.FC = () => {
         });
         
         // Process logging check response - handle array or object response
-        const loggingOk = loggingCheck && 
-          Array.isArray(loggingCheck) && 
-          loggingCheck.length > 0 && 
-          typeof loggingCheck[0] === 'object' && 
-          loggingCheck[0] !== null &&
-          // Type narrowing by checking if it's an object with exists property
-          (Object.prototype.hasOwnProperty.call(loggingCheck[0], 'exists') && 
-          (loggingCheck[0].exists === true || 
-           loggingCheck[0].exists === 'true' || 
-           loggingCheck[0].exists === 't')) && 
+        const loggingCheckData = loggingCheck && Array.isArray(loggingCheck) && loggingCheck.length > 0 
+          ? loggingCheck[0] as Record<string, any> 
+          : null;
+          
+        const loggingOk = loggingCheckData && 
+          (loggingCheckData.exists === true || 
+           loggingCheckData.exists === 'true' || 
+           loggingCheckData.exists === 't') && 
           !loggingError;
           
-        // Process AI check response - handle array or object response
-        const aiOk = aiCheck && 
-          Array.isArray(aiCheck) && 
-          aiCheck.length > 0 && 
-          typeof aiCheck[0] === 'object' && 
-          aiCheck[0] !== null &&
-          // Type narrowing by checking if it's an object with exists property
-          (Object.prototype.hasOwnProperty.call(aiCheck[0], 'exists') &&
-          (aiCheck[0].exists === true || 
-           aiCheck[0].exists === 'true' || 
-           aiCheck[0].exists === 't')) && 
+        // Process AI check response - handle array or object response  
+        const aiCheckData = aiCheck && Array.isArray(aiCheck) && aiCheck.length > 0 
+          ? aiCheck[0] as Record<string, any> 
+          : null;
+          
+        const aiOk = aiCheckData && 
+          (aiCheckData.exists === true || 
+           aiCheckData.exists === 'true' || 
+           aiCheckData.exists === 't') && 
           !aiError;
         
         if (!loggingOk && !aiOk) {

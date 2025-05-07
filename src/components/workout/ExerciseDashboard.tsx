@@ -48,11 +48,11 @@ const ExerciseDashboard = () => {
           let functionExists = false;
           
           if (typeof firstItem === 'object' && firstItem !== null) {
-            // Check for exists field in different ways since it could be a boolean or string "true"/"false"
-            functionExists = Object.prototype.hasOwnProperty.call(firstItem, 'exists') &&
-              (firstItem.exists === true || 
-               firstItem.exists === 'true' || 
-               firstItem.exists === 't');
+            // Cast to any to access the 'exists' property safely
+            const item = firstItem as any;
+            functionExists = item.exists === true || 
+                            item.exists === 'true' || 
+                            item.exists === 't';
           }
           
           // If function exists, get exercise counts
