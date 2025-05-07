@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { 
   Tabs, 
@@ -41,20 +42,30 @@ const Progress: React.FC = () => {
           sql: "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'ai_configurations');"
         });
         
-        // Process logging check response
+        // Process logging check response - handle array or object response
         const loggingOk = loggingCheck && 
           Array.isArray(loggingCheck) && 
           loggingCheck.length > 0 && 
           typeof loggingCheck[0] === 'object' && 
-          (loggingCheck[0].exists === true || loggingCheck[0].exists === 'true' || loggingCheck[0].exists === 't') && 
+          loggingCheck[0] !== null &&
+          // Type narrowing by checking if it's an object with exists property
+          (Object.prototype.hasOwnProperty.call(loggingCheck[0], 'exists') && 
+          (loggingCheck[0].exists === true || 
+           loggingCheck[0].exists === 'true' || 
+           loggingCheck[0].exists === 't')) && 
           !loggingError;
           
-        // Process AI check response
+        // Process AI check response - handle array or object response
         const aiOk = aiCheck && 
           Array.isArray(aiCheck) && 
           aiCheck.length > 0 && 
           typeof aiCheck[0] === 'object' && 
-          (aiCheck[0].exists === true || aiCheck[0].exists === 'true' || aiCheck[0].exists === 't') && 
+          aiCheck[0] !== null &&
+          // Type narrowing by checking if it's an object with exists property
+          (Object.prototype.hasOwnProperty.call(aiCheck[0], 'exists') &&
+          (aiCheck[0].exists === true || 
+           aiCheck[0].exists === 'true' || 
+           aiCheck[0].exists === 't')) && 
           !aiError;
         
         if (!loggingOk && !aiOk) {

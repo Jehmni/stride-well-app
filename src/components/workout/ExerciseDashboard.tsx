@@ -39,13 +39,21 @@ const ExerciseDashboard = () => {
           return;
         }
         
-        // Make sure we're handling the response correctly
+        // Make sure we're handling the response correctly by safely checking 
+        // for the 'exists' property in the response
         if (funcCheck && Array.isArray(funcCheck) && funcCheck.length > 0) {
           // Check if the property exists in the first element of the array
           const firstItem = funcCheck[0];
-          // Check for exists field in different ways since it could be a boolean or string "true"/"false"
-          const functionExists = typeof firstItem === 'object' && 
-            (firstItem.exists === true || firstItem.exists === 'true' || firstItem.exists === 't');
+          // Safe type check before accessing properties
+          let functionExists = false;
+          
+          if (typeof firstItem === 'object' && firstItem !== null) {
+            // Check for exists field in different ways since it could be a boolean or string "true"/"false"
+            functionExists = Object.prototype.hasOwnProperty.call(firstItem, 'exists') &&
+              (firstItem.exists === true || 
+               firstItem.exists === 'true' || 
+               firstItem.exists === 't');
+          }
           
           // If function exists, get exercise counts
           if (functionExists) {
