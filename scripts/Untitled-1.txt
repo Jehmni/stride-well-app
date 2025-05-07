@@ -1,0 +1,2 @@
+cd C:\Users\ofone\Documents\JEHMNi\Portfolio\stride-well-app\scripts
+.\fix_exercise_logging.bat
