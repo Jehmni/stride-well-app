@@ -82,17 +82,51 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
           .eq('id', userId)
           .single();
           
-        if (profileError) throw profileError;
-          // Determine appropriate muscle groups based on workout focus
+        if (profileError) throw profileError;        // Determine appropriate muscle groups based on workout focus
         let muscleGroups: string[] = [];
         const focusLower = todayWorkout.title.toLowerCase();
         
-        if (focusLower.includes('upper body') || focusLower.includes('chest') || focusLower.includes('arms')) {
-          muscleGroups = ['chest', 'back', 'shoulders', 'arms'];
+        if (focusLower.includes('upper body')) {
+          // Specifically filter for upper body muscle groups
+          muscleGroups = ['chest', 'back', 'shoulders', 'arms', 'biceps', 'triceps'];
+          
+          // Fetch exercises filtered by appropriate muscle groups for upper body workouts
+          const { data: exercises, error } = await supabase
+            .from('exercises')
+            .select('*')
+            .in('muscle_group', muscleGroups)
+            .not('muscle_group', 'ilike', '%leg%')  // Ensure no leg exercises
+            .not('muscle_group', 'ilike', '%lower%') // Ensure no lower body exercises
+            .limit(5);
+            
+          if (error) throw error;
+          
+          // Create sample workout exercises from these exercises
+          const defaultExercises: WorkoutExerciseDetail[] = exercises.map((ex, index) => ({
+            id: `default-${ex.id}`,
+            workout_id: 'today-workout',
+            exercise_id: ex.id,
+            sets: 3,
+            reps: 12,
+            duration: null,
+            rest_time: 60,
+            order_position: index,
+            notes: null,
+            exercise: {
+              ...ex,
+              equipment_required: ex.equipment_required || null
+            }
+          }));
+          
+          setTodayExercises(defaultExercises);
+          setIsLoading(false);
+          return;
+        } else if (focusLower.includes('chest') || focusLower.includes('arms')) {
+          muscleGroups = ['chest', 'arms', 'shoulders', 'biceps', 'triceps'];
         } else if (focusLower.includes('lower body') || focusLower.includes('leg')) {
-          muscleGroups = ['legs'];
+          muscleGroups = ['legs', 'glutes', 'hamstrings', 'quads'];
         } else if (focusLower.includes('core') || focusLower.includes('ab')) {
-          muscleGroups = ['core'];
+          muscleGroups = ['core', 'abs'];
         } else if (focusLower.includes('cardio')) {
           // For cardio, filter by exercise type instead of muscle group
           const { data: exercises, error } = await supabase

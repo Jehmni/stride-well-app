@@ -1,11 +1,11 @@
-
 // Direct implementation of RPC functions with proper exports
 import { createClient } from '@supabase/supabase-js';
 import { 
   ExerciseProgressHistoryParams, 
   TopExercisesParams, 
   UserExerciseCountsParams, 
-  LogExerciseCompletionParams 
+  LogExerciseCompletionParams,
+  SyncWorkoutProgressParams
 } from '@/types/rpc';
 import { supabase } from './client';
 
@@ -68,6 +68,36 @@ export const logExerciseCompletionRPC = async (params: LogExerciseCompletionPara
       throw new Error(`Failed to log exercise: ${error.message}`);
     } else {
       throw new Error('Failed to log exercise: Unknown error');
+    }
+  }
+};
+
+// Sync workout progress across devices
+export const syncWorkoutProgressRPC = async (params: SyncWorkoutProgressParams) => {
+  try {
+    console.log('Syncing workout progress with params:', params);
+    
+    // Validate that we have all required parameters
+    if (!params.user_id_param || !params.workout_id_param || !params.completed_exercises_param) {
+      console.error('Invalid parameters for sync_workout_progress:', params);
+      throw new Error('Missing required parameters for workout progress syncing');
+    }
+    
+    const response = await supabase.rpc('sync_workout_progress', params);
+    
+    if (response.error) {
+      console.error('RPC error syncing workout progress:', response.error);
+      throw new Error(`RPC error: ${response.error.message || 'Unknown error'}`);
+    }
+    
+    console.log('Workout progress sync success response:', response.data);
+    return response;
+  } catch (error) {
+    console.error('Error syncing workout progress:', error);
+    if (error instanceof Error) {
+      throw new Error(`Failed to sync workout progress: ${error.message}`);
+    } else {
+      throw new Error('Failed to sync workout progress: Unknown error');
     }
   }
 };

@@ -1,23 +1,13 @@
+// filepath: c:\Users\ofone\Documents\JEHMNi\Portfolio\stride-well-app\src\components\progress\WorkoutHistory.tsx
 import React, { useState, useEffect } from "react";
 import { Calendar, Award, Clock, Dumbbell, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/butto      {workoutLogs.map((log) => (
-        <Card key={log.id} className="overflow-hidden">
-          <CardHeader className="p-4 pb-3 cursor-pointer" onClick={() => toggleExpand(log.id)}>
-            <div className="flex items-center justify-between">
-              <div>                <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                  <Calendar className="h-4 w-4 mr-2 text-fitness-primary" />
-                  <span className="font-medium">{getRelativeDay(log.completed_at)}</span>
-                  <span className="mx-2 text-gray-400">•</span>
-                  <span className="text-gray-500 text-sm">{formatDate(log.completed_at)}</span>
-                </div>                <h4 className="text-lg font-medium mt-1">
-                  {getWorkoutDisplayName(log)}
-                </h4>
-              </div> Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { WorkoutLog, Workout, WorkoutExercise } from "@/models/models";
+import { WorkoutLog, Workout, WorkoutExercise, SelectQueryError } from "@/models/models";
 import { format, parseISO, subDays } from "date-fns";
 
 // Define the completed exercise type
@@ -37,11 +27,28 @@ interface CompletedExercise {
   } | null;
 }
 
+// Define a type that can represent either a workout log or a query error
+type WorkoutLogResult = WorkoutLog | SelectQueryError;
+
+// Safe workout log type that handles potential error states
+type SafeWorkoutLog = Omit<WorkoutLog, "workout"> & {
+  workout?: Workout | null | SelectQueryError;
+};
+
 // Extended WorkoutLog interface to include completed exercises
-interface ExtendedWorkoutLog extends WorkoutLog {
+interface ExtendedWorkoutLog extends SafeWorkoutLog {
   completed_exercises?: CompletedExercise[];
   workout_name?: string;
   workout_description?: string;
+}
+
+// Type guard to check if an object is a valid WorkoutLog (not an error)
+function isValidWorkoutLog(log: any): log is SafeWorkoutLog {
+  return log !== null && 
+         typeof log === "object" && 
+         !("error" in log) &&
+         "id" in log && 
+         typeof log.id === "string";
 }
 
 const WorkoutHistory: React.FC = () => {
@@ -56,9 +63,9 @@ const WorkoutHistory: React.FC = () => {
       
       try {
         setIsLoading(true);
-          // Fetch workout logs for the user
-        const { data: workoutsData, error: workoutsError } = await supabase
-          .from('workout_logs')
+        // Fetch workout logs for the user
+        const { data: rawWorkoutsData, error: workoutsError } = await supabase
+          .from("workout_logs")
           .select(`
             id,
             user_id,
@@ -90,18 +97,29 @@ const WorkoutHistory: React.FC = () => {
               )
             )
           `)
-          .eq('user_id', user.id)
-          .order('completed_at', { ascending: false })
+          .eq("user_id", user.id)
+          .order("completed_at", { ascending: false })
           .limit(20);
           
-        if (workoutsError) throw workoutsError;        // Also fetch completed exercises for these workout logs
-        const workoutLogIds = workoutsData?.map(log => log.id) || [];
+        if (workoutsError) throw workoutsError;
+        
+        // Safety check and type narrowing
+        if (!rawWorkoutsData) {
+          throw new Error("No workout data returned");
+        }
+        
+        // Filter out null or invalid entries and extract workout log IDs
+        const workoutsData = rawWorkoutsData
+          .filter(log => isValidWorkoutLog(log))
+          .map(log => log as SafeWorkoutLog);
+        const workoutLogIds: string[] = workoutsData.map(log => log.id);
+        
+        // Initialize map to store completed exercises by workout log ID
         let completedExercises: Record<string, CompletedExercise[]> = {};
         
-        if (workoutLogIds.length > 0) {          try {
-            // Fetch all exercise logs in batches since we can't use IN with too many IDs
-            // Fetch directly from exercise_logs table instead of using exec_sql
-            // Use a loop to handle batches of workout log IDs for better reliability
+        if (workoutLogIds.length > 0) {
+          try {
+            // Fetch all exercise logs in batches since we can"t use IN with too many IDs
             let allExerciseLogs: CompletedExercise[] = [];
             
             // Process in batches of 10 to avoid query size limits
@@ -110,7 +128,7 @@ const WorkoutHistory: React.FC = () => {
               console.log(`Fetching exercise logs batch ${i/10 + 1}, IDs:`, batchIds);
               
               const { data: batchExerciseLogs, error: batchError } = await supabase
-                .from('exercise_logs')
+                .from("exercise_logs")
                 .select(`
                   id,
                   workout_log_id,
@@ -126,7 +144,7 @@ const WorkoutHistory: React.FC = () => {
                     muscle_group
                   )
                 `)
-                .in('workout_log_id', batchIds);
+                .in("workout_log_id", batchIds);
                 
               if (batchError) {
                 console.error(`Error fetching exercise logs batch ${i/10 + 1}:`, batchError);
@@ -136,21 +154,16 @@ const WorkoutHistory: React.FC = () => {
               }
             }
             
-            const exerciseLogsData = allExerciseLogs;
-            const exerciseLogsError = null;
-            
-            if (exerciseLogsError) {
-              console.error("Error fetching exercise logs:", exerciseLogsError);
-            } else if (exerciseLogsData) {
-              console.log("Raw exercise logs data:", exerciseLogsData);
+            if (allExerciseLogs.length > 0) {
+              console.log("Raw exercise logs data:", allExerciseLogs);
               
               // Group exercise logs by workout_log_id
-              completedExercises = (exerciseLogsData as any[]).reduce((acc: Record<string, CompletedExercise[]>, item) => {
+              completedExercises = allExerciseLogs.reduce((acc: Record<string, CompletedExercise[]>, item) => {
                 const workout_log_id = item.workout_log_id;
                 if (!acc[workout_log_id]) {
                   acc[workout_log_id] = [];
                 }
-                acc[workout_log_id].push(item as CompletedExercise);
+                acc[workout_log_id].push(item);
                 return acc;
               }, {});
               
@@ -160,17 +173,12 @@ const WorkoutHistory: React.FC = () => {
             console.error("Error fetching exercise logs:", error);
           }
         }
-          // Combine workout logs with their completed exercises
-        const validLogs: ExtendedWorkoutLog[] = [];
-        for (const log of workoutsData || []) {
-          // Ensure we're dealing with a proper object
-          if (log && typeof log === 'object' && 'id' in log) {
-            const extendedLog: ExtendedWorkoutLog = {
-              ...(log as WorkoutLog),
-              completed_exercises: completedExercises[log.id] || []
-            };
-            validLogs.push(extendedLog);
-        }
+        
+        // Combine workout logs with their completed exercises
+        const validLogs: ExtendedWorkoutLog[] = workoutsData.map(log => ({
+          ...log,
+          completed_exercises: completedExercises[log.id] || []
+        }));
         
         console.log("Final workout logs with exercises:", validLogs);
         setWorkoutLogs(validLogs);
@@ -215,31 +223,34 @@ const WorkoutHistory: React.FC = () => {
       return "";
     }
   };
+
   // Determine if we have exercise completion data
   const hasCompletedExercises = (log: ExtendedWorkoutLog): boolean => {
     return !!log.completed_exercises && log.completed_exercises.length > 0;
   };
+
   // Determine if this is a custom workout or a completed workout
   const isCompletedWorkout = (log: ExtendedWorkoutLog): boolean => {
     // Check explicit workout_type first, if available
-    if ('workout_type' in log && log.workout_type === 'completed') {
+    if ("workout_type" in log && log.workout_type === "completed") {
       return true;
     }
-    if ('workout_type' in log && log.workout_type === 'custom') {
+    if ("workout_type" in log && log.workout_type === "custom") {
       return false;
     }
-    if ('is_custom' in log && typeof log.is_custom === 'boolean') {
+    if ("is_custom" in log && typeof log.is_custom === "boolean") {
       return !log.is_custom;
     }
     
-    // Check if there's a valid workout record with a name
-    if (log.workout && log.workout.name) {
+    // Check if there"s a valid workout record with a name
+    if (log.workout && typeof log.workout === "object" && !("error" in log.workout) && log.workout.name) {
       return true;
     }
     
     // Fall back to heuristic check based on completed exercises
     return hasCompletedExercises(log);
   };
+
   // Get the workout name to display in the UI
   const getWorkoutDisplayName = (log: ExtendedWorkoutLog): string => {
     // First check for workout_name directly on the log (from the database)
@@ -247,8 +258,8 @@ const WorkoutHistory: React.FC = () => {
       return log.workout_name;
     }
     
-    // Then check if there's a related workout with a name
-    if (log.workout && typeof log.workout === 'object' && 'name' in log.workout && log.workout.name) {
+    // Then check if there"s a related workout with a name
+    if (log.workout && typeof log.workout === "object" && !("error" in log.workout) && log.workout.name) {
       return log.workout.name;
     }
     
@@ -261,7 +272,13 @@ const WorkoutHistory: React.FC = () => {
     if (log.completed_exercises && log.completed_exercises.length > 0) {
       return log.completed_exercises.length;
     }
-    return log.workout?.exercises ? log.workout.exercises.length : 0;
+    
+    // Make sure workout exists and is not an error object
+    if (log.workout && typeof log.workout === "object" && !("error" in log.workout) && log.workout.exercises) {
+      return log.workout.exercises.length;
+    }
+    
+    return 0;
   };
 
   // Loading state
@@ -300,13 +317,15 @@ const WorkoutHistory: React.FC = () => {
         <Card key={log.id} className="overflow-hidden">
           <CardHeader className="p-4 pb-3 cursor-pointer" onClick={() => toggleExpand(log.id)}>
             <div className="flex items-center justify-between">
-              <div>                <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+              <div>
+                <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                   <Calendar className="h-4 w-4 mr-2 text-fitness-primary" />
                   <span className="font-medium">{getRelativeDay(log.completed_at)}</span>
                   <span className="mx-2 text-gray-400">•</span>
                   <span className="text-gray-500 text-sm">{formatDate(log.completed_at)}</span>
-                </div>                <h4 className="text-lg font-medium mt-1">
-                  {log.workout_name || log.workout?.name || (isCompletedWorkout(log) ? "Completed Workout" : "Your Custom Workout")}
+                </div>
+                <h4 className="text-lg font-medium mt-1">
+                  {getWorkoutDisplayName(log)}
                 </h4>
               </div>
               <div className="flex items-center">
@@ -328,17 +347,17 @@ const WorkoutHistory: React.FC = () => {
                 <div className="flex flex-col items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <Clock className="h-5 w-5 mb-1 text-fitness-primary" />
                   <span className="text-sm text-gray-500">Duration</span>
-                  <span className="font-medium">{log.duration || '–'} min</span>
+                  <span className="font-medium">{log.duration || "–"} min</span>
                 </div>
                 <div className="flex flex-col items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <Award className="h-5 w-5 mb-1 text-fitness-primary" />
                   <span className="text-sm text-gray-500">Calories</span>
-                  <span className="font-medium">{log.calories_burned || '–'}</span>
+                  <span className="font-medium">{log.calories_burned || "–"}</span>
                 </div>
                 <div className="flex flex-col items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <Dumbbell className="h-5 w-5 mb-1 text-fitness-primary" />
                   <span className="text-sm text-gray-500">Rating</span>
-                  <span className="font-medium">{log.rating ? `${log.rating}/5` : '–'}</span>
+                  <span className="font-medium">{log.rating ? `${log.rating}/5` : "–"}</span>
                 </div>
               </div>
               
@@ -372,8 +391,8 @@ const WorkoutHistory: React.FC = () => {
                         </div>
                         <div className="text-sm">
                           {exercise.sets_completed} sets 
-                          {exercise.reps_completed ? ` × ${exercise.reps_completed} reps` : ''}
-                          {exercise.weight_used ? ` @ ${exercise.weight_used}kg` : ''}
+                          {exercise.reps_completed ? ` × ${exercise.reps_completed} reps` : ""}
+                          {exercise.weight_used ? ` @ ${exercise.weight_used}kg` : ""}
                         </div>
                       </div>
                       {exercise.notes && (
@@ -385,7 +404,7 @@ const WorkoutHistory: React.FC = () => {
                   ))
                 ) : (
                   // Fall back to showing exercises from the workout template
-                  log.workout?.exercises && log.workout.exercises.length > 0 ? 
+                  log.workout && typeof log.workout === "object" && !("error" in log.workout) && log.workout.exercises && log.workout.exercises.length > 0 ? 
                     log.workout.exercises.map((exercise) => (
                       <div 
                         key={exercise.id} 
@@ -399,7 +418,7 @@ const WorkoutHistory: React.FC = () => {
                             </div>
                           </div>
                           <div className="text-sm">
-                            {exercise.sets} sets × {exercise.reps || (exercise.duration ? `${exercise.duration}s` : '–')}
+                            {exercise.sets} sets × {exercise.reps || (exercise.duration ? `${exercise.duration}s` : "–")}
                           </div>
                         </div>
                       </div>

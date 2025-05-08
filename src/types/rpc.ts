@@ -1,4 +1,3 @@
-
 // RPC Function Type Definitions for Supabase
 // Use these types when calling RPC functions to avoid 'any' type assertions
 
@@ -59,4 +58,13 @@ export interface ExerciseCountResponse {
   name: string;
   muscle_group: string;
   count: number;
+}
+
+/**
+ * Function parameters for sync_workout_progress RPC function
+ */
+export interface SyncWorkoutProgressParams {
+  user_id_param: string;
+  workout_id_param: string;
+  completed_exercises_param: string[];
 }

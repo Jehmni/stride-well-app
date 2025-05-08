@@ -538,6 +538,38 @@ export type Database = {
         }
         Relationships: []
       }
+      workout_progress: {
+        Row: {
+          id: string
+          user_id: string
+          workout_id: string
+          completed_exercises: string[]
+          last_updated: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          workout_id: string
+          completed_exercises: string[]
+          last_updated?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          workout_id?: string
+          completed_exercises?: string[]
+          last_updated?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -600,6 +632,14 @@ export type Database = {
         }
         Returns: string
       }
+      sync_workout_progress: {
+        Args: {
+          user_id_param: string
+          workout_id_param: string
+          completed_exercises_param: string[]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
@@ -621,7 +661,7 @@ export type Tables<
   }
     ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never,
 > = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
   ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {

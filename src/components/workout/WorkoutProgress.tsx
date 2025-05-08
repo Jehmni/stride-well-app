@@ -5,7 +5,7 @@ import { CheckCircle, Award, RefreshCw, Clock } from "lucide-react";
 import { WorkoutExerciseDetail } from "./types";
 import ExerciseTracker from "./ExerciseTracker";
 import { supabase } from "@/integrations/supabase/client";
-import { logExerciseCompletionRPC } from "@/integrations/supabase/functions";
+import { logExerciseCompletionRPC, syncWorkoutProgressRPC } from "@/integrations/supabase/functions";
 import { toast } from "@/components/ui/use-toast";
 
 interface WorkoutProgressProps {
@@ -27,6 +27,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'unsynced' | 'error'>('unsynced');
 
   useEffect(() => {
     if (!exercises.length) return;
@@ -59,44 +60,130 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
     
     try {
       setIsSyncing(true);
+      setSyncStatus('unsynced');
       
-      // Try to get remote progress data
-      // Since we may not have the workout_progress table yet, we'll catch any errors
-      try {
-        // Try to fetch progress data via RPC or directly
-        const { data, error } = await supabase
-          .from('workout_logs') // Just check if we're connected at all
-          .select('id', { count: 'exact', head: true })
-          .limit(1);
-          
-        if (data !== null) {
-          // If connected, try to sync
-          // This is a simplified approach - in a real implementation you would
-          // check if workout_progress table exists and create it if needed
-          
-          // Update last synced time
-          setLastSynced(new Date());
-        }
-      } catch (error) {
-        console.log("Remote sync not yet supported - migration may need to be applied");
+      // Try to get remote progress data from the workout_progress table
+      const { data, error } = await supabase
+        .from('workout_progress')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('workout_id', workoutId)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "No rows returned" - not an error for us
+        console.error("Error fetching remote progress:", error);
+        setSyncStatus('error');
+        return;
       }
+      
+      if (data) {
+        // Remote data exists - check if it's newer than our local data
+        const remoteCompletedExercises = data.completed_exercises || [];
+        const lastUpdated = new Date(data.last_updated);
+        
+        // Get local data timestamp if available
+        const localTimestampStr = localStorage.getItem(`lastUpdated-${workoutId}`);
+        const localTimestamp = localTimestampStr ? new Date(localTimestampStr) : new Date(0);
+        
+        if (lastUpdated > localTimestamp) {
+          // Remote data is newer, use it
+          console.log("Remote data is newer, updating local state");
+          
+          // Update local state
+          setCompletedExercises(remoteCompletedExercises);
+          
+          // Calculate progress with remote data
+          const newProgress = exercises.length 
+            ? Math.round((remoteCompletedExercises.length / exercises.length) * 100) 
+            : 0;
+          
+          setProgress(newProgress);
+          setIsWorkoutComplete(newProgress === 100);
+          
+          // Update localStorage
+          const newSavedCompleted = {};
+          remoteCompletedExercises.forEach(id => {
+            newSavedCompleted[id] = true;
+          });
+          
+          localStorage.setItem(`completedExercises-${workoutId}`, JSON.stringify(newSavedCompleted));
+          localStorage.setItem(`lastUpdated-${workoutId}`, lastUpdated.toISOString());
+        } else if (localCompletedIds.length > remoteCompletedExercises.length) {
+          // Local data has more completed exercises, sync to remote
+          console.log("Local data has more completed exercises, syncing to remote");
+          await syncToRemote(localCompletedIds);
+        }
+      } else if (localCompletedIds.length > 0) {
+        // No remote data exists but we have local data - sync to remote
+        console.log("No remote data exists but we have local data, syncing to remote");
+        await syncToRemote(localCompletedIds);
+      }
+      
+      // Update last synced time
+      setLastSynced(new Date());
+      setSyncStatus('synced');
+    } catch (error) {
+      console.error("Error in syncWithRemoteProgress:", error);
+      setSyncStatus('error');
     } finally {
       setIsSyncing(false);
     }
   };
-  
-  // Save local progress to remote database
+    // Save local progress to remote database
   const syncToRemote = async (ids: string[]) => {
     if (!userId) return;
     
     try {
       setIsSyncing(true);
+      setSyncStatus('unsynced');
       
-      // In a real implementation, you would use an RPC function to sync progress
-      // For now, we'll just update the last synced time to show the concept
-      setLastSynced(new Date());
+      // Save the current timestamp
+      const now = new Date();
+      localStorage.setItem(`lastUpdated-${workoutId}`, now.toISOString());
+      
+      // Use our new RPC function to sync workout progress
+      try {
+        console.log("Syncing workout progress using RPC function with params:", {
+          user_id_param: userId,
+          workout_id_param: workoutId,
+          completed_exercises_param: ids
+        });
+        
+        const response = await syncWorkoutProgressRPC({
+          user_id_param: userId,
+          workout_id_param: workoutId,
+          completed_exercises_param: ids
+        });
+        
+        if (response.error) throw response.error;
+        
+        console.log("Progress synced to remote via RPC:", response.data);
+      } catch (rpcError) {
+        console.warn("RPC sync failed, falling back to direct insert:", rpcError);
+        
+        // Fall back to direct upsert if RPC fails
+        const { error } = await supabase
+          .from('workout_progress')
+          .upsert({
+            user_id: userId,
+            workout_id: workoutId,
+            completed_exercises: ids,
+            last_updated: now.toISOString()
+          }, {
+            onConflict: 'user_id,workout_id'
+          });
+          
+        if (error) throw error;
+        
+        console.log("Progress synced to remote via direct upsert");
+      }
+      
+      // Update last synced time and status
+      setLastSynced(now);
+      setSyncStatus('synced');
     } catch (error) {
       console.error("Error in syncToRemote:", error);
+      setSyncStatus('error');
     } finally {
       setIsSyncing(false);
     }
@@ -112,12 +199,16 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
       savedCompleted[exerciseId] = true;
       localStorage.setItem(`completedExercises-${workoutId}`, JSON.stringify(savedCompleted));
       
+      // Save timestamp for sync conflict resolution
+      localStorage.setItem(`lastUpdated-${workoutId}`, new Date().toISOString());
+      
       // Calculate new progress
       const newProgress = exercises.length 
         ? Math.round((updated.length / exercises.length) * 100) 
         : 0;
       
       setProgress(newProgress);
+      setSyncStatus('unsynced');
       
       // Sync to remote if user is logged in
       if (userId) {
