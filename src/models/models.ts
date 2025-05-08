@@ -77,6 +77,10 @@ export interface WorkoutLog {
   calories_burned?: number;
   notes?: string;
   rating?: number;
+  workout_name?: string;
+  workout_description?: string;
+  workout_type?: 'completed' | 'custom' | 'scheduled';
+  is_custom?: boolean;
   workout?: Workout | null | SelectQueryError; // Updated to handle error case
 }
 

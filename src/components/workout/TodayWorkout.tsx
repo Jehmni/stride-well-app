@@ -146,15 +146,19 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
   const handleStartWorkout = () => {
     setShowTracking(true);
   };
-
   const handleWorkoutCompleted = () => {
-    // The workout was completed via the tracking system
-    // Reset tracking state
-    setTimeout(() => {
-      setShowTracking(false);
-      // Reload today's workout data
-      fetchTodayExercises();
-    }, 3000);
+    // The workout was completed via the tracking system or user clicked "Start New Session"
+    // Reset tracking state and immediately fetch new exercise data
+    setShowTracking(false);
+    
+    // Clear any local storage data for the workout
+    localStorage.removeItem(`completedExercises-today-workout`);
+    
+    // Reload today's workout data
+    fetchTodayExercises();
+    
+    // Show success message
+    toast.success("Ready for a new workout session!");
   };
 
   return (

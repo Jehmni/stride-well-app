@@ -424,8 +424,32 @@ export const logWorkoutCompletion = async (
   isCustom: boolean = false
 ) => {
   try {
+    console.log("Logging workout completion with params:", { 
+      userId, workoutId, duration, caloriesBurned, 
+      notes, rating, isCustom 
+    });
+    
     // Use the new complete_workout function if available
     try {
+      // Get the workout name and description if possible
+      let workoutName = null;
+      let workoutDescription = null;
+      
+      try {
+        const { data: workoutData } = await supabase
+          .from('workouts')
+          .select('name, description')
+          .eq('id', workoutId)
+          .single();
+          
+        if (workoutData) {
+          workoutName = workoutData.name;
+          workoutDescription = workoutData.description;
+        }
+      } catch (e) {
+        console.log("Could not fetch workout details:", e);
+      }
+      
       const { data: rpcData, error: rpcError } = await supabase.rpc(
         'complete_workout',
         {
@@ -433,27 +457,22 @@ export const logWorkoutCompletion = async (
           user_id_param: userId,
           duration_param: duration,
           calories_param: caloriesBurned,
-          notes_param: notes
+          notes_param: notes,
+          rating_param: rating,
+          is_custom_param: isCustom
         }
       );
       
       if (!rpcError && rpcData) {
-        // Update the rating separately if provided
-        if (rating !== null) {
-          await supabase
-            .from('workout_logs')
-            .update({ rating })
-            .eq('id', rpcData)
-            .single();
-        }
+        // No need to update rating separately as it's included in the function call
+        console.log("Successfully created workout log via RPC:", rpcData);
         
         return rpcData;
       }
     } catch (rpcErr) {
       console.warn("RPC function not available, falling back to direct insert:", rpcErr);
     }
-    
-    // Fall back to direct insert if RPC fails
+      // Fall back to direct insert if RPC fails
     const { data, error } = await supabase
       .from('workout_logs')
       .insert({
@@ -465,7 +484,9 @@ export const logWorkoutCompletion = async (
         rating,
         completed_at: new Date().toISOString(),
         workout_type: isCustom ? 'custom' : 'completed',
-        is_custom: isCustom
+        is_custom: isCustom,
+        workout_name: workoutName,
+        workout_description: workoutDescription
       })
       .select()
       .single();

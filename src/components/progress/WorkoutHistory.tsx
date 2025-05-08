@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { Calendar, Award, Clock, Dumbbell, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/butto      {workoutLogs.map((log) => (
+        <Card key={log.id} className="overflow-hidden">
+          <CardHeader className="p-4 pb-3 cursor-pointer" onClick={() => toggleExpand(log.id)}>
+            <div className="flex items-center justify-between">
+              <div>                <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                  <Calendar className="h-4 w-4 mr-2 text-fitness-primary" />
+                  <span className="font-medium">{getRelativeDay(log.completed_at)}</span>
+                  <span className="mx-2 text-gray-400">•</span>
+                  <span className="text-gray-500 text-sm">{formatDate(log.completed_at)}</span>
+                </div>                <h4 className="text-lg font-medium mt-1">
+                  {getWorkoutDisplayName(log)}
+                </h4>
+              </div> Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +40,8 @@ interface CompletedExercise {
 // Extended WorkoutLog interface to include completed exercises
 interface ExtendedWorkoutLog extends WorkoutLog {
   completed_exercises?: CompletedExercise[];
+  workout_name?: string;
+  workout_description?: string;
 }
 
 const WorkoutHistory: React.FC = () => {
@@ -43,12 +56,22 @@ const WorkoutHistory: React.FC = () => {
       
       try {
         setIsLoading(true);
-        
-        // Fetch workout logs for the user
+          // Fetch workout logs for the user
         const { data: workoutsData, error: workoutsError } = await supabase
           .from('workout_logs')
           .select(`
-            *,
+            id,
+            user_id,
+            workout_id,
+            completed_at,
+            duration,
+            calories_burned,
+            notes,
+            rating,
+            workout_type,
+            is_custom,
+            workout_name,
+            workout_description,
             workout:workouts(
               id, 
               name, 
@@ -137,16 +160,16 @@ const WorkoutHistory: React.FC = () => {
             console.error("Error fetching exercise logs:", error);
           }
         }
-        
-        // Combine workout logs with their completed exercises
+          // Combine workout logs with their completed exercises
         const validLogs: ExtendedWorkoutLog[] = [];
         for (const log of workoutsData || []) {
-          // We want all logs, even if workout relation failed
-          const extendedLog = {
-            ...log,
-            completed_exercises: completedExercises[log.id] || []
-          } as unknown as ExtendedWorkoutLog;
-          validLogs.push(extendedLog);
+          // Ensure we're dealing with a proper object
+          if (log && typeof log === 'object' && 'id' in log) {
+            const extendedLog: ExtendedWorkoutLog = {
+              ...(log as WorkoutLog),
+              completed_exercises: completedExercises[log.id] || []
+            };
+            validLogs.push(extendedLog);
         }
         
         console.log("Final workout logs with exercises:", validLogs);
@@ -196,7 +219,6 @@ const WorkoutHistory: React.FC = () => {
   const hasCompletedExercises = (log: ExtendedWorkoutLog): boolean => {
     return !!log.completed_exercises && log.completed_exercises.length > 0;
   };
-
   // Determine if this is a custom workout or a completed workout
   const isCompletedWorkout = (log: ExtendedWorkoutLog): boolean => {
     // Check explicit workout_type first, if available
@@ -210,10 +232,30 @@ const WorkoutHistory: React.FC = () => {
       return !log.is_custom;
     }
     
+    // Check if there's a valid workout record with a name
+    if (log.workout && log.workout.name) {
+      return true;
+    }
+    
     // Fall back to heuristic check based on completed exercises
     return hasCompletedExercises(log);
   };
-
+  // Get the workout name to display in the UI
+  const getWorkoutDisplayName = (log: ExtendedWorkoutLog): string => {
+    // First check for workout_name directly on the log (from the database)
+    if (log.workout_name) {
+      return log.workout_name;
+    }
+    
+    // Then check if there's a related workout with a name
+    if (log.workout && typeof log.workout === 'object' && 'name' in log.workout && log.workout.name) {
+      return log.workout.name;
+    }
+    
+    // Finally fallback based on the workout type
+    return isCompletedWorkout(log) ? "Completed Workout" : "Your Custom Workout";
+  };
+  
   // Get the count of exercises either from completed_exercises or the workout template
   const getExerciseCount = (log: ExtendedWorkoutLog): number => {
     if (log.completed_exercises && log.completed_exercises.length > 0) {
@@ -264,7 +306,7 @@ const WorkoutHistory: React.FC = () => {
                   <span className="mx-2 text-gray-400">•</span>
                   <span className="text-gray-500 text-sm">{formatDate(log.completed_at)}</span>
                 </div>                <h4 className="text-lg font-medium mt-1">
-                  {log.workout?.name || (isCompletedWorkout(log) ? "Completed Workout" : "Custom Workout")}
+                  {log.workout_name || log.workout?.name || (isCompletedWorkout(log) ? "Completed Workout" : "Your Custom Workout")}
                 </h4>
               </div>
               <div className="flex items-center">

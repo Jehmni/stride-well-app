@@ -174,25 +174,54 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
       if (logData && logData.length > 0) {
         const workoutLogId = logData[0].id;
         console.log("Created workout log with ID:", workoutLogId);
-        
-        // Log each exercise completion directly using the RPC function
+          // Log each exercise completion directly using the RPC function
         for (const ex of exercises) {
           try {
+            // Skip if exercise_id looks like a temporary ID
+            if (!ex.exercise_id || ex.exercise_id.startsWith('default-')) {
+              console.log(`Skipping temporary exercise ID: ${ex.exercise_id}`);
+              continue;
+            }
+            
             console.log(`Logging exercise completion: Exercise ID=${ex.exercise_id}, Sets=${ex.sets}, Workout Log ID=${workoutLogId}`);
             
-            const { data, error } = await supabase.rpc('log_exercise_completion', {
-              workout_log_id_param: workoutLogId,
-              exercise_id_param: ex.exercise_id,
-              sets_completed_param: ex.sets,
-              reps_completed_param: ex.reps || null,
-              weight_used_param: null,
-              notes_param: null
-            });
+            // Try RPC function first
+            try {
+              const { data, error } = await supabase.rpc('log_exercise_completion', {
+                workout_log_id_param: workoutLogId,
+                exercise_id_param: ex.exercise_id,
+                sets_completed_param: ex.sets,
+                reps_completed_param: ex.reps || null,
+                weight_used_param: null,
+                notes_param: null
+              });
+              
+              if (error) {
+                throw error;
+              } else {
+                console.log(`Successfully logged exercise ${ex.exercise_id}:`, data);
+                continue;
+              }
+            } catch (rpcError) {
+              console.warn(`RPC error, falling back to direct insert for exercise ${ex.exercise_id}:`, rpcError);
+            }
             
-            if (error) {
-              console.error(`Error logging exercise ${ex.exercise_id} completion:`, error);
+            // Fall back to direct insert if RPC fails
+            const { data: directData, error: directError } = await supabase
+              .from('exercise_logs')
+              .insert({
+                workout_log_id: workoutLogId,
+                exercise_id: ex.exercise_id,
+                sets_completed: ex.sets,
+                reps_completed: ex.reps || null,
+                weight_used: null,
+                completed_at: new Date().toISOString()
+              });
+              
+            if (directError) {
+              console.error(`Direct insert error for exercise ${ex.exercise_id}:`, directError);
             } else {
-              console.log(`Successfully logged exercise ${ex.exercise_id}:`, data);
+              console.log(`Successfully logged exercise ${ex.exercise_id} via direct insert`);
             }
           } catch (err) {
             console.error(`Error in exercise logging for ${ex.exercise_id}:`, err);
@@ -217,16 +246,27 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
     } finally {
       setIsSaving(false);
     }
-  };
-    const resetWorkoutProgress = () => {
-    // Clear completed exercises
-    localStorage.removeItem(`completedExercises-${workoutId}`);
-    setCompletedExercises([]);
-    setProgress(0);
-    setIsWorkoutComplete(false);
-    
-    // Reload the page to get fresh workouts
-    window.location.reload();
+  };  const resetWorkoutProgress = () => {
+    try {
+      console.log("Resetting workout progress for workout ID:", workoutId);
+      
+      // Clear completed exercises from localStorage
+      localStorage.removeItem(`completedExercises-${workoutId}`);
+      
+      // Reset state
+      setCompletedExercises([]);
+      setProgress(0);
+      setIsWorkoutComplete(false);
+      
+      // Log the reset for debugging
+      console.log("Workout progress reset successfully");
+      
+      // Notify parent that we're starting a new session
+      // This allows parent to refresh workout data if needed without refreshing entire page
+      onWorkoutCompleted();
+    } catch (error) {
+      console.error("Error resetting workout progress:", error);
+    }
   };
 
   // Helper function to validate UUID
