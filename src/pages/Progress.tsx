@@ -32,43 +32,26 @@ const Progress: React.FC = () => {
       try {
         setIsChecking(true);
         
-        // Check exercise logging function
-        const { data: loggingCheck, error: loggingError } = await supabase.rpc('exec_sql', {
-          sql: "SELECT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'log_exercise_completion');"
-        });
+        // Simplify the check - just query the tables directly to see if they exist
+        const { data: exerciseLogs, error: exerciseError } = await supabase
+          .from('exercise_logs')
+          .select('id')
+          .limit(1);
+          
+        const { data: aiConfig, error: aiError } = await supabase
+          .from('ai_configurations')
+          .select('id')
+          .limit(1);
         
-        // Check AI workout configuration
-        const { data: aiCheck, error: aiError } = await supabase.rpc('exec_sql', {
-          sql: "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'ai_configurations');"
-        });
+        // Determine which features need fixing
+        const exerciseLogsNeeded = exerciseError && exerciseError.message.includes('does not exist');
+        const aiConfigNeeded = aiError && aiError.message.includes('does not exist');
         
-        // Process logging check response - handle Array response
-        let loggingOk = false;
-        if (loggingCheck && Array.isArray(loggingCheck) && loggingCheck.length > 0) {
-          const firstItem = loggingCheck[0];
-          if (firstItem && typeof firstItem === 'object') {
-            // Access the 'exists' property safely using type casting or optional chaining
-            const existsValue = (firstItem as any).exists;
-            loggingOk = existsValue === true || existsValue === 'true' || existsValue === 't';
-          }
-        }
-        
-        // Process AI check response - handle Array response
-        let aiOk = false;
-        if (aiCheck && Array.isArray(aiCheck) && aiCheck.length > 0) {
-          const firstItem = aiCheck[0];
-          if (firstItem && typeof firstItem === 'object') {
-            // Access the 'exists' property safely using type casting or optional chaining
-            const existsValue = (firstItem as any).exists;
-            aiOk = existsValue === true || existsValue === 'true' || existsValue === 't';
-          }
-        }
-        
-        if (!loggingOk && !aiOk) {
+        if (exerciseLogsNeeded && aiConfigNeeded) {
           setDbIssueType("both");
-        } else if (!loggingOk) {
+        } else if (exerciseLogsNeeded) {
           setDbIssueType("exercise-logging");
-        } else if (!aiOk) {
+        } else if (aiConfigNeeded) {
           setDbIssueType("ai-workouts");
         } else {
           setDbIssueType(null);

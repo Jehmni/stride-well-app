@@ -6,6 +6,7 @@ import { CheckCircle, Award } from "lucide-react";
 import { WorkoutExerciseDetail } from "./types";
 import ExerciseTracker from "./ExerciseTracker";
 import { supabase } from "@/integrations/supabase/client";
+import { logExerciseCompletionRPC } from "@/integrations/supabase/functions";
 import { toast } from "@/components/ui/use-toast";
 
 interface WorkoutProgressProps {
@@ -83,6 +84,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
     
     try {
       setIsSaving(true);
+      console.log("Starting workout completion process");
       
       // Calculate some basic stats based on completed exercises
       const totalDuration = Math.floor(
@@ -165,25 +167,35 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
         throw logError;
       }
       
+      console.log("Workout log created:", logData);
+      
       // Log each completed exercise
       if (logData && logData.length > 0) {
         const workoutLogId = logData[0].id;
         console.log("Created workout log with ID:", workoutLogId);
         
-        // Log each exercise completion
+        // Log each exercise completion directly using the RPC function
         for (const ex of exercises) {
-          const { error: exerciseLogError } = await supabase.rpc('log_exercise_completion', {
-            workout_log_id_param: workoutLogId,
-            exercise_id_param: ex.exercise_id,
-            sets_completed_param: ex.sets,
-            reps_completed_param: ex.reps || null,
-            weight_used_param: null,
-            notes_param: null
-          });
-          
-          if (exerciseLogError) {
-            console.error("Error logging exercise completion:", exerciseLogError);
-            // Continue even if one fails
+          try {
+            console.log(`Logging exercise completion: Exercise ID=${ex.exercise_id}, Sets=${ex.sets}, Workout Log ID=${workoutLogId}`);
+            
+            const { data, error } = await supabase.rpc('log_exercise_completion', {
+              workout_log_id_param: workoutLogId,
+              exercise_id_param: ex.exercise_id,
+              sets_completed_param: ex.sets,
+              reps_completed_param: ex.reps || null,
+              weight_used_param: null,
+              notes_param: null
+            });
+            
+            if (error) {
+              console.error(`Error logging exercise ${ex.exercise_id} completion:`, error);
+            } else {
+              console.log(`Successfully logged exercise ${ex.exercise_id}:`, data);
+            }
+          } catch (err) {
+            console.error(`Error in exercise logging for ${ex.exercise_id}:`, err);
+            // Continue with next exercise even if one fails
           }
         }
       }

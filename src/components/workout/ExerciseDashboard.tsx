@@ -27,49 +27,36 @@ const ExerciseDashboard = () => {
         setLoading(true);
         setError(null);
         
-        // Check if exercise_logs function exists
-        const { data: funcCheck, error: funcError } = await supabase.rpc('exec_sql', {
-          sql: "SELECT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'log_exercise_completion');"
-        });
+        // Check if the exercise logging function exists by directly querying the database
+        const { data: funcExists, error: checkError } = await supabase
+          .from('exercise_logs')
+          .select('id')
+          .limit(1);
         
-        if (funcError) {
-          console.error("Error checking function:", funcError);
-          setError("The exercise logging function is not properly configured. Run the database fix script.");
+        if (checkError) {
+          console.error("Error checking exercise logs:", checkError);
+          setError("Could not verify if exercise logs table exists. Please check your database setup.");
           setLoading(false);
           return;
         }
         
-        // Safely check if the function exists
-        let functionExists = false;
+        // If we can query exercise_logs, the table exists
+        // Now get user exercise counts
+        const { data, error } = await getUserExerciseCountsRPC({ 
+          user_id_param: user.id 
+        });
         
-        if (funcCheck && Array.isArray(funcCheck) && funcCheck.length > 0) {
-          const firstItem = funcCheck[0];
-          if (firstItem && typeof firstItem === 'object') {
-            const existsValue = (firstItem as any).exists;
-            functionExists = existsValue === true || 
-                           existsValue === 'true' || 
-                           existsValue === 't';
-          }
-        }
-        
-        // If function exists, get exercise counts
-        if (functionExists) {
-          const { data, error } = await getUserExerciseCountsRPC({ 
-            user_id_param: user.id 
-          });
-          
-          if (error) {
-            console.error("Error fetching exercise counts:", error);
-            setError("Error loading your exercise data. Please try again later.");
-          } else if (data && data.length > 0) {
-            setExerciseData(data);
-            setSelectedExerciseId(data[0].exercise_id);
-            setSelectedExerciseName(data[0].name);
-          } else {
-            setExerciseData([]);
-          }
+        if (error) {
+          console.error("Error fetching exercise counts:", error);
+          setError("Error loading your exercise data. Please try again later.");
+        } else if (data && data.length > 0) {
+          console.log("Exercise data loaded successfully:", data);
+          setExerciseData(data);
+          setSelectedExerciseId(data[0].exercise_id);
+          setSelectedExerciseName(data[0].name);
         } else {
-          setError("The exercise logging function is not properly configured. Run the database fix script.");
+          console.log("No exercise data found");
+          setExerciseData([]);
         }
       } catch (err) {
         console.error("Error in ExerciseDashboard:", err);
