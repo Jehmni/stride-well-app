@@ -217,13 +217,15 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
       setIsSaving(false);
     }
   };
-  
-  const resetWorkoutProgress = () => {
+    const resetWorkoutProgress = () => {
     // Clear completed exercises
     localStorage.removeItem(`completedExercises-${workoutId}`);
     setCompletedExercises([]);
     setProgress(0);
     setIsWorkoutComplete(false);
+    
+    // Reload the page to get fresh workouts
+    window.location.reload();
   };
 
   // Helper function to validate UUID

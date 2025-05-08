@@ -192,10 +192,14 @@ const WorkoutHistory: React.FC = () => {
       return "";
     }
   };
-
   // Determine if we have exercise completion data
   const hasCompletedExercises = (log: ExtendedWorkoutLog): boolean => {
     return !!log.completed_exercises && log.completed_exercises.length > 0;
+  };
+
+  // Determine if this is a custom workout or a completed workout
+  const isCompletedWorkout = (log: ExtendedWorkoutLog): boolean => {
+    return hasCompletedExercises(log);
   };
 
   // Get the count of exercises either from completed_exercises or the workout template
@@ -248,9 +252,8 @@ const WorkoutHistory: React.FC = () => {
                   <span className="font-medium">{getRelativeDay(log.completed_at)}</span>
                   <span className="mx-2 text-gray-400">•</span>
                   <span className="text-gray-500 text-sm">{formatDate(log.completed_at)}</span>
-                </div>
-                <h4 className="text-lg font-medium mt-1">
-                  {log.workout?.name || "Custom Workout"}
+                </div>                <h4 className="text-lg font-medium mt-1">
+                  {isCompletedWorkout(log) ? "Completed Workout" : (log.workout?.name || "Custom Workout")}
                 </h4>
               </div>
               <div className="flex items-center">

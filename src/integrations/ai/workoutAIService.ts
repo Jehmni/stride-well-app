@@ -172,14 +172,21 @@ async function saveAIWorkoutPlan(
 ): Promise<WorkoutPlan | null> {
   try {
     // Process exercises to match our workout plan format
-    const processedExercises = await processExercises(aiWorkoutPlan.exercises, await fetchAvailableExercises() || []);
+    const processedExercises = await processExercises(aiWorkoutPlan.exercises, await fetchAvailableExercises() || []);    // Create workout plan object
+    // Ensure weekly structure has the right format
+    const weeklyStructure = Array.isArray(aiWorkoutPlan.weekly_structure) ? 
+      aiWorkoutPlan.weekly_structure.map(day => ({
+        day: day.day || "Unknown",
+        focus: day.focus || "General",
+        duration: typeof day.duration === 'number' ? day.duration : 30
+      })) : 
+      generateDefaultWeeklyStructure(userProfile.fitness_goal);
 
-    // Create workout plan object
     const processedPlan: Omit<WorkoutPlan, "id"> = {
       title: aiWorkoutPlan.title || getPlanTitleFallback(userProfile.fitness_goal),
       description: aiWorkoutPlan.description || `AI-generated workout plan for ${userProfile.fitness_goal} goal`,
       fitness_goal: userProfile.fitness_goal,
-      weekly_structure: aiWorkoutPlan.weekly_structure,
+      weekly_structure: weeklyStructure,
       exercises: processedExercises,
       ai_generated: true
     };
@@ -333,6 +340,54 @@ function getFitnessLevel(userProfile: UserProfile): string {
     return "beginner";
   } else {
     return "intermediate";
+  }
+}
+
+/**
+ * Generate a default weekly workout structure based on fitness goal
+ */
+function generateDefaultWeeklyStructure(fitnessGoal: string): WorkoutDay[] {
+  switch(fitnessGoal) {
+    case 'weight-loss':
+      return [
+        { day: "Monday", focus: "HIIT & Upper Body", duration: 45 },
+        { day: "Tuesday", focus: "Lower Body & Core", duration: 45 },
+        { day: "Wednesday", focus: "Cardio", duration: 30 },
+        { day: "Thursday", focus: "Full Body Circuit", duration: 45 },
+        { day: "Friday", focus: "HIIT & Core", duration: 30 },
+        { day: "Saturday", focus: "Light Cardio", duration: 30 },
+        { day: "Sunday", focus: "Rest & Recovery", duration: 0 }
+      ];
+    case 'muscle-gain':
+      return [
+        { day: "Monday", focus: "Chest & Triceps", duration: 60 },
+        { day: "Tuesday", focus: "Back & Biceps", duration: 60 },
+        { day: "Wednesday", focus: "Rest & Recovery", duration: 0 },
+        { day: "Thursday", focus: "Legs & Core", duration: 60 },
+        { day: "Friday", focus: "Shoulders & Arms", duration: 45 },
+        { day: "Saturday", focus: "Full Body", duration: 45 },
+        { day: "Sunday", focus: "Rest & Recovery", duration: 0 }
+      ];
+    case 'general-fitness':
+      return [
+        { day: "Monday", focus: "Upper Body", duration: 45 },
+        { day: "Tuesday", focus: "Lower Body", duration: 45 },
+        { day: "Wednesday", focus: "Cardio", duration: 30 },
+        { day: "Thursday", focus: "Core", duration: 30 },
+        { day: "Friday", focus: "Full Body", duration: 45 },
+        { day: "Saturday", focus: "Active Recovery", duration: 30 },
+        { day: "Sunday", focus: "Rest", duration: 0 }
+      ];
+    default:
+      return [
+        { day: "Monday", focus: "Full Body", duration: 45 },
+        { day: "Tuesday", focus: "Cardio", duration: 30 },
+        { day: "Wednesday", focus: "Core & Flexibility", duration: 30 },
+        { day: "Thursday", focus: "Full Body", duration: 45 },
+        { day: "Friday", focus: "HIIT", duration: 30 },
+        { day: "Saturday", focus: "Active Recovery", duration: 30 },
+        { day: "Sunday", focus: "Rest", duration: 0 }
+      ];
   }
 }
 
