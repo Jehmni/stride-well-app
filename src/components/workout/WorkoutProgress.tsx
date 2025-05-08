@@ -150,8 +150,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
           }
         }
       }
-      
-      // Insert into workout_logs table
+        // Insert into workout_logs table
       const { data: logData, error: logError } = await supabase
         .from('workout_logs')
         .insert({
@@ -159,7 +158,9 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
           workout_id: actualWorkoutId,
           completed_at: new Date().toISOString(),
           duration: totalDuration,
-          calories_burned: caloriesBurned
+          calories_burned: caloriesBurned,
+          workout_type: 'completed', // Explicitly mark as a completed workout
+          is_custom: false // This is not a custom workout
         })
         .select('id');
         

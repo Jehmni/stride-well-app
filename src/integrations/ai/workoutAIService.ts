@@ -344,10 +344,13 @@ function getFitnessLevel(userProfile: UserProfile): string {
 }
 
 /**
- * Generate a default weekly workout structure based on fitness goal
+ * Generate default weekly workout structure based on fitness goal
+ * Used as fallback when AI response is missing or invalid
+ * @param fitnessGoal User's fitness goal
+ * @returns Default weekly workout structure
  */
 function generateDefaultWeeklyStructure(fitnessGoal: string): WorkoutDay[] {
-  switch(fitnessGoal) {
+  switch (fitnessGoal) {
     case 'weight-loss':
       return [
         { day: "Monday", focus: "HIIT & Upper Body", duration: 45 },

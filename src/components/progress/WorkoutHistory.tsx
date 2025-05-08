@@ -199,6 +199,18 @@ const WorkoutHistory: React.FC = () => {
 
   // Determine if this is a custom workout or a completed workout
   const isCompletedWorkout = (log: ExtendedWorkoutLog): boolean => {
+    // Check explicit workout_type first, if available
+    if ('workout_type' in log && log.workout_type === 'completed') {
+      return true;
+    }
+    if ('workout_type' in log && log.workout_type === 'custom') {
+      return false;
+    }
+    if ('is_custom' in log && typeof log.is_custom === 'boolean') {
+      return !log.is_custom;
+    }
+    
+    // Fall back to heuristic check based on completed exercises
     return hasCompletedExercises(log);
   };
 
@@ -246,14 +258,13 @@ const WorkoutHistory: React.FC = () => {
         <Card key={log.id} className="overflow-hidden">
           <CardHeader className="p-4 pb-3 cursor-pointer" onClick={() => toggleExpand(log.id)}>
             <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+              <div>                <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                   <Calendar className="h-4 w-4 mr-2 text-fitness-primary" />
                   <span className="font-medium">{getRelativeDay(log.completed_at)}</span>
                   <span className="mx-2 text-gray-400">•</span>
                   <span className="text-gray-500 text-sm">{formatDate(log.completed_at)}</span>
                 </div>                <h4 className="text-lg font-medium mt-1">
-                  {isCompletedWorkout(log) ? "Completed Workout" : (log.workout?.name || "Custom Workout")}
+                  {log.workout?.name || (isCompletedWorkout(log) ? "Completed Workout" : "Custom Workout")}
                 </h4>
               </div>
               <div className="flex items-center">

@@ -420,9 +420,40 @@ export const logWorkoutCompletion = async (
   duration: number,
   caloriesBurned: number | null = null,
   notes: string | null = null,
-  rating: number | null = null
+  rating: number | null = null,
+  isCustom: boolean = false
 ) => {
   try {
+    // Use the new complete_workout function if available
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        'complete_workout',
+        {
+          workout_id_param: workoutId,
+          user_id_param: userId,
+          duration_param: duration,
+          calories_param: caloriesBurned,
+          notes_param: notes
+        }
+      );
+      
+      if (!rpcError && rpcData) {
+        // Update the rating separately if provided
+        if (rating !== null) {
+          await supabase
+            .from('workout_logs')
+            .update({ rating })
+            .eq('id', rpcData)
+            .single();
+        }
+        
+        return rpcData;
+      }
+    } catch (rpcErr) {
+      console.warn("RPC function not available, falling back to direct insert:", rpcErr);
+    }
+    
+    // Fall back to direct insert if RPC fails
     const { data, error } = await supabase
       .from('workout_logs')
       .insert({
@@ -432,7 +463,9 @@ export const logWorkoutCompletion = async (
         calories_burned: caloriesBurned,
         notes,
         rating,
-        completed_at: new Date().toISOString()
+        completed_at: new Date().toISOString(),
+        workout_type: isCustom ? 'custom' : 'completed',
+        is_custom: isCustom
       })
       .select()
       .single();
