@@ -39,40 +39,34 @@ const ExerciseDashboard = () => {
           return;
         }
         
-        // Make sure we're handling the response correctly by safely checking 
-        // for the 'exists' property in the response
+        // Safely check if the function exists
+        let functionExists = false;
+        
         if (funcCheck && Array.isArray(funcCheck) && funcCheck.length > 0) {
-          // Check if the property exists in the first element of the array
           const firstItem = funcCheck[0];
-          // Safe type check before accessing properties
-          let functionExists = false;
-          
-          if (typeof firstItem === 'object' && firstItem !== null) {
-            // Cast to any to access the 'exists' property safely
-            const item = firstItem as any;
-            functionExists = item.exists === true || 
-                            item.exists === 'true' || 
-                            item.exists === 't';
+          if (firstItem && typeof firstItem === 'object') {
+            const existsValue = (firstItem as any).exists;
+            functionExists = existsValue === true || 
+                           existsValue === 'true' || 
+                           existsValue === 't';
           }
+        }
+        
+        // If function exists, get exercise counts
+        if (functionExists) {
+          const { data, error } = await getUserExerciseCountsRPC({ 
+            user_id_param: user.id 
+          });
           
-          // If function exists, get exercise counts
-          if (functionExists) {
-            const { data, error } = await getUserExerciseCountsRPC({ 
-              user_id_param: user.id 
-            });
-            
-            if (error) {
-              console.error("Error fetching exercise counts:", error);
-              setError("Error loading your exercise data. Please try again later.");
-            } else if (data && data.length > 0) {
-              setExerciseData(data);
-              setSelectedExerciseId(data[0].exercise_id);
-              setSelectedExerciseName(data[0].name);
-            } else {
-              setExerciseData([]);
-            }
+          if (error) {
+            console.error("Error fetching exercise counts:", error);
+            setError("Error loading your exercise data. Please try again later.");
+          } else if (data && data.length > 0) {
+            setExerciseData(data);
+            setSelectedExerciseId(data[0].exercise_id);
+            setSelectedExerciseName(data[0].name);
           } else {
-            setError("The exercise logging function is not properly configured. Run the database fix script.");
+            setExerciseData([]);
           }
         } else {
           setError("The exercise logging function is not properly configured. Run the database fix script.");

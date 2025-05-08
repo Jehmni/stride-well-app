@@ -543,6 +543,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_workout_log: {
+        Args: {
+          workout_id_param: string
+          user_id_param: string
+          notes_param?: string
+        }
+        Returns: string
+      }
       exec_sql: {
         Args: { sql: string }
         Returns: Json[]

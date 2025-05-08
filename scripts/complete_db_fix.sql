@@ -1,3 +1,4 @@
+
 -- COMPLETE DATABASE FIX SCRIPT
 -- This script fixes all database issues with exercise logging and AI workouts
 -- Updated version: May 8, 2025
@@ -117,7 +118,7 @@ $$;
 -- Drop existing policy if it exists
 DROP POLICY IF EXISTS "Users can insert their own exercise logs" ON public.exercise_logs;
 
--- Create new policy
+-- Create new policy that allows any inserts through the security definer function
 CREATE POLICY "Users can insert their own exercise logs"
 ON public.exercise_logs
 FOR INSERT

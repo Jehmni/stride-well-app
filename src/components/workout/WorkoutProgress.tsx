@@ -6,7 +6,7 @@ import { CheckCircle, Award } from "lucide-react";
 import { WorkoutExerciseDetail } from "./types";
 import ExerciseTracker from "./ExerciseTracker";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/use-toast";
 
 interface WorkoutProgressProps {
   exercises: WorkoutExerciseDetail[];
@@ -73,7 +73,11 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
   
   const completeWorkout = async () => {
     if (!userId) {
-      toast.error("You must be logged in to save workout progress");
+      toast({
+        title: "Error",
+        description: "You must be logged in to save workout progress",
+        variant: "destructive"
+      });
       return;
     }
     
@@ -154,17 +158,49 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
           completed_at: new Date().toISOString(),
           duration: totalDuration,
           calories_burned: caloriesBurned
-        });
+        })
+        .select('id');
         
       if (logError) {
         throw logError;
       }
       
-      toast.success("Workout completed! Great job!");
+      // Log each completed exercise
+      if (logData && logData.length > 0) {
+        const workoutLogId = logData[0].id;
+        console.log("Created workout log with ID:", workoutLogId);
+        
+        // Log each exercise completion
+        for (const ex of exercises) {
+          const { error: exerciseLogError } = await supabase.rpc('log_exercise_completion', {
+            workout_log_id_param: workoutLogId,
+            exercise_id_param: ex.exercise_id,
+            sets_completed_param: ex.sets,
+            reps_completed_param: ex.reps || null,
+            weight_used_param: null,
+            notes_param: null
+          });
+          
+          if (exerciseLogError) {
+            console.error("Error logging exercise completion:", exerciseLogError);
+            // Continue even if one fails
+          }
+        }
+      }
+      
+      toast({
+        title: "Success",
+        description: "Workout completed! Great job!",
+      });
+      
       onWorkoutCompleted();
     } catch (error: any) {
       console.error("Error saving completed workout:", error);
-      toast.error("Failed to save workout completion. Please try again.");
+      toast({
+        title: "Error",
+        description: "Failed to save workout completion. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsSaving(false);
     }

@@ -42,27 +42,27 @@ const Progress: React.FC = () => {
           sql: "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'ai_configurations');"
         });
         
-        // Process logging check response - handle array or object response
-        const loggingCheckData = loggingCheck && Array.isArray(loggingCheck) && loggingCheck.length > 0 
-          ? loggingCheck[0] as Record<string, any> 
-          : null;
-          
-        const loggingOk = loggingCheckData && 
-          (loggingCheckData.exists === true || 
-           loggingCheckData.exists === 'true' || 
-           loggingCheckData.exists === 't') && 
-          !loggingError;
-          
-        // Process AI check response - handle array or object response  
-        const aiCheckData = aiCheck && Array.isArray(aiCheck) && aiCheck.length > 0 
-          ? aiCheck[0] as Record<string, any> 
-          : null;
-          
-        const aiOk = aiCheckData && 
-          (aiCheckData.exists === true || 
-           aiCheckData.exists === 'true' || 
-           aiCheckData.exists === 't') && 
-          !aiError;
+        // Process logging check response - handle Array response
+        let loggingOk = false;
+        if (loggingCheck && Array.isArray(loggingCheck) && loggingCheck.length > 0) {
+          const firstItem = loggingCheck[0];
+          if (firstItem && typeof firstItem === 'object') {
+            // Access the 'exists' property safely using type casting or optional chaining
+            const existsValue = (firstItem as any).exists;
+            loggingOk = existsValue === true || existsValue === 'true' || existsValue === 't';
+          }
+        }
+        
+        // Process AI check response - handle Array response
+        let aiOk = false;
+        if (aiCheck && Array.isArray(aiCheck) && aiCheck.length > 0) {
+          const firstItem = aiCheck[0];
+          if (firstItem && typeof firstItem === 'object') {
+            // Access the 'exists' property safely using type casting or optional chaining
+            const existsValue = (firstItem as any).exists;
+            aiOk = existsValue === true || existsValue === 'true' || existsValue === 't';
+          }
+        }
         
         if (!loggingOk && !aiOk) {
           setDbIssueType("both");
@@ -87,7 +87,7 @@ const Progress: React.FC = () => {
   const handleApplyFixes = async () => {
     toast({
       title: "Applying database fixes...",
-      description: "Please run the script: scripts/apply_database_fixes.bat",
+      description: "Please run the script: scripts/fix_everything.bat",
     });
   };
   
