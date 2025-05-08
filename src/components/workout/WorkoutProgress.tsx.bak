@@ -7,6 +7,12 @@ import ExerciseTracker from "./ExerciseTracker";
 import { supabase } from "@/integrations/supabase/client";
 import { logExerciseCompletionRPC } from "@/integrations/supabase/functions";
 import { toast } from "@/components/ui/use-toast";
+import { CheckCircle, Award, CloudSync } from "lucide-react";
+import { WorkoutExerciseDetail } from "./types";
+import ExerciseTracker from "./ExerciseTracker";
+import { supabase } from "@/integrations/supabase/client";
+import { logExerciseCompletionRPC } from "@/integrations/supabase/functions";
+import { toast } from "@/components/ui/use-toast";
 
 interface WorkoutProgressProps {
   exercises: WorkoutExerciseDetail[];
@@ -28,73 +34,125 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
 
+  // Load local progress and sync with remote progress on component mount
   useEffect(() => {
-    if (!exercises.length) return;
+    if (!exercises.length || !userId) return;
     
-    // Load previously completed exercises from localStorage for immediate display
+    // First, load from localStorage for immediate display
+    loadLocalProgress();
+    
+    // Then attempt to load from Supabase to ensure cross-device consistency
+    loadRemoteProgress();
+  }, [exercises, workoutId, userId]);
+
+  // Load progress stored locally
+  const loadLocalProgress = () => {
     const savedCompleted = JSON.parse(localStorage.getItem(`completedExercises-${workoutId}`) || '{}');
     const completedIds = exercises
       .filter(ex => savedCompleted[ex.id])
       .map(ex => ex.id);
     
     setCompletedExercises(completedIds);
+    updateProgressState(completedIds);
+  };
+
+  // Load progress from Supabase database
+  const loadRemoteProgress = async () => {
+    if (!userId) return;
     
-    // Calculate progress
+    try {
+      setIsSyncing(true);
+      
+      // First check if we have a temporary workout progress record for this user/workout
+      const { data: progressData, error } = await supabase
+        .from('workout_progress')
+        .select('completed_exercises, last_updated')
+        .eq('user_id', userId)
+        .eq('workout_id', workoutId)
+        .maybeSingle();
+      
+      if (error) {
+        console.error("Error loading remote progress:", error);
+        return;
+      }
+      
+      if (progressData) {
+        // We have remote progress, compare with local progress
+        const remoteCompleted = progressData.completed_exercises as string[];
+        const localSaved = JSON.parse(localStorage.getItem(`completedExercises-${workoutId}`) || '{}');
+        
+        // Merge remote and local data, keeping the most complete version
+        const localCompleted = Object.keys(localSaved).filter(id => localSaved[id]);
+        
+        // Use whichever list has more completed exercises
+        if (remoteCompleted.length > localCompleted.length) {
+          console.log("Remote progress ahead of local, updating local");
+          
+          // Update local storage with remote data
+          const updatedLocalSaved = {};
+          remoteCompleted.forEach(id => { updatedLocalSaved[id] = true; });
+          localStorage.setItem(`completedExercises-${workoutId}`, JSON.stringify(updatedLocalSaved));
+          
+          // Update state
+          setCompletedExercises(remoteCompleted);
+          updateProgressState(remoteCompleted);
+          setLastSynced(new Date(progressData.last_updated));
+        } else if (localCompleted.length > remoteCompleted.length) {
+          // Local ahead of remote, sync local to remote
+          console.log("Local progress ahead of remote, syncing to remote");
+          await syncToRemote(localCompleted);
+        } else {
+          // They're the same or local is empty, just set the last synced time
+          setLastSynced(new Date(progressData.last_updated));
+        }
+      } else if (completedExercises.length > 0) {
+        // No remote data but we have local data, sync local to remote
+        syncToRemote(completedExercises);
+      }
+    } catch (error) {
+      console.error("Error in remote progress sync:", error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+  
+  // Update progress calculation
+  const updateProgressState = (completedIds: string[]) => {
     const newProgress = exercises.length 
       ? Math.round((completedIds.length / exercises.length) * 100) 
       : 0;
     
     setProgress(newProgress);
     setIsWorkoutComplete(newProgress === 100);
-    
-    // If user is logged in, try to sync with remote progress
-    if (userId) {
-      syncWithRemoteProgress(completedIds);
-    }
-  }, [exercises, workoutId, userId]);
-  
-  // Sync local progress with remote progress in Supabase
-  const syncWithRemoteProgress = async (localCompletedIds: string[]) => {
-    if (!userId) return;
-    
-    try {
-      setIsSyncing(true);
-      
-      // Try to get remote progress data
-      // Since we may not have the workout_progress table yet, we'll catch any errors
-      try {
-        // Try to fetch progress data via RPC or directly
-        const { data, error } = await supabase
-          .from('workout_logs') // Just check if we're connected at all
-          .select('id', { count: 'exact', head: true })
-          .limit(1);
-          
-        if (data !== null) {
-          // If connected, try to sync
-          // This is a simplified approach - in a real implementation you would
-          // check if workout_progress table exists and create it if needed
-          
-          // Update last synced time
-          setLastSynced(new Date());
-        }
-      } catch (error) {
-        console.log("Remote sync not yet supported - migration may need to be applied");
-      }
-    } finally {
-      setIsSyncing(false);
-    }
   };
   
-  // Save local progress to remote database
-  const syncToRemote = async (ids: string[]) => {
+  // Sync local completed exercises to Supabase
+  const syncToRemote = async (completedIds: string[]) => {
     if (!userId) return;
     
     try {
       setIsSyncing(true);
       
-      // In a real implementation, you would use an RPC function to sync progress
-      // For now, we'll just update the last synced time to show the concept
-      setLastSynced(new Date());
+      const now = new Date().toISOString();
+      
+      // Upsert the progress data
+      const { error } = await supabase
+        .from('workout_progress')
+        .upsert({
+          user_id: userId,
+          workout_id: workoutId,
+          completed_exercises: completedIds,
+          last_updated: now
+        }, {
+          onConflict: 'user_id,workout_id'
+        });
+        
+      if (error) {
+        console.error("Error syncing to remote:", error);
+        return;
+      }
+      
+      setLastSynced(new Date(now));
     } catch (error) {
       console.error("Error in syncToRemote:", error);
     } finally {
@@ -107,31 +165,34 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
       const updated = [...completedExercises, exerciseId];
       setCompletedExercises(updated);
       
-      // Save to localStorage for immediate UI update
+      // Save to localStorage
       const savedCompleted = JSON.parse(localStorage.getItem(`completedExercises-${workoutId}`) || '{}');
       savedCompleted[exerciseId] = true;
       localStorage.setItem(`completedExercises-${workoutId}`, JSON.stringify(savedCompleted));
       
-      // Calculate new progress
-      const newProgress = exercises.length 
-        ? Math.round((updated.length / exercises.length) * 100) 
-        : 0;
+      // Update progress state
+      updateProgressState(updated);
       
-      setProgress(newProgress);
-      
-      // Sync to remote if user is logged in
+      // Queue sync to remote database
       if (userId) {
         syncToRemote(updated);
       }
       
       // Check if workout is complete
-      if (newProgress === 100) {
+      if (updated.length === exercises.length) {
         setIsWorkoutComplete(true);
         completeWorkout();
       }
     }
   };
   
+  // Manually trigger a sync with remote database
+  const handleManualSync = () => {
+    if (userId && completedExercises.length > 0) {
+      syncToRemote(completedExercises);
+    }
+  };
+
   const completeWorkout = async () => {
     if (!userId) {
       toast({
@@ -210,8 +271,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
           }
         }
       }
-      
-      // Insert into workout_logs table
+        // Insert into workout_logs table
       const { data: logData, error: logError } = await supabase
         .from('workout_logs')
         .insert({
@@ -235,8 +295,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
       if (logData && logData.length > 0) {
         const workoutLogId = logData[0].id;
         console.log("Created workout log with ID:", workoutLogId);
-        
-        // Log each exercise completion directly using the RPC function
+          // Log each exercise completion directly using the RPC function
         for (const ex of exercises) {
           try {
             // Skip if exercise_id looks like a temporary ID
@@ -308,9 +367,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
     } finally {
       setIsSaving(false);
     }
-  };
-  
-  const resetWorkoutProgress = () => {
+  };  const resetWorkoutProgress = () => {
     try {
       console.log("Resetting workout progress for workout ID:", workoutId);
       
@@ -321,12 +378,12 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
       setCompletedExercises([]);
       setProgress(0);
       setIsWorkoutComplete(false);
-      setLastSynced(null);
       
       // Log the reset for debugging
       console.log("Workout progress reset successfully");
       
       // Notify parent that we're starting a new session
+      // This allows parent to refresh workout data if needed without refreshing entire page
       onWorkoutCompleted();
     } catch (error) {
       console.error("Error resetting workout progress:", error);
@@ -337,29 +394,6 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
   const isValidUUID = (uuid: string) => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     return uuidRegex.test(uuid);
-  };
-
-  const formatLastSyncedTime = () => {
-    if (!lastSynced) return "Not synced yet";
-    
-    // If synced within last minute, show "Just now"
-    const diffMs = Date.now() - lastSynced.getTime();
-    if (diffMs < 60000) {
-      return "Just now";
-    }
-    
-    // Otherwise show how long ago
-    const minutes = Math.floor(diffMs / 60000);
-    if (minutes < 60) {
-      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-    }
-    
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) {
-      return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-    }
-    
-    return lastSynced.toLocaleTimeString();
   };
 
   if (isWorkoutComplete) {
@@ -393,25 +427,6 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
         </div>
         <Progress value={progress} className="h-2" />
       </div>
-      
-      {userId && (
-        <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-          <div className="flex items-center">
-            <Clock className="h-3 w-3 mr-1" />
-            <span>Last synced: {formatLastSyncedTime()}</span>
-          </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-6 px-2"
-            onClick={() => syncWithRemoteProgress(completedExercises)}
-            disabled={isSyncing}
-          >
-            <RefreshCw className={`h-3 w-3 mr-1 ${isSyncing ? "animate-spin" : ""}`} />
-            {isSyncing ? "Syncing..." : "Sync"}
-          </Button>
-        </div>
-      )}
 
       <div className="space-y-2">
         <h3 className="text-lg font-medium flex items-center">
@@ -432,6 +447,29 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
         ) : (
           <p className="text-gray-500">No exercises added to this workout yet.</p>
         )}
+      </div
+
+      <div className="flex items-center justify-between text-sm text-gray-500">
+        <div className="flex items-center">
+          <CloudSync className="mr-1.5 h-4 w-4 text-gray-400" />
+          <span>
+            {isSyncing 
+              ? "Syncing progress..." 
+              : lastSynced 
+                ? `Last synced: ${lastSynced.toLocaleString()}` 
+                : "Not synced yet"
+            }
+          </span>
+        </div>
+        
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={handleManualSync}
+          disabled={isSyncing}
+        >
+          {isSyncing ? "Syncing..." : "Sync Progress"}
+        </Button>
       </div>
     </div>
   );

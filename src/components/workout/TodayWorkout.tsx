@@ -83,12 +83,37 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
           .single();
           
         if (profileError) throw profileError;
+          // Determine appropriate muscle groups based on workout focus
+        let muscleGroups: string[] = [];
+        const focusLower = todayWorkout.title.toLowerCase();
         
-        // Fetch exercises appropriate for this fitness goal
+        if (focusLower.includes('upper body') || focusLower.includes('chest') || focusLower.includes('arms')) {
+          muscleGroups = ['chest', 'back', 'shoulders', 'arms'];
+        } else if (focusLower.includes('lower body') || focusLower.includes('leg')) {
+          muscleGroups = ['legs'];
+        } else if (focusLower.includes('core') || focusLower.includes('ab')) {
+          muscleGroups = ['core'];
+        } else if (focusLower.includes('cardio')) {
+          // For cardio, filter by exercise type instead of muscle group
+          const { data: exercises, error } = await supabase
+            .from('exercises')
+            .select('*')
+            .in('exercise_type', ['cardio', 'hiit', 'endurance'])
+            .limit(5);
+            
+          if (error) throw error;
+          return exercises;
+        } else {
+          // Full body or other workouts - mix of everything
+          muscleGroups = ['chest', 'back', 'legs', 'shoulders', 'arms', 'core'];
+        }
+        
+        // Fetch exercises filtered by appropriate muscle groups
         const { data: exercises, error } = await supabase
           .from('exercises')
           .select('*')
-          .limit(5); // Just get some sample exercises
+          .in('muscle_group', muscleGroups)
+          .limit(5);
           
         if (error) throw error;
         
