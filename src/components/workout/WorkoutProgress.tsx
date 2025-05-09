@@ -7,6 +7,7 @@ import ExerciseTracker from "./ExerciseTracker";
 import { supabase } from "@/integrations/supabase/client";
 import { logExerciseCompletionRPC, syncWorkoutProgressRPC } from "@/integrations/supabase/functions";
 import { toast } from "@/components/ui/use-toast";
+import { getWorkoutPlanExercises } from "@/services/workoutPlanMapper";
 
 interface WorkoutProgressProps {
   exercises: WorkoutExerciseDetail[];

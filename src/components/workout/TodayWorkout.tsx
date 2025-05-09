@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, ArrowRight, Check, Play } from "lucide-react";
@@ -9,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import WorkoutProgress from "./WorkoutProgress";
 import DetailedWorkoutLog from "./DetailedWorkoutLog";
+import { getWorkoutPlanExercises } from "@/services/workoutPlanMapper";
 
 interface TodayWorkoutComponentProps {
   todayWorkout: TodayWorkoutProps;
@@ -34,10 +34,51 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
     try {
       setIsLoading(true);
       
+      // First check for active AI workout plan for the user
+      const { data: aiWorkoutPlans, error: aiPlanError } = await supabase
+        .from('workout_plans')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('ai_generated', true)
+        .order('created_at', { ascending: false })
+        .limit(1);
+        
+      if (aiPlanError) {
+        console.error("Error fetching AI workout plans:", aiPlanError);
+      }
+      
+      // If AI workout plan exists, try to get its exercises using our mapper
+      if (aiWorkoutPlans && aiWorkoutPlans.length > 0) {
+        console.log("Found AI workout plan, fetching exercises");
+        const aiPlanId = aiWorkoutPlans[0].id;
+        
+        // Use the workout plan mapper to fetch or map exercises
+        const mappedExercises = await getWorkoutPlanExercises(aiPlanId);
+        
+        if (mappedExercises && mappedExercises.length > 0) {
+          console.log("Successfully fetched mapped exercises:", mappedExercises.length);
+          
+          // Process exercises to ensure they have required properties
+          const processedExercises = mappedExercises.map(ex => ({
+            ...ex,
+            exercise: {
+              ...ex.exercise,
+              equipment_required: ex.exercise?.equipment_required || null
+            }
+          })) as WorkoutExerciseDetail[];
+          
+          setTodayExercises(processedExercises);
+          setIsLoading(false);
+          return;
+        } else {
+          console.log("No mapped exercises found, falling back to user workouts");
+        }
+      }
+      
       // Get today's day of week (0-6, where 0 is Sunday)
       const today = new Date().getDay();
       
-      // First try to get user's custom workout for today
+      // Try to get user's custom workout for today
       const { data: userWorkouts, error: userWorkoutError } = await supabase
         .from('workouts')
         .select('*')
@@ -75,14 +116,16 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
         
         setTodayExercises(processedExercises);
       } else {
-        // Fetch default exercises based on the user's fitness goal
+        // Fetch default exercises based on the user's fitness goal and workout focus
         const { data: profile, error: profileError } = await supabase
           .from('user_profiles')
           .select('fitness_goal')
           .eq('id', userId)
           .single();
           
-        if (profileError) throw profileError;        // Determine appropriate muscle groups based on workout focus
+        if (profileError) throw profileError;
+        
+        // Determine appropriate muscle groups based on workout focus
         let muscleGroups: string[] = [];
         const focusLower = todayWorkout.title.toLowerCase();
         
