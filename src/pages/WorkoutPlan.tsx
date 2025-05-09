@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import WorkoutPlanHeader from "@/components/workout/WorkoutPlanHeader";
@@ -11,12 +10,13 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { TodayWorkoutProps, WorkoutDay, WorkoutExercise, UserWorkout, WorkoutPlan as WorkoutPlanType } from "@/components/workout/types";
-import { Activity, Calendar, RefreshCw } from "lucide-react";
+import { Activity, Calendar, RefreshCw, Bug } from "lucide-react";
 import { generatePersonalizedWorkoutPlan, fetchUserWorkouts } from "@/services/workoutService";
 import { regenerateWorkoutPlan } from "@/integrations/ai/workoutAIService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
+import AIWorkoutDebugger from "@/components/debug/AIWorkoutDebugger";
 
 const WorkoutPlan: React.FC = () => {
   const { user, profile } = useAuth();
@@ -327,6 +327,18 @@ const WorkoutPlan: React.FC = () => {
         onDeleteWorkout={handleDeleteWorkout}
         onWorkoutCreated={handleWorkoutCreated}
       />
+      
+      {/* Add AI Workout Debugger in development mode */}
+      {import.meta.env.DEV && (
+        <div className="mt-8 border-t pt-8">
+          <div className="flex items-center mb-4">
+            <Bug className="mr-2 h-5 w-5" />
+            <h2 className="text-xl font-semibold">AI Workout Plan Debugger</h2>
+          </div>
+          <p className="text-gray-500 mb-4">This debugger helps diagnose issues with AI workout plan generation.</p>
+          <AIWorkoutDebugger />
+        </div>
+      )}
     </DashboardLayout>
   );
 };

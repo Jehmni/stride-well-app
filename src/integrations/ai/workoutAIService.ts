@@ -56,34 +56,56 @@ interface UserFitnessInfo {
  * @returns AI-generated workout plan
  */
 export const generateAIWorkoutPlan = async (userProfile: UserProfile): Promise<WorkoutPlan | null> => {
-  try {    // Get AI configuration
+  try {
+    console.log("========== AI WORKOUT PLAN GENERATION STARTED ==========");
+    console.log(`Generating workout plan for user: ${userProfile.id}`);
+    console.log(`Fitness goal: ${userProfile.fitness_goal}`);
+    
+    // Get AI configuration
     const aiConfig = await getAIConfig('openai');
     const openAIClient = createOpenAIClient(aiConfig);
     
     // Log AI status - we'll continue with mock data even if API key is not available
     if (!aiConfig || !aiConfig.api_key || !aiConfig.is_enabled) {
-      console.warn("AI service not fully configured. Using mock workout data.");
+      console.warn("⚠️ AI service not fully configured. Using mock workout data instead.");
+      console.log("AI Config Status:", {
+        configExists: !!aiConfig,
+        apiKeyExists: !!(aiConfig && aiConfig.api_key),
+        isEnabled: !!(aiConfig && aiConfig.is_enabled)
+      });
+    } else {
+      console.log("✓ AI service properly configured with valid API key");
     }
 
     // Fetch available exercises from the database
     const availableExercises = await fetchAvailableExercises();
     if (!availableExercises) {
-      console.error("Failed to fetch exercises for AI workout plan");
+      console.error("❌ Failed to fetch exercises for AI workout plan");
       return null;
     }
+    console.log(`✓ Successfully fetched ${availableExercises.length} exercises from database`);
 
     // Prepare user info for the prompt
     const userInfo = createUserInfoFromProfile(userProfile);
+    console.log("✓ User info prepared for AI prompt");
 
     // Create the workout plan
+    console.log("Generating workout plan using AI...");
     const workoutPlan = await createAIWorkoutPlan(openAIClient, userInfo, availableExercises);
     if (!workoutPlan) {
-      console.error("Failed to generate AI workout plan");
+      console.error("❌ Failed to generate AI workout plan");
       return null;
     }
+    console.log("✓ AI workout plan successfully generated!");
+    console.log("Plan Title:", workoutPlan.title);
+    console.log("Exercise Count:", workoutPlan.exercises ? workoutPlan.exercises.length : 0);
 
     // Store the AI-generated plan in the database
-    return await saveAIWorkoutPlan(workoutPlan, userProfile);
+    console.log("Saving AI workout plan to database...");
+    const savedPlan = await saveAIWorkoutPlan(workoutPlan, userProfile);
+    console.log("✓ AI workout plan saved with ID:", savedPlan?.id);
+    console.log("========== AI WORKOUT PLAN GENERATION COMPLETED ==========");
+    return savedPlan;
   } catch (error) {
     console.error("Error generating AI workout plan:", error);
     return null;
@@ -174,9 +196,25 @@ async function saveAIWorkoutPlan(
   userProfile: UserProfile
 ): Promise<WorkoutPlan | null> {
   try {
+    console.log("========== SAVING AI WORKOUT PLAN ==========");
+    console.log(`Processing AI workout plan for user: ${userProfile.id}`);
+    
     // Process exercises to match our workout plan format
-    const processedExercises = await processExercises(aiWorkoutPlan.exercises, await fetchAvailableExercises() || []);    // Create workout plan object
+    console.log("Fetching available exercises for processing...");
+    const availableExercises = await fetchAvailableExercises();
+    if (!availableExercises) {
+      console.error("❌ Failed to fetch exercises for workout plan processing");
+      return null;
+    }
+    console.log(`✓ Fetched ${availableExercises.length} exercises for matching`);
+    
+    console.log(`Processing ${aiWorkoutPlan.exercises ? aiWorkoutPlan.exercises.length : 0} AI-suggested exercises...`);
+    const processedExercises = await processExercises(aiWorkoutPlan.exercises, availableExercises);
+    console.log(`✓ Successfully processed ${processedExercises.length} exercises`);
+    
+    // Create workout plan object
     // Ensure weekly structure has the right format
+    console.log("Processing weekly workout structure...");
     const weeklyStructure = Array.isArray(aiWorkoutPlan.weekly_structure) ? 
       aiWorkoutPlan.weekly_structure.map(day => ({
         day: day.day || "Unknown",
@@ -184,6 +222,7 @@ async function saveAIWorkoutPlan(
         duration: typeof day.duration === 'number' ? day.duration : 30
       })) : 
       generateDefaultWeeklyStructure(userProfile.fitness_goal);
+    console.log("✓ Weekly structure processed with", weeklyStructure.length, "days");
 
     const processedPlan: Omit<WorkoutPlan, "id"> = {
       title: aiWorkoutPlan.title || getPlanTitleFallback(userProfile.fitness_goal),
@@ -193,8 +232,10 @@ async function saveAIWorkoutPlan(
       exercises: processedExercises,
       ai_generated: true
     };
+    console.log("✓ Workout plan prepared:", processedPlan.title);
 
     // Store in database
+    console.log("Inserting AI workout plan into database...");
     const { data: insertedPlan, error } = await supabase
       .from('workout_plans')
       .insert({
@@ -211,10 +252,13 @@ async function saveAIWorkoutPlan(
       .single();
 
     if (error) {
-      console.error("Error storing AI-generated plan:", error);
+      console.error("❌ Error storing AI-generated plan:", error);
       return processedPlan as WorkoutPlan;
     }
 
+    console.log(`✓ AI workout plan saved successfully with ID: ${insertedPlan.id}`);
+    console.log("========== AI WORKOUT PLAN SAVED ==========");
+    
     return {
       ...processedPlan,
       id: insertedPlan.id

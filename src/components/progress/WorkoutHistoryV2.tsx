@@ -67,8 +67,8 @@ const WorkoutHistoryV2: React.FC = () => {
               )
             )
           )
-        `)
-        .eq("user_id", user.id)
+        `)        .eq("user_id", user.id)
+        .eq("workout_type", "completed") // Ensure we only get completed workouts 
         .order("completed_at", { ascending: false })
         .limit(20);
         
