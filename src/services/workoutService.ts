@@ -13,21 +13,23 @@ import { generateAIWorkoutPlan } from '@/integrations/ai/workoutAIService';
  */
 export const generatePersonalizedWorkoutPlan = async (
   userProfile: UserProfile
-): Promise<WorkoutPlan | null> => {
-  try {
+): Promise<WorkoutPlan | null> => {  try {
     // First, check for existing plans in the database
     const existingPlan = await getExistingWorkoutPlan(userProfile);
     if (existingPlan) {
+      console.log("Using existing workout plan from the database");
       return existingPlan;
     }
 
     // Try AI-based generation first
+    console.log("Attempting to generate AI workout plan");
     const aiPlan = await generateAIWorkoutPlan(userProfile);
     if (aiPlan) {
-      console.log("Using AI-generated workout plan");
+      console.log("Successfully generated AI workout plan");
       return aiPlan;
     }
     
+    console.log("AI generation failed, falling back to rule-based generation");
     // Fallback to rule-based generation
     console.log("AI generation unavailable, falling back to rule-based workout generation");
     const plan = await generateRuleBasedWorkoutPlanInternal(

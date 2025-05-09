@@ -7,7 +7,7 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import WorkoutHistory from "@/components/progress/WorkoutHistory";
+import WorkoutHistoryV2 from "@/components/progress/WorkoutHistoryV2";
 import WorkoutStatistics from "@/components/workout/WorkoutStatistics";
 import ExerciseDashboard from "@/components/workout/ExerciseDashboard";
 import { useAuth } from "@/hooks/useAuth";
@@ -120,7 +120,7 @@ const Progress: React.FC = () => {
         </TabsList>
         
         <TabsContent value="workouts">
-          <WorkoutHistory />
+          <WorkoutHistoryV2 />
         </TabsContent>
         
         <TabsContent value="exercises">

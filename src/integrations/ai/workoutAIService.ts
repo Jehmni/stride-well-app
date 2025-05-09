@@ -56,15 +56,13 @@ interface UserFitnessInfo {
  * @returns AI-generated workout plan
  */
 export const generateAIWorkoutPlan = async (userProfile: UserProfile): Promise<WorkoutPlan | null> => {
-  try {
-    // Get AI configuration
+  try {    // Get AI configuration
     const aiConfig = await getAIConfig('openai');
     const openAIClient = createOpenAIClient(aiConfig);
     
-    // Check if AI is configured and enabled
-    if (!openAIClient) {
-      console.warn("AI service not configured or disabled. Falling back to rule-based workout generation.");
-      return null;
+    // Log AI status - we'll continue with mock data even if API key is not available
+    if (!aiConfig || !aiConfig.api_key || !aiConfig.is_enabled) {
+      console.warn("AI service not fully configured. Using mock workout data.");
     }
 
     // Fetch available exercises from the database

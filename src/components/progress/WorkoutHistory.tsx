@@ -1,14 +1,10 @@
 // filepath: c:\Users\ofone\Documents\JEHMNi\Portfolio\stride-well-app\src\components\progress\WorkoutHistory.tsx
 import React, { useState, useEffect } from "react";
-import { Calendar, Award, Clock, Dumbbell, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Dumbbell } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { WorkoutLog, Workout, WorkoutExercise, SelectQueryError } from "@/models/models";
-import { format, parseISO, subDays } from "date-fns";
+import WorkoutLogCard, { ExtendedWorkoutLog } from "@/components/workout/WorkoutLogCard";
 
 // Define the completed exercise type
 interface CompletedExercise {
@@ -56,14 +52,17 @@ const WorkoutHistory: React.FC = () => {
   const [workoutLogs, setWorkoutLogs] = useState<ExtendedWorkoutLog[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
+  const [diagnosticData, setDiagnosticData] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchWorkoutLogs = async () => {
-      if (!user?.id) return;
+  // Function to fetch workout logs
+  const fetchWorkoutLogs = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setIsLoading(true);
+      console.log("Fetching workout logs for user:", user.id);
       
-      try {
-        setIsLoading(true);
-        // Fetch workout logs for the user
+      // Fetch workout logs for the user
         const { data: rawWorkoutsData, error: workoutsError } = await supabase
           .from("workout_logs")
           .select(`
@@ -195,6 +194,28 @@ const WorkoutHistory: React.FC = () => {
   const toggleExpand = (logId: string) => {
     setExpandedLog(expandedLog === logId ? null : logId);
   };
+  
+  const runDiagnostics = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Import the diagnostic tool (dynamic import to avoid loading unless needed)
+      const diagnosticModule = await import('@/utils/diagnosticTools');
+      
+      // Run diagnostics
+      const results = await diagnosticModule.diagnoseWorkoutLogs(user.id);
+      setDiagnosticData(results);
+      
+      // Refresh the data (this will re-run the useEffect)
+      setIsLoading(true); // Force a refresh
+    } catch (error) {
+      console.error("Error running diagnostics:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Format the date to a more readable form
   const formatDate = (dateString: string) => {
@@ -308,10 +329,32 @@ const WorkoutHistory: React.FC = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-2xl font-semibold">Workout History</h3>
-        <Button variant="outline" size="sm">
-          Export Data
-        </Button>
+        <div className="flex space-x-2">
+          {import.meta.env.DEV && (
+            <Button variant="outline" size="sm" onClick={runDiagnostics}>
+              Debug
+            </Button>
+          )}
+          <Button variant="outline" size="sm">
+            Export Data
+          </Button>
+        </div>
       </div>
+      
+      {/* Diagnostic output for debugging */}
+      {diagnosticData && import.meta.env.DEV && (
+        <div className="bg-muted p-4 rounded-md mb-4 text-xs overflow-auto max-h-60">
+          <pre className="whitespace-pre-wrap">{diagnosticData}</pre>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="mt-2" 
+            onClick={() => setDiagnosticData(null)}
+          >
+            Hide
+          </Button>
+        </div>
+      )}
 
       {workoutLogs.map((log) => (
         <Card key={log.id} className="overflow-hidden">

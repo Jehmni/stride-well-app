@@ -41,13 +41,26 @@ export class OpenAIClient {
   /**
    * Create a mock response when API key is not available
    * @returns A simulated OpenAI API response
-   */
-  private createMockResponse(): OpenAIResponse {
+   */  private createMockResponse(): OpenAIResponse {
     // Default to general fitness if no user info is available
     const fitnessGoal = this.userInfo?.fitness_goal || 'general-fitness';
     
     // Get mock workout data based on the fitness goal
     const mockData = getMockWorkoutData(fitnessGoal);
+    
+    // Format as if it was an OpenAI response
+    return {
+      id: `mock-${Date.now()}`,
+      choices: [
+        {
+          message: {
+            content: JSON.stringify(mockData),
+            role: 'assistant'
+          },
+          finish_reason: 'stop'
+        }
+      ]
+    };
     
     // Create a response in the format expected from OpenAI
     return {
@@ -123,11 +136,20 @@ export class OpenAIClient {
 /**
  * Create an OpenAI client from AI configuration
  * @param config The AI configuration object
- * @returns An OpenAI client instance or null if invalid config
+ * @returns An OpenAI client instance (always returns a client, even with mock data)
  */
-export const createOpenAIClient = (config: AIConfig | null): OpenAIClient | null => {
-  if (!config || !config.api_key || !config.is_enabled) {
-    return null;
+export const createOpenAIClient = (config: AIConfig | null): OpenAIClient => {
+  // If config is null or api_key is missing, create a default config for mock responses
+  if (!config || !config.api_key) {
+    const mockConfig: AIConfig = {
+      service_name: 'openai',
+      api_key: 'sk-example-api-key-for-testing',
+      api_endpoint: 'https://api.openai.com/v1/chat/completions',
+      model_name: 'gpt-4o',
+      is_enabled: true
+    };
+    console.log("Using mock OpenAI client due to missing configuration");
+    return new OpenAIClient(mockConfig);
   }
   
   return new OpenAIClient(config);
