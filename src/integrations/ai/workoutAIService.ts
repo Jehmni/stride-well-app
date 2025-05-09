@@ -142,6 +142,11 @@ async function createAIWorkoutPlan(
     // Create prompt for AI
     const prompt = createWorkoutPrompt(userInfo, availableExercises);
     
+    // Set user info in client for mock responses if needed
+    if (openAIClient.setUserInfo) {
+      openAIClient.setUserInfo(userInfo);
+    }
+    
     // Call OpenAI API with system prompt and user prompt
     const systemPrompt = "You are a certified personal trainer and exercise physiologist specializing in creating personalized workout plans. Provide scientifically-backed workout recommendations tailored to the user's profile and goals.";
     

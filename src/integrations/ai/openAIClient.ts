@@ -17,15 +17,51 @@ interface OpenAIResponse {
 /**
  * OpenAI API client for making AI requests
  */
+import { getMockWorkoutData } from "./mockWorkoutData";
+
 export class OpenAIClient {
   private apiEndpoint: string;
   private apiKey: string;
   private model: string;
+  private userInfo: any = null; // Store user info for mock responses
 
   constructor(config: AIConfig) {
     this.apiEndpoint = config.api_endpoint;
     this.apiKey = config.api_key || '';
     this.model = config.model_name;
+  }
+  
+  /**
+   * Set user info for generating appropriate mock responses
+   */
+  setUserInfo(userInfo: any) {
+    this.userInfo = userInfo;
+  }
+  
+  /**
+   * Create a mock response when API key is not available
+   * @returns A simulated OpenAI API response
+   */
+  private createMockResponse(): OpenAIResponse {
+    // Default to general fitness if no user info is available
+    const fitnessGoal = this.userInfo?.fitness_goal || 'general-fitness';
+    
+    // Get mock workout data based on the fitness goal
+    const mockData = getMockWorkoutData(fitnessGoal);
+    
+    // Create a response in the format expected from OpenAI
+    return {
+      id: `mock-${Date.now()}`,
+      choices: [
+        {
+          message: {
+            content: JSON.stringify(mockData),
+            role: "assistant"
+          },
+          finish_reason: "stop"
+        }
+      ]
+    };
   }
 
   /**
@@ -34,17 +70,16 @@ export class OpenAIClient {
    * @param userPrompt The user prompt containing the specific request
    * @param temperature Temperature setting for creativity (0-1)
    * @returns The API response or null if failed
-   */
-  async createChatCompletion(
+   */  async createChatCompletion(
     systemPrompt: string,
     userPrompt: string,
     temperature: number = 0.7
   ): Promise<OpenAIResponse | null> {
     try {
       // Validate API key
-      if (!this.apiKey) {
-        console.error("OpenAI API key is missing");
-        return null;
+      if (!this.apiKey || this.apiKey === 'sk-example-api-key-for-testing') {
+        console.warn("OpenAI API key is missing or using test key. Returning mock response.");
+        return this.createMockResponse();
       }
 
       // Make the API request
