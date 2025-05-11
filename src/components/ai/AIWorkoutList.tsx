@@ -4,7 +4,7 @@ import { getAIWorkoutPlans, generateAIWorkout } from "@/services/aiWorkoutServic
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Brain, Calendar, ChevronDown, ChevronRight, Dumbbell } from "lucide-react";
+import { Brain, Calendar, ChevronDown, ChevronRight, Dumbbell, Play } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -20,8 +20,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
 
 type AIWorkoutPlan = {
   id: string;
@@ -37,6 +38,7 @@ type AIWorkoutPlan = {
 export function AIWorkoutList() {
   const { user, profile } = useAuth();
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const { data: workoutPlans, isLoading, refetch } = useQuery({
     queryKey: ["aiWorkoutPlans", user?.id],
@@ -66,6 +68,11 @@ export function AIWorkoutList() {
 
   const toggleExpand = (id: string) => {
     setExpandedPlan(expandedPlan === id ? null : id);
+  };
+
+  const startWorkout = (planId: string) => {
+    // Navigate to workout detail page
+    navigate(`/workouts/ai/${planId}`);
   };
 
   if (isLoading) {
@@ -168,86 +175,97 @@ export function AIWorkoutList() {
             </CardHeader>
 
             {expandedPlan === plan.id && (
-              <CardContent>
-                <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="schedule">
-                    <AccordionTrigger>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        Weekly Schedule
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="grid gap-2">
-                        {Object.entries(plan.weekly_structure?.days || {}).map(
-                          ([day, dayData]: [string, any]) => (
-                            <div
-                              key={day}
-                              className="border rounded-md p-3 bg-card"
-                            >
-                              <div className="font-medium capitalize">
-                                {day}: {dayData.name}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {dayData.description}
-                              </div>
-                              <div className="mt-1 text-xs bg-primary/10 text-primary inline-block px-2 py-0.5 rounded-full">
-                                {dayData.focus}
-                              </div>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="exercises">
-                    <AccordionTrigger>
-                      <div className="flex items-center gap-2">
-                        <Dumbbell className="h-4 w-4" />
-                        Exercises
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      {plan.exercises?.map((dayExercises: any) => (
-                        <div key={dayExercises.day} className="mb-4">
-                          <h4 className="font-medium capitalize mb-2">
-                            {dayExercises.day}
-                          </h4>
-                          <div className="rounded-md border">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Exercise</TableHead>
-                                  <TableHead>Muscle Group</TableHead>
-                                  <TableHead>Sets</TableHead>
-                                  <TableHead>Reps</TableHead>
-                                  <TableHead>Rest</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {dayExercises.exercises.map(
-                                  (exercise: any, index: number) => (
-                                    <TableRow key={index}>
-                                      <TableCell className="font-medium">
-                                        {exercise.name}
-                                      </TableCell>
-                                      <TableCell>{exercise.muscle_group}</TableCell>
-                                      <TableCell>{exercise.sets}</TableCell>
-                                      <TableCell>{exercise.reps}</TableCell>
-                                      <TableCell>{exercise.rest_time}s</TableCell>
-                                    </TableRow>
-                                  )
-                                )}
-                              </TableBody>
-                            </Table>
-                          </div>
+              <>
+                <CardContent>
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="schedule">
+                      <AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          Weekly Schedule
                         </div>
-                      ))}
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </CardContent>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="grid gap-2">
+                          {Object.entries(plan.weekly_structure?.days || {}).map(
+                            ([day, dayData]: [string, any]) => (
+                              <div
+                                key={day}
+                                className="border rounded-md p-3 bg-card"
+                              >
+                                <div className="font-medium capitalize">
+                                  {day}: {dayData.name}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {dayData.description}
+                                </div>
+                                <div className="mt-1 text-xs bg-primary/10 text-primary inline-block px-2 py-0.5 rounded-full">
+                                  {dayData.focus}
+                                </div>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="exercises">
+                      <AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                          <Dumbbell className="h-4 w-4" />
+                          Exercises
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        {plan.exercises?.map((dayExercises: any) => (
+                          <div key={dayExercises.day} className="mb-4">
+                            <h4 className="font-medium capitalize mb-2">
+                              {dayExercises.day}
+                            </h4>
+                            <div className="rounded-md border">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Exercise</TableHead>
+                                    <TableHead>Muscle Group</TableHead>
+                                    <TableHead>Sets</TableHead>
+                                    <TableHead>Reps</TableHead>
+                                    <TableHead>Rest</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {dayExercises.exercises.map(
+                                    (exercise: any, index: number) => (
+                                      <TableRow key={index}>
+                                        <TableCell className="font-medium">
+                                          {exercise.name}
+                                        </TableCell>
+                                        <TableCell>{exercise.muscle_group}</TableCell>
+                                        <TableCell>{exercise.sets}</TableCell>
+                                        <TableCell>{exercise.reps}</TableCell>
+                                        <TableCell>{exercise.rest_time}s</TableCell>
+                                      </TableRow>
+                                    )
+                                  )}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        ))}
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    className="w-full flex items-center gap-2 mt-2"
+                    onClick={() => startWorkout(plan.id)}
+                  >
+                    <Play className="h-4 w-4" />
+                    Start Workout
+                  </Button>
+                </CardFooter>
+              </>
             )}
           </Card>
         ))}
