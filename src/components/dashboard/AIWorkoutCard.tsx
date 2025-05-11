@@ -51,13 +51,11 @@ const AIWorkoutCard: React.FC<AIWorkoutCardProps> = ({ userId }) => {
   };
   
   const handleCreateWorkout = () => {
-    navigate('/create-workout?type=ai');
+    navigate('/ai-workouts');
   };
   
   const handleContinueWorkout = () => {
-    if (latestWorkout?.id) {
-      navigate(`/workout-plan/${latestWorkout.id}`);
-    }
+    navigate('/ai-workouts');
   };
   
   const getRelativeTime = (dateString: string) => {
@@ -119,25 +117,14 @@ const AIWorkoutCard: React.FC<AIWorkoutCardProps> = ({ userId }) => {
       
       <CardFooter className="flex justify-end pt-2">
         {latestWorkout ? (
-          <div className="flex space-x-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleCreateWorkout}
-              className="gap-1"
-            >
-              <Plus className="h-4 w-4" />
-              New
-            </Button>
-            <Button 
-              size="sm" 
-              onClick={handleContinueWorkout}
-              className="gap-1"
-            >
-              Continue
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button 
+            size="sm" 
+            onClick={handleContinueWorkout}
+            className="gap-1"
+          >
+            View AI Workouts
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         ) : (
           <Button 
             onClick={handleCreateWorkout}

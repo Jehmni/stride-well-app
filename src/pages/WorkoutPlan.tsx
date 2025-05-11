@@ -10,13 +10,14 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { TodayWorkoutProps, WorkoutDay, WorkoutExercise, UserWorkout, WorkoutPlan as WorkoutPlanType } from "@/components/workout/types";
-import { Activity, Calendar, RefreshCw, Bug } from "lucide-react";
+import { Activity, Calendar, RefreshCw, Bug, Brain } from "lucide-react";
 import { generatePersonalizedWorkoutPlan, fetchUserWorkouts } from "@/services/workoutService";
 import { regenerateWorkoutPlan } from "@/integrations/ai/workoutAIService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import AIWorkoutDebugger from "@/components/debug/AIWorkoutDebugger";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const WorkoutPlan: React.FC = () => {
   const { user, profile } = useAuth();
@@ -225,13 +226,37 @@ const WorkoutPlan: React.FC = () => {
   };
   return (
     <DashboardLayout title="Workout Plan">
+      {/* AI Workout Link Card */}
+      <Card className="mb-6 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2">
+            <Brain className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            AI-Powered Workouts
+          </CardTitle>
+          <CardDescription>
+            Generate and manage AI custom workouts for your specific needs
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button 
+            variant="default" 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => navigate('/ai-workouts')}
+          >
+            <Brain className="w-4 h-4 mr-2" /> View AI Workouts
+          </Button>
+        </CardContent>
+      </Card>
+      
       {/* AI Workout Generation Notice */}
       {isGeneratingAIPlan && (
         <AIGeneratedNotice 
           title="Creating your AI workout plan" 
           isGenerating={true} 
         />
-      )}      {/* Regeneration Progress UI */}
+      )}
+      
+      {/* Regeneration Progress UI */}
       {isRegenerating && (
         <AIGeneratedNotice
           title="Regenerating Your Workout Plan"

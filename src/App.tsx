@@ -25,6 +25,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Friends = lazy(() => import("./pages/Friends"));
 const Challenges = lazy(() => import("./pages/Challenges"));
+const AIWorkoutsPage = lazy(() => import("./pages/ai/AIWorkoutsPage"));
 
 const queryClient = new QueryClient();
 
@@ -87,6 +88,14 @@ function App() {
                   element={
                     <ProtectedRoute requiresOnboarding={true}>
                       <WorkoutPlan />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/ai-workouts" 
+                  element={
+                    <ProtectedRoute requiresOnboarding={true}>
+                      <AIWorkoutsPage />
                     </ProtectedRoute>
                   } 
                 />

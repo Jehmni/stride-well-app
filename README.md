@@ -1,282 +1,71 @@
-# CorePilot Fitness App
+# CorePilot - AI-Powered Fitness Trainer
 
-A personalized fitness app that provides customized workout routines, nutrition plans, and progress tracking based on your fitness goals.
-
-**URL**: https://lovable.dev/projects/e1eae57c-3fcc-4296-80c6-882abfb74efc
+CorePilot is a comprehensive fitness application that provides personalized workout routines and meal plans based on your specific fitness goals and profile.
 
 ## Features
 
-- **Personalized Fitness Plans**: Customized workout routines based on your fitness level, goals, and available equipment.
-- **Nutrition Guidelines**: Tailored meal plans and nutritional advice to fuel your workouts and reach your goals faster.
-- **Progress Tracking**: Monitor your growth and achievements with visual charts and insightful analytics.
-- **User Authentication**: Secure login system to keep your fitness data safe and accessible.
-- **User Profile Management**: Update your personal information and fitness goals at any time.
+- **Personalized Workout Plans**: Get customized workout routines based on your fitness goals, experience level, and personal preferences.
+- **AI-Generated Workouts**: Generate specialized workout plans using OpenAI GPT.
+- **Progress Tracking**: Monitor your fitness journey with detailed statistics and visual charts.
+- **Meal Planning**: Access tailored nutrition plans and recipes to support your fitness goals.
+- **Social Features**: Connect with friends, share workouts, and participate in challenges.
 
-## Tech Stack
-
-- React with TypeScript
-- Vite for development
-- Tailwind CSS for styling
-- shadcn/ui component library
-- Supabase for authentication and database (web-hosted instance)
-
-## Important Note About Supabase
-
-This application uses a web-hosted Supabase instance at `japrzutwtqotzyudnizh.supabase.co`, not a local Supabase instance. All database operations, RPC functions, and authentication requests are sent to this web-hosted instance. Do not attempt to use local Supabase settings as this will cause the application to fail.
-- React Query for data fetching
-- React Router for navigation
-- Recharts for data visualization
-
-## Setup Instructions
+## Getting Started
 
 ### Prerequisites
 
-- Node.js & npm - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-- Supabase account - [create here](https://supabase.com/)
+- Node.js (v16 or higher)
+- npm or yarn
+- A Supabase account
 
-### Supabase Storage Configuration
+### Installation
 
-To enable profile pictures uploads, you need to configure Supabase storage policies:
-
-#### Automatic Setup (Recommended)
-
-1. Set the following environment variables:
+1. Clone the repository:
    ```
-   SUPABASE_URL=your-supabase-url
-   SUPABASE_SERVICE_KEY=your-service-role-key
-   ```
-   
-2. Run the storage setup script:
-   ```bash
-   npx tsx src/utils/setupStorage.ts
+   git clone https://github.com/your-username/corepilot.git
+   cd corepilot
    ```
 
-#### Manual Setup
-
-If you prefer to configure storage manually, follow these steps in your Supabase dashboard:
-
-1. **Create Storage Bucket**:
-   - Go to Storage > Buckets > Create Bucket
-   - Name: `profiles`
-   - Make it public: Yes
-   - File size limit: 5MB
-
-2. **Add Storage Policies**:
-   - Go to Storage > Policies
-   - Add these policies for the `profiles` bucket:
-   
-   a. **Public Read Access**:
-   ```sql
-   -- Allow public access to avatars
-   CREATE POLICY "Avatars are publicly accessible"
-   ON storage.objects FOR SELECT
-   USING (bucket_id = 'profiles');
+2. Install dependencies:
    ```
-   
-   b. **User Upload Access**:
-   ```sql
-   -- Allow authenticated users to upload avatars
-   CREATE POLICY "Users can upload their own avatars"
-   ON storage.objects FOR INSERT
-   WITH CHECK (
-     bucket_id = 'profiles' 
-     AND auth.uid() IS NOT NULL
-     AND (storage.foldername(name))[1] = 'avatars'
-     AND position(auth.uid()::text in name) > 0
-   );
-   ```
-   
-   c. **User Update Access**:
-   ```sql
-   -- Allow users to update their own avatars
-   CREATE POLICY "Users can update their own avatars"
-   ON storage.objects FOR UPDATE
-   USING (
-     bucket_id = 'profiles'
-     AND auth.uid() IS NOT NULL
-     AND position(auth.uid()::text in name) > 0
-   );
-   ```
-   
-   d. **User Delete Access**:
-   ```sql
-   -- Allow users to delete their own avatars
-   CREATE POLICY "Users can delete their own avatars"
-   ON storage.objects FOR DELETE
-   USING (
-     bucket_id = 'profiles'
-     AND auth.uid() IS NOT NULL
-     AND position(auth.uid()::text in name) > 0
-   );
+   npm install
    ```
 
-3. **Update User Profile Schema**:
-   - Go to the SQL Editor and run:
-   ```sql
-   -- Add avatar_url column to user_profiles table
-   ALTER TABLE public.user_profiles
-   ADD COLUMN IF NOT EXISTS avatar_url TEXT;
-   
-   -- Add policy for user profiles to allow updates
-   CREATE POLICY "Users can update their own profile"
-   ON public.user_profiles
-   FOR UPDATE
-   USING (auth.uid() = id);
+3. Set up environment variables:
+   Create a `.env` file in the root directory with the following content:
+   ```
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
 
-### Step 1: Clone the Repository
+4. Configure OpenAI API:
+   - Sign up for an OpenAI API key at https://platform.openai.com
+   - Log into the app and go to the AI Configuration section
+   - Enter your OpenAI API key in the settings
 
-```sh
-git clone <YOUR_GIT_URL>
-cd <YOUR_PROJECT_NAME>
+### Running the Application
+
+Start the development server:
 ```
-
-### Step 2: Install Dependencies
-
-```sh
-npm install
-```
-
-### Step 3: Set Up Supabase
-
-1. Create a new Supabase project from the [Supabase Dashboard](https://app.supabase.com/)
-2. Go to Project Settings > API and copy the Project URL and anon public API key
-3. Create a `.env` file in the root directory with the following variables:
-
-```
-VITE_SUPABASE_URL=your-supabase-project-url
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-```
-
-4. Run the database migrations to set up the schema:
-
-```sh
-npm install -g supabase
-supabase login
-supabase link --project-ref your-project-ref
-supabase db push
-```
-
-### Step 4: Start the Development Server
-
-```sh
 npm run dev
 ```
 
-The app will be available at http://localhost:5173
+## Using AI-Generated Workouts
 
-## Database Structure
+1. Navigate to the "AI Workouts" page using the sidebar menu
+2. Click on "Generate New Plan" button
+3. Your personalized workout plan will be created based on your profile data
+4. View and expand the workout details
+5. Use your generated workout plan in your regular exercise routine
 
-The app uses the following tables in Supabase:
+## Troubleshooting
 
-- `user_profiles`: Stores user information and fitness goals
-- `workout_plans`: Contains workout plan templates for different fitness goals
-- `meal_plans`: Contains meal plan templates for different fitness goals
-- `user_meal_plans`: Stores user-saved meal plans
-- `completed_workouts`: Tracks completed workout sessions
-- `weight_records`: Tracks user weight over time
-- `strength_records`: Tracks strength progress for various exercises
-- `body_measurements`: Stores body measurement data
-- `meal_logs`: Tracks meals consumed by users
+If AI workouts are not appearing or generating:
 
-## Authentication Flow
-
-The app uses Supabase Auth for user authentication:
-
-1. User signs up/logs in using the login page
-2. Upon successful authentication, the user is redirected to:
-   - Onboarding page (if profile is incomplete)
-   - Dashboard (if profile is complete)
-3. The app makes authenticated API calls to Supabase using the user's session token
-
-## Development Notes
-
-### Adding New Features
-
-When adding new features:
-
-1. Create new components in the appropriate directory
-2. Update database types if necessary in `src/integrations/supabase/types.ts`
-3. Add any new API functions in hooks or within the components
-
-### Styling
-
-The app uses Tailwind CSS for styling with the shadcn/ui component library. The design system follows these conventions:
-
-- Primary color: `fitness-primary` (customized in the Tailwind config)
-- Secondary color: `fitness-secondary` (customized in the Tailwind config)
-- Accent color: `fitness-accent` (customized in the Tailwind config)
-
-## Deployment
-
-The app can be deployed using Supabase and your preferred hosting service. Follow these steps:
-
-1. Build the app for production:
-
-```sh
-npm run build
-```
-
-2. Host the output from the `dist` folder on Netlify, Vercel, or any other static hosting service.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. Ensure your OpenAI API key is correctly set in the Supabase database
+2. Verify that you have completed your user profile with all required information
+3. Check the browser console for any error messages
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/e1eae57c-3fcc-4296-80c6-882abfb74efc) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes it is!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
