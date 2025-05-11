@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import WorkoutCard from "@/components/dashboard/WorkoutCard";
 import NutritionCard from "@/components/dashboard/NutritionCard";
+import AIWorkoutCard from "@/components/dashboard/AIWorkoutCard";
 import StatsCard from "@/components/dashboard/StatsCard";
 import WorkoutStatistics from "@/components/workout/WorkoutStatistics";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,7 +13,7 @@ import { generatePersonalizedWorkoutPlan } from "@/services/workoutService";
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [selectedWorkout, setSelectedWorkout] = useState({
     title: "Personalized Workout",
     description: "Customized routine based on your fitness profile",
@@ -105,7 +106,7 @@ const Dashboard: React.FC = () => {
 
       {/* Today's Workout */}
       <h2 className="text-xl font-semibold mb-4">Today's Workout</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <WorkoutCard
           title={selectedWorkout.title}
           description={selectedWorkout.description}
@@ -129,7 +130,11 @@ const Dashboard: React.FC = () => {
           }}
           onClick={() => navigate('/meal-plan')}
         />
-      </div>      {/* Workout Progress Statistics */}
+
+        {user && <AIWorkoutCard userId={user.id} />}
+      </div>
+
+      {/* Workout Progress Statistics */}
       <div className="mb-8">
         <WorkoutStatistics onViewAllProgress={() => navigate('/progress')} />
       </div>

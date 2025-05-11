@@ -5,9 +5,13 @@ import { CheckCircle, Award, RefreshCw, Clock } from "lucide-react";
 import { WorkoutExerciseDetail } from "./types";
 import ExerciseTracker from "./ExerciseTracker";
 import { supabase } from "@/integrations/supabase/client";
-import { logExerciseCompletionRPC, syncWorkoutProgressRPC } from "@/integrations/supabase/functions";
+import { 
+  syncWorkoutProgressRPC, 
+  logWorkoutWithExercisesRPC 
+} from "@/integrations/supabase/functions";
 import { toast } from "@/components/ui/use-toast";
-import { getWorkoutPlanExercises } from "@/services/workoutPlanMapper";
+import { isValidUUID } from "@/lib/utils";
+import { ExerciseLogData } from "@/types/rpc";
 
 interface WorkoutProgressProps {
   exercises: WorkoutExerciseDetail[];
@@ -130,7 +134,8 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
       setIsSyncing(false);
     }
   };
-    // Save local progress to remote database
+  
+  // Save local progress to remote database
   const syncToRemote = async (ids: string[]) => {
     if (!userId) return;
     
@@ -142,23 +147,19 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
       const now = new Date();
       localStorage.setItem(`lastUpdated-${workoutId}`, now.toISOString());
       
-      // Use our new RPC function to sync workout progress
+      // Use our RPC function to sync workout progress
       try {
-        console.log("Syncing workout progress using RPC function with params:", {
-          user_id_param: userId,
-          workout_id_param: workoutId,
-          completed_exercises_param: ids
-        });
-        
         const response = await syncWorkoutProgressRPC({
           user_id_param: userId,
           workout_id_param: workoutId,
           completed_exercises_param: ids
         });
         
-        if (response.error) throw response.error;
+        if ('error' in response && response.error) {
+          throw response.error;
+        }
         
-        console.log("Progress synced to remote via RPC:", response.data);
+        console.log("Progress synced to remote via RPC");
       } catch (rpcError) {
         console.warn("RPC sync failed, falling back to direct insert:", rpcError);
         
@@ -236,7 +237,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
     
     try {
       setIsSaving(true);
-      console.log("Starting workout completion process");
+      console.log("Starting workout completion process for workout:", workoutId);
       
       // Calculate some basic stats based on completed exercises
       const totalDuration = Math.floor(
@@ -250,11 +251,33 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
       // Estimate calories burned (very rough formula based on duration and intensity)
       const caloriesBurned = Math.floor(totalDuration * 8 + Math.random() * 50);
       
+      // Initialize workout variables
       let actualWorkoutId = workoutId;
+      let isAIGeneratedWorkout = false;
+      let aiWorkoutPlanId: string | null = null;
       
-      // For "today-workout" or any non-UUID workoutId, create a real workout entry first
-      if (workoutId === 'today-workout' || !isValidUUID(workoutId)) {
-        console.log("Creating new workout record for temporary workout ID:", workoutId);
+      // Check if this is from an AI-generated workout plan by looking at exercises
+      if (exercises.length > 0 && exercises[0].workout_id && isValidUUID(exercises[0].workout_id)) {
+        console.log("Found workout_id from exercises:", exercises[0].workout_id);
+        actualWorkoutId = exercises[0].workout_id;
+        
+        // Check if this is an AI workout plan
+        const { data: workoutPlan } = await supabase
+          .from('workout_plans')
+          .select('id, ai_generated')
+          .eq('id', actualWorkoutId)
+          .single();
+          
+        if (workoutPlan && workoutPlan.ai_generated) {
+          console.log("Detected AI workout plan:", workoutPlan.id);
+          isAIGeneratedWorkout = true;
+          aiWorkoutPlanId = workoutPlan.id;
+        }
+      }
+      
+      // For temporary IDs like 'today-workout', create a real workout entry
+      if (actualWorkoutId === 'today-workout' || !isValidUUID(actualWorkoutId)) {
+        console.log("Creating new workout for temporary ID:", actualWorkoutId);
         
         // Create a new workout
         const { data: workoutData, error: workoutError } = await supabase
@@ -276,7 +299,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
         console.log("Created new workout with ID:", workoutData.id);
         actualWorkoutId = workoutData.id;
         
-        // Now insert the exercises into workout_exercises table
+        // Add exercises to the new workout
         for (let i = 0; i < exercises.length; i++) {
           const ex = exercises[i];
           
@@ -288,7 +311,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
                 workout_id: actualWorkoutId,
                 exercise_id: ex.exercise_id,
                 sets: ex.sets,
-                reps: ex.reps,
+                reps: typeof ex.reps === 'string' ? 10 : ex.reps, // Convert string reps to number
                 duration: ex.duration,
                 rest_time: ex.rest_time,
                 order_position: i,
@@ -302,84 +325,81 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
           }
         }
       }
-        // Insert into workout_logs table
-      const { data: logData, error: logError } = await supabase
-        .from('workout_logs')
-        .insert({
-          user_id: userId,
-          workout_id: actualWorkoutId,
-          completed_at: new Date().toISOString(),
-          duration: totalDuration,
-          calories_burned: caloriesBurned,
-          workout_type: 'completed', // Mark as completed
-          is_custom: false, // Ensure it's not marked as custom
-          workout_name: exercises[0]?.exercise?.name ? `${exercises[0]?.exercise?.name} Workout` : 'Completed Workout'
-        })
-        .select('id');
-        
-      if (logError) {
-        throw logError;
-      }
       
-      console.log("Workout log created:", logData);
+      // Prepare exercise data for the optimized RPC call
+      const exerciseData: ExerciseLogData[] = exercises
+        .filter(ex => ex.exercise_id && !ex.exercise_id.startsWith('default-')) // Filter out temporary IDs
+        .map(ex => ({
+          exercise_id: ex.exercise_id,
+          sets_completed: ex.sets,
+          reps_completed: typeof ex.reps === 'string' ? null : ex.reps,
+          notes: ex.notes || undefined
+        }));
       
-      // Log each completed exercise
-      if (logData && logData.length > 0) {
-        const workoutLogId = logData[0].id;
-        console.log("Created workout log with ID:", workoutLogId);
+      console.log("Logging workout with all exercises in one transaction");
+      
+      let logResult: any = null;
+      
+      try {
+        // Use our optimized RPC function to log the workout and exercises in one transaction
+        const result = await logWorkoutWithExercisesRPC({
+          workout_id_param: actualWorkoutId,
+          user_id_param: userId,
+          duration_param: totalDuration,
+          calories_param: caloriesBurned,
+          exercise_data_param: exerciseData,
+          is_ai_workout_param: isAIGeneratedWorkout,
+          ai_workout_plan_id_param: aiWorkoutPlanId || undefined
+        });
         
-        // Log each exercise completion directly using the RPC function
-        for (const ex of exercises) {
-          try {
-            // Skip if exercise_id looks like a temporary ID
-            if (!ex.exercise_id || ex.exercise_id.startsWith('default-')) {
-              console.log(`Skipping temporary exercise ID: ${ex.exercise_id}`);
-              continue;
-            }
-            
-            console.log(`Logging exercise completion: Exercise ID=${ex.exercise_id}, Sets=${ex.sets}, Workout Log ID=${workoutLogId}`);
-            
-            // Try RPC function first
+        logResult = result;
+        console.log("Workout log created with ID:", typeof logResult === 'object' ? JSON.stringify(logResult) : logResult);
+      } catch (rpcError) {
+        console.error("Error with RPC function, falling back to direct inserts:", rpcError);
+        
+        // Fall back to direct insert approach
+        const { data: logData, error: logError } = await supabase
+          .from('workout_logs')
+          .insert({
+            user_id: userId,
+            workout_id: actualWorkoutId,
+            completed_at: new Date().toISOString(),
+            duration: totalDuration,
+            calories_burned: caloriesBurned,
+            workout_name: exercises[0]?.exercise?.name 
+              ? `${exercises[0]?.exercise?.name} Workout` 
+              : 'Completed Workout'
+          })
+          .select('id');
+          
+        if (logError) {
+          console.error("Error creating workout log:", logError);
+          throw logError;
+        }
+        
+        if (logData && logData.length > 0) {
+          logResult = logData[0].id;
+          console.log("Workout log created via direct insert:", logResult);
+          
+          // Fallback to logging exercises individually
+          for (const ex of exerciseData) {
             try {
-              const { data, error } = await supabase.rpc('log_exercise_completion', {
-                workout_log_id_param: workoutLogId,
-                exercise_id_param: ex.exercise_id,
-                sets_completed_param: ex.sets,
-                reps_completed_param: ex.reps || null,
-                weight_used_param: null,
-                notes_param: null
-              });
-              
-              if (error) {
-                throw error;
-              } else {
-                console.log(`Successfully logged exercise ${ex.exercise_id}:`, data);
-                continue;
+              const { error: exerciseLogError } = await supabase
+                .from('exercise_logs')
+                .insert({
+                  workout_log_id: logResult,
+                  exercise_id: ex.exercise_id,
+                  sets_completed: ex.sets_completed,
+                  reps_completed: typeof ex.reps_completed === 'string' ? null : ex.reps_completed,
+                  completed_at: new Date().toISOString()
+                });
+                
+              if (exerciseLogError) {
+                console.error(`Error logging exercise ${ex.exercise_id}:`, exerciseLogError);
               }
-            } catch (rpcError) {
-              console.warn(`RPC error, falling back to direct insert for exercise ${ex.exercise_id}:`, rpcError);
+            } catch (err) {
+              console.error(`Error in exercise logging for ${ex.exercise_id}:`, err);
             }
-            
-            // Fall back to direct insert if RPC fails
-            const { data: directData, error: directError } = await supabase
-              .from('exercise_logs')
-              .insert({
-                workout_log_id: workoutLogId,
-                exercise_id: ex.exercise_id,
-                sets_completed: ex.sets,
-                reps_completed: ex.reps || null,
-                weight_used: null,
-                completed_at: new Date().toISOString()
-              });
-              
-            if (directError) {
-              console.error(`Direct insert error for exercise ${ex.exercise_id}:`, directError);
-            } else {
-              console.log(`Successfully logged exercise ${ex.exercise_id} via direct insert`);
-            }
-          } catch (err) {
-            console.error(`Error in exercise logging for ${ex.exercise_id}:`, err);
-            // Continue with next exercise even if one fails
           }
         }
       }
@@ -423,12 +443,6 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
     } catch (error) {
       console.error("Error resetting workout progress:", error);
     }
-  };
-
-  // Helper function to validate UUID
-  const isValidUUID = (uuid: string) => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(uuid);
   };
 
   const formatLastSyncedTime = () => {

@@ -1,4 +1,3 @@
-
 import { Exercise } from "@/models/models";
 
 export interface WorkoutDay {
@@ -35,10 +34,10 @@ export interface UserWorkout {
 
 export interface WorkoutExerciseDetail {
   id: string;
-  workout_id: string;
+  workout_id?: string;
   exercise_id: string;
   sets: number;
-  reps: number | null;
+  reps: number | string | null;
   duration: number | null;
   rest_time: number;
   order_position: number;

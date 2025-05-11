@@ -15,6 +15,16 @@ interface TodayWorkoutComponentProps {
   userId: string | undefined;
 }
 
+// Define type for AI plan exercise
+interface AIPlanExercise {
+  exercise_id?: string;
+  name?: string;
+  sets?: number;
+  reps?: string;
+  rest_time?: number;
+  muscle?: string;
+}
+
 const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, userId }) => {
   const navigate = useNavigate();
   const [showTracking, setShowTracking] = useState(false);
@@ -37,7 +47,7 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
       // First check for active AI workout plan for the user
       const { data: aiWorkoutPlans, error: aiPlanError } = await supabase
         .from('workout_plans')
-        .select('id')
+        .select('*')  // Select all fields to get exercises
         .eq('user_id', userId)
         .eq('ai_generated', true)
         .order('created_at', { ascending: false })
@@ -47,31 +57,83 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
         console.error("Error fetching AI workout plans:", aiPlanError);
       }
       
-      // If AI workout plan exists, try to get its exercises using our mapper
+      // If we have an AI workout plan, extract exercises from it
       if (aiWorkoutPlans && aiWorkoutPlans.length > 0) {
-        console.log("Found AI workout plan, fetching exercises");
-        const aiPlanId = aiWorkoutPlans[0].id;
+        console.log("Found AI workout plan:", aiWorkoutPlans[0].id);
+        const aiPlan = aiWorkoutPlans[0];
         
-        // Use the workout plan mapper to fetch or map exercises
-        const mappedExercises = await getWorkoutPlanExercises(aiPlanId);
-        
-        if (mappedExercises && mappedExercises.length > 0) {
-          console.log("Successfully fetched mapped exercises:", mappedExercises.length);
+        // Check if plan contains exercises
+        if (aiPlan.exercises && Array.isArray(aiPlan.exercises)) {
+          console.log(`Found ${aiPlan.exercises.length} exercises in AI plan`);
           
-          // Process exercises to ensure they have required properties
-          const processedExercises = mappedExercises.map(ex => ({
-            ...ex,
-            exercise: {
-              ...ex.exercise,
-              equipment_required: ex.exercise?.equipment_required || null
+          // Transform exercises into the format required by WorkoutProgress
+          const exerciseDetails: WorkoutExerciseDetail[] = [];
+          
+          // Get available exercises from the database to match with plan exercises
+          const { data: dbExercises, error: exercisesError } = await supabase
+            .from('exercises')
+            .select('*');
+            
+          if (exercisesError) {
+            console.error("Error fetching exercises:", exercisesError);
+          }
+          
+          // Map AI plan exercises to exercise details
+          if (dbExercises) {
+            for (let i = 0; i < aiPlan.exercises.length; i++) {
+              // Cast the JSON exercise to our type
+              const planEx = aiPlan.exercises[i] as unknown as AIPlanExercise;
+              
+              // Find matching exercise in database
+              const dbExercise = dbExercises.find(ex => 
+                ex.id === planEx.exercise_id || 
+                (planEx.name && ex.name.toLowerCase() === planEx.name.toLowerCase())
+              );
+              
+              if (dbExercise) {
+                exerciseDetails.push({
+                  id: `ai-ex-${i}`,
+                  exercise_id: dbExercise.id,
+                  workout_id: aiPlan.id as string,
+                  exercise: dbExercise,
+                  sets: planEx.sets || 3,
+                  reps: planEx.reps || "10-12",
+                  duration: null,
+                  rest_time: planEx.rest_time || 60,
+                  notes: null,
+                  order_position: i
+                });
+              } else {
+                // If no match found, create a temporary exercise
+                exerciseDetails.push({
+                  id: `default-${i}`,
+                  exercise_id: `default-${i}`,
+                  workout_id: aiPlan.id as string,
+                  exercise: {
+                    id: `default-${i}`,
+                    name: planEx.name || `Exercise ${i+1}`,
+                    description: `${planEx.name || 'Exercise'} - ${planEx.sets || 3} sets of ${planEx.reps || '10-12'} reps`,
+                    muscle_group: planEx.muscle || "Unknown",
+                    difficulty: "Intermediate",
+                    exercise_type: "strength",
+                    equipment_required: "minimal",
+                    created_at: new Date().toISOString()
+                  },
+                  sets: planEx.sets || 3,
+                  reps: planEx.reps || "10-12",
+                  duration: null,
+                  rest_time: planEx.rest_time || 60,
+                  notes: null,
+                  order_position: i
+                });
+              }
             }
-          })) as WorkoutExerciseDetail[];
-          
-          setTodayExercises(processedExercises);
-          setIsLoading(false);
-          return;
-        } else {
-          console.log("No mapped exercises found, falling back to user workouts");
+            
+            if (exerciseDetails.length > 0) {
+              setTodayExercises(exerciseDetails);
+              return;
+            }
+          }
         }
       }
       

@@ -434,30 +434,48 @@ export type Database = {
           completed_at: string | null
           duration: number | null
           id: string
+          is_custom: boolean | null
           notes: string | null
           rating: number | null
           user_id: string
+          workout_description: string | null
           workout_id: string
+          workout_name: string | null
+          workout_type: string | null
+          is_from_ai_plan: boolean | null
+          ai_workout_plan_id: string | null
         }
         Insert: {
           calories_burned?: number | null
           completed_at?: string | null
           duration?: number | null
           id?: string
+          is_custom?: boolean | null
           notes?: string | null
           rating?: number | null
           user_id: string
+          workout_description?: string | null
           workout_id: string
+          workout_name?: string | null
+          workout_type?: string | null
+          is_from_ai_plan?: boolean | null
+          ai_workout_plan_id?: string | null
         }
         Update: {
           calories_burned?: number | null
           completed_at?: string | null
           duration?: number | null
           id?: string
+          is_custom?: boolean | null
           notes?: string | null
           rating?: number | null
           user_id?: string
+          workout_description?: string | null
           workout_id?: string
+          workout_name?: string | null
+          workout_type?: string | null
+          is_from_ai_plan?: boolean | null
+          ai_workout_plan_id?: string | null
         }
         Relationships: []
       }
@@ -575,6 +593,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_workout: {
+        Args: {
+          p_user_id: string
+          p_workout_id: string
+          p_duration?: number
+          p_calories_burned?: number
+          p_notes?: string
+          p_rating?: number
+          p_is_from_ai_plan?: boolean
+          p_ai_workout_plan_id?: string
+        }
+        Returns: string
+      }
       create_workout_log: {
         Args: {
           workout_id_param: string
@@ -586,6 +617,17 @@ export type Database = {
       exec_sql: {
         Args: { sql: string }
         Returns: Json[]
+      }
+      get_ai_workout_plans: {
+        Args: { p_user_id: string }
+        Returns: {
+          id: string
+          title: string
+          description: string
+          fitness_goal: string
+          created_at: string
+          times_completed: number
+        }[]
       }
       get_exercise_progress_history: {
         Args: {
@@ -621,6 +663,13 @@ export type Database = {
           count: number
         }[]
       }
+      link_ai_workout_to_log: {
+        Args: {
+          p_workout_log_id: string
+          p_ai_workout_plan_id: string
+        }
+        Returns: undefined
+      }
       log_exercise_completion: {
         Args: {
           workout_log_id_param: string
@@ -629,6 +678,15 @@ export type Database = {
           reps_completed_param?: number
           weight_used_param?: number
           notes_param?: string
+        }
+        Returns: string
+      }
+      log_workout_with_exercises: {
+        Args: {
+          p_user_id: string
+          p_workout_data: Json
+          p_is_from_ai_plan?: boolean
+          p_ai_workout_plan_id?: string
         }
         Returns: string
       }

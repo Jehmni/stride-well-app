@@ -63,25 +63,28 @@ export const generateAIWorkoutPlan = async (userProfile: UserProfile): Promise<W
     
     // Get AI configuration
     const aiConfig = await getAIConfig('openai');
-    const openAIClient = createOpenAIClient(aiConfig);
     
-    // Log AI status - we'll continue with mock data even if API key is not available
+    // Validate AI configuration
     if (!aiConfig || !aiConfig.api_key || !aiConfig.is_enabled) {
-      console.warn("⚠️ AI service not fully configured. Using mock workout data instead.");
+      console.error("AI service not properly configured. Cannot generate AI workout plan.");
       console.log("AI Config Status:", {
         configExists: !!aiConfig,
         apiKeyExists: !!(aiConfig && aiConfig.api_key),
         isEnabled: !!(aiConfig && aiConfig.is_enabled)
       });
-    } else {
-      console.log("✓ AI service properly configured with valid API key");
+      throw new Error("AI service not configured or disabled");
     }
+    
+    console.log("✓ AI service properly configured with valid API key");
+    
+    // Create OpenAI client
+    const openAIClient = createOpenAIClient(aiConfig);
 
     // Fetch available exercises from the database
     const availableExercises = await fetchAvailableExercises();
-    if (!availableExercises) {
+    if (!availableExercises || availableExercises.length === 0) {
       console.error("❌ Failed to fetch exercises for AI workout plan");
-      return null;
+      throw new Error("No exercises available for workout generation");
     }
     console.log(`✓ Successfully fetched ${availableExercises.length} exercises from database`);
 
@@ -94,21 +97,16 @@ export const generateAIWorkoutPlan = async (userProfile: UserProfile): Promise<W
     const workoutPlan = await createAIWorkoutPlan(openAIClient, userInfo, availableExercises);
     if (!workoutPlan) {
       console.error("❌ Failed to generate AI workout plan");
-      return null;
+      throw new Error("Failed to generate AI workout plan");
     }
-    console.log("✓ AI workout plan successfully generated!");
-    console.log("Plan Title:", workoutPlan.title);
-    console.log("Exercise Count:", workoutPlan.exercises ? workoutPlan.exercises.length : 0);
-
-    // Store the AI-generated plan in the database
-    console.log("Saving AI workout plan to database...");
-    const savedPlan = await saveAIWorkoutPlan(workoutPlan, userProfile);
-    console.log("✓ AI workout plan saved with ID:", savedPlan?.id);
-    console.log("========== AI WORKOUT PLAN GENERATION COMPLETED ==========");
-    return savedPlan;
+    
+    console.log("✓ Successfully generated AI workout plan:", workoutPlan.title);
+    
+    // Process and save the workout plan
+    return await saveAIWorkoutPlan(workoutPlan, userProfile);
   } catch (error) {
     console.error("Error generating AI workout plan:", error);
-    return null;
+    throw error;
   }
 };
 
@@ -189,41 +187,38 @@ async function createAIWorkoutPlan(
 }
 
 /**
- * Save AI-generated workout plan to database
+ * Save the AI-generated workout plan to the database
  */
 async function saveAIWorkoutPlan(
   aiWorkoutPlan: AIWorkoutResponse,
   userProfile: UserProfile
 ): Promise<WorkoutPlan | null> {
   try {
-    console.log("========== SAVING AI WORKOUT PLAN ==========");
-    console.log(`Processing AI workout plan for user: ${userProfile.id}`);
+    console.log("Saving AI workout plan to database...");
     
-    // Process exercises to match our workout plan format
-    console.log("Fetching available exercises for processing...");
-    const availableExercises = await fetchAvailableExercises();
-    if (!availableExercises) {
-      console.error("❌ Failed to fetch exercises for workout plan processing");
-      return null;
+    // Get the weekly structure from the AI response or use defaults
+    const weeklyStructure = Array.isArray(aiWorkoutPlan.weekly_structure) && aiWorkoutPlan.weekly_structure.length > 0
+      ? aiWorkoutPlan.weekly_structure
+      : generateDefaultWeeklyStructure(userProfile.fitness_goal);
+    
+    // Process exercises from the AI response
+    let processedExercises: WorkoutExercise[] = [];
+    
+    if (Array.isArray(aiWorkoutPlan.exercises) && aiWorkoutPlan.exercises.length > 0) {
+      // Process the AI-selected exercises
+      const availableExercises = await fetchAvailableExercises();
+      if (!availableExercises) {
+        console.error("❌ Failed to fetch exercises for workout plan processing");
+        throw new Error("Failed to fetch exercises");
+      }
+      
+      processedExercises = await processExercises(aiWorkoutPlan.exercises, availableExercises);
+    } else {
+      console.warn("No exercises in AI response, using defaults");
+      processedExercises = generateDefaultExercises(userProfile.fitness_goal);
     }
-    console.log(`✓ Fetched ${availableExercises.length} exercises for matching`);
-    
-    console.log(`Processing ${aiWorkoutPlan.exercises ? aiWorkoutPlan.exercises.length : 0} AI-suggested exercises...`);
-    const processedExercises = await processExercises(aiWorkoutPlan.exercises, availableExercises);
-    console.log(`✓ Successfully processed ${processedExercises.length} exercises`);
-    
-    // Create workout plan object
-    // Ensure weekly structure has the right format
-    console.log("Processing weekly workout structure...");
-    const weeklyStructure = Array.isArray(aiWorkoutPlan.weekly_structure) ? 
-      aiWorkoutPlan.weekly_structure.map(day => ({
-        day: day.day || "Unknown",
-        focus: day.focus || "General",
-        duration: typeof day.duration === 'number' ? day.duration : 30
-      })) : 
-      generateDefaultWeeklyStructure(userProfile.fitness_goal);
-    console.log("✓ Weekly structure processed with", weeklyStructure.length, "days");
 
+    // Create the workout plan object
     const processedPlan: Omit<WorkoutPlan, "id"> = {
       title: aiWorkoutPlan.title || getPlanTitleFallback(userProfile.fitness_goal),
       description: aiWorkoutPlan.description || `AI-generated workout plan for ${userProfile.fitness_goal} goal`,
@@ -232,6 +227,7 @@ async function saveAIWorkoutPlan(
       exercises: processedExercises,
       ai_generated: true
     };
+    
     console.log("✓ Workout plan prepared:", processedPlan.title);
 
     // Store in database
@@ -248,12 +244,12 @@ async function saveAIWorkoutPlan(
         ai_generated: true,
         created_at: new Date().toISOString()
       })
-      .select()
+      .select('*')
       .single();
 
     if (error) {
       console.error("❌ Error storing AI-generated plan:", error);
-      return processedPlan as WorkoutPlan;
+      throw error;
     }
 
     console.log(`✓ AI workout plan saved successfully with ID: ${insertedPlan.id}`);
@@ -265,7 +261,7 @@ async function saveAIWorkoutPlan(
     };
   } catch (error) {
     console.error("Error saving AI workout plan:", error);
-    return null;
+    throw error;
   }
 }
 
@@ -513,4 +509,59 @@ export async function regenerateWorkoutPlan(
     console.error("Error regenerating workout plan:", error);
     return false;
   }
+}
+
+/**
+ * Generate default exercises based on fitness goal
+ * Used when AI response is missing exercise data
+ */
+function generateDefaultExercises(fitnessGoal: string): WorkoutExercise[] {
+  const defaultExercises: WorkoutExercise[] = [];
+  
+  switch (fitnessGoal) {
+    case 'weight-loss':
+      defaultExercises.push(
+        { name: "Jumping Jacks", sets: 3, reps: "30 seconds", muscle: "Full Body" },
+        { name: "Mountain Climbers", sets: 3, reps: "30 seconds", muscle: "Core" },
+        { name: "Burpees", sets: 3, reps: "10", muscle: "Full Body" },
+        { name: "Squat Jumps", sets: 3, reps: "15", muscle: "Legs" },
+        { name: "Push-ups", sets: 3, reps: "10-15", muscle: "Chest" },
+        { name: "Plank", sets: 3, reps: "30-60 seconds", muscle: "Core" }
+      );
+      break;
+      
+    case 'muscle-gain':
+      defaultExercises.push(
+        { name: "Bench Press", sets: 4, reps: "8-10", muscle: "Chest" },
+        { name: "Squats", sets: 4, reps: "8-10", muscle: "Legs" },
+        { name: "Deadlifts", sets: 4, reps: "6-8", muscle: "Back" },
+        { name: "Shoulder Press", sets: 3, reps: "8-10", muscle: "Shoulders" },
+        { name: "Bent-over Rows", sets: 3, reps: "8-10", muscle: "Back" },
+        { name: "Bicep Curls", sets: 3, reps: "10-12", muscle: "Arms" }
+      );
+      break;
+      
+    case 'endurance':
+      defaultExercises.push(
+        { name: "Running", sets: 1, reps: "30 minutes", muscle: "Full Body" },
+        { name: "Cycling", sets: 1, reps: "45 minutes", muscle: "Legs" },
+        { name: "Jump Rope", sets: 3, reps: "5 minutes", muscle: "Full Body" },
+        { name: "Bodyweight Lunges", sets: 3, reps: "20 each leg", muscle: "Legs" },
+        { name: "Push-ups", sets: 3, reps: "15-20", muscle: "Chest" }
+      );
+      break;
+      
+    case 'general-fitness':
+    default:
+      defaultExercises.push(
+        { name: "Push-ups", sets: 3, reps: "10-15", muscle: "Chest" },
+        { name: "Bodyweight Squats", sets: 3, reps: "15-20", muscle: "Legs" },
+        { name: "Plank", sets: 3, reps: "30-60 seconds", muscle: "Core" },
+        { name: "Mountain Climbers", sets: 3, reps: "30 seconds", muscle: "Core" },
+        { name: "Lunges", sets: 3, reps: "10 each leg", muscle: "Legs" },
+        { name: "Glute Bridges", sets: 3, reps: "15", muscle: "Glutes" }
+      );
+  }
+  
+  return defaultExercises;
 }

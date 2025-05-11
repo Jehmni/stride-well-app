@@ -1,4 +1,3 @@
-
 import React, { ReactNode, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -9,7 +8,8 @@ import {
   Menu,
   User,
   Utensils,
-  X
+  X,
+  Brain
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -29,6 +29,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
   const menuItems = [
     { icon: <Home size={24} />, label: "Dashboard", path: "/dashboard" },
     { icon: <CalendarDays size={24} />, label: "Workouts", path: "/workouts" },
+    { icon: <Brain size={24} />, label: "AI Workouts", path: "/ai-workouts" },
     { icon: <Utensils size={24} />, label: "Meal Plan", path: "/meal-plan" },
     { icon: <BarChart3 size={24} />, label: "Progress", path: "/progress" },
     { icon: <User size={24} />, label: "Profile", path: "/profile" },

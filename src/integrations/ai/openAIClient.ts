@@ -1,17 +1,16 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { AIConfig } from "./aiConfig";
 
 // OpenAI API response structure
-interface OpenAIResponse {
+export interface OpenAIResponse {
   id: string;
-  choices: {
+  choices: Array<{
     message: {
       content: string;
       role: string;
     };
     finish_reason: string;
-  }[];
+  }>;
 }
 
 /**
@@ -36,65 +35,22 @@ export class OpenAIClient {
    */
   setUserInfo(userInfo: any) {
     this.userInfo = userInfo;
+    return this;
   }
   
-  /**
-   * Create a mock response when API key is not available
-   * @returns A simulated OpenAI API response
-   */  private createMockResponse(): OpenAIResponse {
-    // Default to general fitness if no user info is available
-    const fitnessGoal = this.userInfo?.fitness_goal || 'general-fitness';
-    
-    // Get mock workout data based on the fitness goal
-    const mockData = getMockWorkoutData(fitnessGoal);
-    
-    // Format as if it was an OpenAI response
-    return {
-      id: `mock-${Date.now()}`,
-      choices: [
-        {
-          message: {
-            content: JSON.stringify(mockData),
-            role: 'assistant'
-          },
-          finish_reason: 'stop'
-        }
-      ]
-    };
-    
-    // Create a response in the format expected from OpenAI
-    return {
-      id: `mock-${Date.now()}`,
-      choices: [
-        {
-          message: {
-            content: JSON.stringify(mockData),
-            role: "assistant"
-          },
-          finish_reason: "stop"
-        }
-      ]
-    };
-  }
-
   /**
    * Make a chat completion request to the OpenAI API
    * @param systemPrompt The system prompt to guide the AI
    * @param userPrompt The user prompt containing the specific request
    * @param temperature Temperature setting for creativity (0-1)
    * @returns The API response or null if failed
-   */  async createChatCompletion(
-    systemPrompt: string,
-    userPrompt: string,
-    temperature: number = 0.7
-  ): Promise<OpenAIResponse | null> {
+   */  async createChatCompletion(systemPrompt: string, userPrompt: string): Promise<OpenAIResponse | null> {
+    // Ensure we have an API key - throw error if not configured
+    if (!this.apiKey) {
+      throw new Error("OpenAI API key not configured");
+    }
+    
     try {
-      // Validate API key
-      if (!this.apiKey || this.apiKey === 'sk-example-api-key-for-testing') {
-        console.warn("OpenAI API key is missing or using test key. Returning mock response.");
-        return this.createMockResponse();
-      }
-
       // Make the API request
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
@@ -105,30 +61,24 @@ export class OpenAIClient {
         body: JSON.stringify({
           model: this.model,
           messages: [
-            {
-              role: "system",
-              content: systemPrompt
-            },
-            {
-              role: "user",
-              content: userPrompt
-            }
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
           ],
-          temperature: temperature,
+          temperature: 0.7,
           response_format: { type: "json_object" }
         })
       });
-
+      
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`OpenAI API error (${response.status}):`, errorText);
-        return null;
+        throw new Error(`OpenAI API returned error ${response.status}: ${errorText}`);
       }
-
+      
       return await response.json();
     } catch (error) {
-      console.error("Error making OpenAI API request:", error);
-      return null;
+      console.error("Error calling OpenAI API:", error);
+      throw error;
     }
   }
 }
@@ -139,17 +89,8 @@ export class OpenAIClient {
  * @returns An OpenAI client instance (always returns a client, even with mock data)
  */
 export const createOpenAIClient = (config: AIConfig | null): OpenAIClient => {
-  // If config is null or api_key is missing, create a default config for mock responses
-  if (!config || !config.api_key) {
-    const mockConfig: AIConfig = {
-      service_name: 'openai',
-      api_key: 'sk-example-api-key-for-testing',
-      api_endpoint: 'https://api.openai.com/v1/chat/completions',
-      model_name: 'gpt-4o',
-      is_enabled: true
-    };
-    console.log("Using mock OpenAI client due to missing configuration");
-    return new OpenAIClient(mockConfig);
+  if (!config) {
+    throw new Error("AI configuration is missing");
   }
   
   return new OpenAIClient(config);
