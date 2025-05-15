@@ -78,60 +78,60 @@ function App() {
   }, []);
   
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
             <Suspense fallback={<LoadingSpinner />}>
-              <Routes>
+          <Routes>
                 {/* Public Routes - Index is not lazy loaded */}
-                <Route path="/" element={<Index />} />
+            <Route path="/" element={<Index />} />
                 
                 {/* Other Public Routes */}
-                <Route 
-                  path="/login" 
-                  element={
-                    <ProtectedRoute requiresAuth={false}>
-                      <Login />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/signup" 
-                  element={
-                    <ProtectedRoute requiresAuth={false}>
-                      <Signup />
-                    </ProtectedRoute>
-                  } 
-                />
+            <Route 
+              path="/login" 
+              element={
+                <ProtectedRoute requiresAuth={false}>
+                  <Login />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/signup" 
+              element={
+                <ProtectedRoute requiresAuth={false}>
+                  <Signup />
+                </ProtectedRoute>
+              } 
+            />
 
-                {/* Protected Routes */}
-                <Route 
-                  path="/onboarding/*" 
-                  element={
-                    <ProtectedRoute>
-                      <Onboarding />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/dashboard" 
-                  element={
-                    <ProtectedRoute requiresOnboarding={true}>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/workouts" 
-                  element={
-                    <ProtectedRoute requiresOnboarding={true}>
-                      <WorkoutPlan />
-                    </ProtectedRoute>
-                  } 
-                />
+            {/* Protected Routes */}
+            <Route 
+              path="/onboarding/*" 
+              element={
+                <ProtectedRoute>
+                  <Onboarding />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute requiresOnboarding={true}>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/workouts" 
+              element={
+                <ProtectedRoute requiresOnboarding={true}>
+                  <WorkoutPlan />
+                </ProtectedRoute>
+              } 
+            />
                 <Route 
                   path="/workouts/ai/:id" 
                   element={
@@ -164,30 +164,30 @@ function App() {
                     </ProtectedRoute>
                   } 
                 />
-                <Route 
-                  path="/meal-plan" 
-                  element={
-                    <ProtectedRoute requiresOnboarding={true}>
-                      <MealPlan />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/progress" 
-                  element={
-                    <ProtectedRoute requiresOnboarding={true}>
-                      <Progress />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/profile" 
-                  element={
-                    <ProtectedRoute requiresOnboarding={true}>
-                      <Profile />
-                    </ProtectedRoute>
-                  } 
-                />
+            <Route 
+              path="/meal-plan" 
+              element={
+                <ProtectedRoute requiresOnboarding={true}>
+                  <MealPlan />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/progress" 
+              element={
+                <ProtectedRoute requiresOnboarding={true}>
+                  <Progress />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute requiresOnboarding={true}>
+                  <Profile />
+                </ProtectedRoute>
+              } 
+            />
                 
                 {/* New reminders route */}
                 <Route 
@@ -217,15 +217,15 @@ function App() {
                   } 
                 />
 
-                {/* Catch-all route */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+            {/* Catch-all route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
             </Suspense>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
-  );
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
+  </QueryClientProvider>
+);
 }
 
 export default App;

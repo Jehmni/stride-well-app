@@ -70,7 +70,7 @@ const WorkoutExerciseList: React.FC<WorkoutExerciseListProps> = ({
               <AccordionTrigger className="hover:no-underline py-3">
                 <div className="flex items-start text-left">
                   <Dumbbell className="h-5 w-5 mr-2 mt-0.5 text-primary" />
-                  <div>
+                    <div>
                     <div className="font-medium">{exercise.name}</div>
                     <div className="text-sm text-muted-foreground">
                       {exercise.sets} sets • {exercise.reps} • {exercise.muscle}

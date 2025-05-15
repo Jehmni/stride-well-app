@@ -154,8 +154,8 @@ const DbFixesNotice: React.FC<DbFixesNoticeProps> = ({ userId }) => {
           The database needs to be optimized for proper AI workout tracking. This is a one-time operation.
         </CardDescription>
         <div className="flex gap-2 justify-end">
-          <Button
-            variant="outline"
+        <Button 
+          variant="outline" 
             onClick={checkDatabaseStatus}
             disabled={isChecking || isFixing}
           >
@@ -168,7 +168,7 @@ const DbFixesNotice: React.FC<DbFixesNoticeProps> = ({ userId }) => {
           >
             <Database className="h-4 w-4" />
             {isFixing ? 'Optimizing...' : 'Optimize Database'}
-          </Button>
+        </Button>
         </div>
       </CardContent>
     </Card>

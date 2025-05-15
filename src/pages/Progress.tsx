@@ -73,7 +73,7 @@ const Progress: React.FC = () => {
       description: "Please run the script: scripts/fix_everything.bat",
     });
   };
-  
+
   return (
     <DashboardLayout title="Progress Tracking">
       <div className="mb-6 flex items-center gap-4">
@@ -109,8 +109,8 @@ const Progress: React.FC = () => {
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">BMI</h3>
           <div className="text-2xl font-bold">{userBMI ? userBMI.toFixed(1) : "--"}</div>
           {bmiCategory && <span className="text-sm text-gray-500">{bmiCategory}</span>}
-        </div>
-      </div>
+                  </div>
+                </div>
         <Tabs defaultValue="workouts">
         <TabsList className="mb-6">
           <TabsTrigger value="workouts">Workout History</TabsTrigger>
@@ -121,15 +121,15 @@ const Progress: React.FC = () => {
         
         <TabsContent value="workouts">
           <WorkoutHistoryV2 />
-        </TabsContent>
-        
+          </TabsContent>
+          
         <TabsContent value="exercises">
           <ExerciseDashboard />
-        </TabsContent>
-        
+          </TabsContent>
+          
         <TabsContent value="statistics">
           <WorkoutStatistics />
-        </TabsContent>
+          </TabsContent>
         
         <TabsContent value="measurements">
           <div className="p-12 text-center">

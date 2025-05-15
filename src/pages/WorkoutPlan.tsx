@@ -262,7 +262,7 @@ const WorkoutPlanPage: React.FC = () => {
         <div className="mb-4">
           <h3 className="text-lg font-medium mb-2">Creating your AI workout plan</h3>
           <AIGeneratedNotice />
-        </div>
+                  </div>
       )}
       
       {/* Regeneration Progress UI */}

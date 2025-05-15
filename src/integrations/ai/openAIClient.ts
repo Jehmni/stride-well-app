@@ -37,7 +37,7 @@ export class OpenAIClient {
     this.userInfo = userInfo;
     return this;
   }
-  
+
   /**
    * Make a chat completion request to the OpenAI API
    * @param systemPrompt The system prompt to guide the AI
@@ -68,13 +68,13 @@ export class OpenAIClient {
           response_format: { type: "json_object" }
         })
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`OpenAI API error (${response.status}):`, errorText);
         throw new Error(`OpenAI API returned error ${response.status}: ${errorText}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error("Error calling OpenAI API:", error);

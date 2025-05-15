@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, ArrowRight, Check, Play } from "lucide-react";
+import { Calendar, ArrowRight, Check, Play, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import WorkoutCard from "@/components/dashboard/WorkoutCard";
 import { TodayWorkoutProps, WorkoutExerciseDetail } from "./types";
@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import WorkoutProgress from "./WorkoutProgress";
 import DetailedWorkoutLog from "./DetailedWorkoutLog";
 import { getWorkoutPlanExercises } from "@/services/workoutPlanMapper";
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface TodayWorkoutComponentProps {
   todayWorkout: TodayWorkoutProps;
@@ -288,6 +289,7 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
     
     try {
       // Create a proper workout entry if we're using the placeholder ID
+      const workoutId = 'today-workout'; // Default workout ID
       let actualWorkoutId = workoutId;
       
       if (workoutId === 'today-workout') {
@@ -336,11 +338,10 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
     setShowTracking(true);
   };
   const handleWorkoutCompleted = () => {
-    // The workout was completed via the tracking system or user clicked "Start New Session"
     // Reset tracking state and immediately fetch new exercise data
     setShowTracking(false);
     
-    // Clear any local storage data for the workout
+    // Clear any local storage data for the workout without affecting workout history
     localStorage.removeItem(`completedExercises-today-workout`);
     
     // Reload today's workout data
@@ -389,7 +390,25 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
                     onClick={() => navigate("/progress")}
                   >
                     View Progress
-                  </Button>                  <DetailedWorkoutLog 
+                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          className="flex-1"
+                          onClick={handleWorkoutCompleted}
+                        >
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          New Session
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Start a fresh workout session without affecting history</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <DetailedWorkoutLog 
                     workoutId="today-workout" 
                     workoutTitle={todayWorkout.title}
                     exercises={todayExercises}
@@ -423,7 +442,7 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
             />
           )}
 
-          <div className="mt-6 flex justify-end">
+          <div className="mt-6 flex justify-end gap-2">
             <Button 
               variant="outline"
               onClick={() => setShowTracking(false)}
