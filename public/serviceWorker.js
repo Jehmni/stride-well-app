@@ -15,9 +15,29 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
+      .then(async (cache) => {
         console.log('Service Worker: Caching static assets');
-        return cache.addAll(STATIC_ASSETS);
+        
+        // Try to cache each asset individually to prevent complete failure
+        const cachePromises = STATIC_ASSETS.map(async (asset) => {
+          try {
+            // Try to fetch and cache each asset
+            const response = await fetch(asset, { cache: 'reload' });
+            if (response.ok) {
+              await cache.put(asset, response);
+              console.log(`Successfully cached: ${asset}`);
+            } else {
+              console.log(`Failed to cache ${asset}: ${response.status} ${response.statusText}`);
+            }
+          } catch (error) {
+            // Skip assets that fail to fetch
+            console.log(`Skipping asset ${asset} due to error: ${error.message}`);
+          }
+        });
+        
+        // Wait for all assets to be processed
+        await Promise.allSettled(cachePromises);
+        console.log('Service Worker: Completed caching available assets');
       })
       .catch((error) => console.error('Failed to cache static assets:', error))
   );

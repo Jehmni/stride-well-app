@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 // Mock data for grocery stores
@@ -59,6 +58,13 @@ const mockGroceryStores = [
 // Function to seed grocery store data into Supabase
 export const seedGroceryStores = async () => {
   try {
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      console.log("User not authenticated, skipping grocery store seeding");
+      return;
+    }
+
     // Check if stores already exist
     const { data: existingStores, error: fetchError } = await supabase
       .from('grocery_stores')
@@ -83,6 +89,8 @@ export const seedGroceryStores = async () => {
       
     if (error) {
       console.error("Error seeding grocery store data:", error);
+      // We'll just log the error without trying to use service_role
+      // since we don't want to expose admin credentials in client-side code
     } else {
       console.log("Grocery stores seeded successfully!");
     }

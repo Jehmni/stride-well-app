@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LoadingSpinner from "./components/ui/LoadingSpinner";
 import { seedGroceryStores } from "./utils/seedStoreData";
@@ -12,6 +12,7 @@ import { seedExerciseData } from "./utils/seedExerciseData";
 import { registerReminderServiceWorker } from "./services/notificationService";
 import { register as registerServiceWorker } from "./services/serviceWorkerRegistration";
 import { syncAllWorkouts } from "./services/offlineStorageService";
+import { supabase } from "@/integrations/supabase/client";
 
 // Import Index directly to avoid lazy loading issues
 import Index from "./pages/Index";
@@ -46,22 +47,34 @@ const queryClient = new QueryClient({
 
 function App() {  
   React.useEffect(() => {
-    // Seed store and exercise data on app initialization
-    seedGroceryStores();
+    // Seed exercise data on app initialization (doesn't require auth)
     seedExerciseData();
     
     // Register the notification and service worker
     registerReminderServiceWorker();
     registerServiceWorker();
     
-    // Sync offline workouts on app startup if online
-    if (navigator.onLine) {
-      syncAllWorkouts().then(count => {
-        if (count > 0) {
-          console.log(`Synced ${count} workouts on app startup`);
+    // Check authentication status using supabase directly
+    const checkAuthAndSeed = async () => {
+      const { data } = await supabase.auth.getSession();
+      
+      // Only seed grocery store data and sync workouts if authenticated
+      if (data.session?.user) {
+        // Seed store data (requires authentication)
+        seedGroceryStores();
+        
+        // Sync offline workouts on app startup if online
+        if (navigator.onLine) {
+          syncAllWorkouts().then(count => {
+            if (count > 0) {
+              console.log(`Synced ${count} workouts on app startup`);
+            }
+          });
         }
-      });
-    }
+      }
+    };
+    
+    checkAuthAndSeed();
   }, []);
   
   return (
