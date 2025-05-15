@@ -1,64 +1,143 @@
+import React from 'react';
+import { 
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger
+} from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
+import { Dumbbell, Info } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-import React from "react";
-import { Button } from "@/components/ui/button";
-import { Trash } from "lucide-react";
-import { WorkoutExerciseDetail } from "./types";
-
-interface WorkoutExerciseListProps {
-  workoutExercises: WorkoutExerciseDetail[];
-  onRemoveExercise: (exerciseId: string) => void;
+interface Exercise {
+  id: string;
+  name: string;
+  sets: number;
+  reps: string;
+  muscle: string;
+  instructions?: string;
+  equipment_required?: string;
+  difficulty?: string;
 }
 
-const WorkoutExerciseList: React.FC<WorkoutExerciseListProps> = ({ workoutExercises, onRemoveExercise }) => {
+interface WorkoutExerciseListProps {
+  exercises: Exercise[];
+  className?: string;
+  showAllDetails?: boolean;
+}
+
+const WorkoutExerciseList: React.FC<WorkoutExerciseListProps> = ({
+  exercises,
+  className,
+  showAllDetails = false,
+}) => {
+  // Group exercises by muscle group
+  const exercisesByMuscle = exercises.reduce<Record<string, Exercise[]>>((groups, exercise) => {
+    const muscleGroup = exercise.muscle;
+    if (!groups[muscleGroup]) {
+      groups[muscleGroup] = [];
+    }
+    groups[muscleGroup].push(exercise);
+    return groups;
+  }, {});
+
+  // Sort muscle groups for consistent ordering
+  const muscleGroups = Object.keys(exercisesByMuscle).sort();
+
+  // Get badge color by difficulty
+  const getDifficultyColor = (difficulty?: string) => {
+    if (!difficulty) return 'bg-gray-100 text-gray-800';
+    
+    switch (difficulty.toLowerCase()) {
+      case 'beginner':
+        return 'bg-green-100 text-green-800';
+      case 'intermediate':
+        return 'bg-blue-100 text-blue-800';
+      case 'advanced':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
-    <>
-      {workoutExercises.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
-            <thead className="bg-gray-100 dark:bg-gray-700">
-              <tr>
-                <th className="py-3 px-4 text-left">Exercise</th>
-                <th className="py-3 px-4 text-left">Sets</th>
-                <th className="py-3 px-4 text-left">Reps</th>
-                <th className="py-3 px-4 text-left">Rest</th>
-                <th className="py-3 px-4 text-left">Notes</th>
-                <th className="py-3 px-4 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {workoutExercises.map((ex) => (
-                <tr key={ex.id}>
-                  <td className="py-3 px-4">
-                    <div>
-                      <div className="font-medium">{ex.exercise.name}</div>
-                      <div className="text-xs text-gray-500">{ex.exercise.muscle_group}</div>
+    <div className={cn("space-y-4", className)}>
+      {showAllDetails ? (
+        // Option 1: Show all exercises in one list with full details
+        <Accordion type="multiple" className="w-full">
+          {exercises.map(exercise => (
+            <AccordionItem value={exercise.id} key={exercise.id}>
+              <AccordionTrigger className="hover:no-underline py-3">
+                <div className="flex items-start text-left">
+                  <Dumbbell className="h-5 w-5 mr-2 mt-0.5 text-primary" />
+                  <div>
+                    <div className="font-medium">{exercise.name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {exercise.sets} sets • {exercise.reps} • {exercise.muscle}
                     </div>
-                  </td>
-                  <td className="py-3 px-4">{ex.sets}</td>
-                  <td className="py-3 px-4">{ex.reps || '-'}</td>
-                  <td className="py-3 px-4">{ex.rest_time}s</td>
-                  <td className="py-3 px-4">{ex.notes || '-'}</td>
-                  <td className="py-3 px-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                      onClick={() => onRemoveExercise(ex.id)}
-                    >
-                      <Trash className="h-4 w-4" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pl-7">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {exercise.difficulty && (
+                      <Badge variant="outline">
+                        Difficulty: {exercise.difficulty}
+                      </Badge>
+                    )}
+                    {exercise.equipment_required && (
+                      <Badge variant="outline">
+                        Equipment: {exercise.equipment_required}
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {exercise.instructions && (
+                    <div className="text-sm text-muted-foreground">
+                      <h4 className="font-medium text-foreground mb-1">Instructions:</h4>
+                      <p>{exercise.instructions}</p>
+                    </div>
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
       ) : (
-        <div className="text-center py-8 bg-white dark:bg-gray-800 rounded-lg">
-          <p className="text-gray-500">No exercises added to this workout yet.</p>
+        // Option 2: Group by muscle and show minimal details
+        <>
+          {muscleGroups.map(muscleGroup => (
+            <div key={muscleGroup} className="space-y-2">
+              <h3 className="text-sm font-semibold">{muscleGroup}</h3>
+              <ul className="space-y-2">
+                {exercisesByMuscle[muscleGroup].map(exercise => (
+                  <li 
+                    key={exercise.id} 
+                    className="flex items-center justify-between py-2 px-3 rounded-md bg-secondary/50"
+                  >
+                    <div className="flex items-center">
+                      <Dumbbell className="h-4 w-4 mr-2 text-primary" />
+                      <span>{exercise.name}</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {exercise.sets} × {exercise.reps}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </>
+      )}
+      
+      {exercises.length === 0 && (
+        <div className="flex items-center justify-center py-8 text-muted-foreground">
+          <Info className="h-5 w-5 mr-2" />
+          <span>No exercises found</span>
         </div>
       )}
-    </>
+    </div>
   );
 };
 

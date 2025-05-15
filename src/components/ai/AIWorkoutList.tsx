@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getAIWorkoutPlans, generateAIWorkout } from "@/services/aiWorkoutService";
+import { getEnhancedAIWorkoutPlans, generateEnhancedAIWorkout } from "@/services/enhancedAIWorkoutService";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -42,8 +43,11 @@ export function AIWorkoutList() {
 
   const { data: workoutPlans, isLoading, refetch } = useQuery({
     queryKey: ["aiWorkoutPlans", user?.id],
-    queryFn: () => (user?.id ? getAIWorkoutPlans(user.id) : Promise.resolve([])),
+    queryFn: () => (user?.id ? getEnhancedAIWorkoutPlans(user.id) : Promise.resolve([])),
     enabled: !!user?.id,
+    // Add stale-while-revalidate
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour (was cacheTime in earlier versions)
   });
 
   const handleGenerateWorkout = async () => {
@@ -54,7 +58,8 @@ export function AIWorkoutList() {
 
     toast.loading("Generating your personalized workout plan...");
     
-    const workoutId = await generateAIWorkout(profile);
+    // Use enhanced AI workout generation
+    const workoutId = await generateEnhancedAIWorkout(profile);
     
     toast.dismiss();
     

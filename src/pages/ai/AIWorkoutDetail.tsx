@@ -3,16 +3,18 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
+import { useWorkoutTracking } from "@/hooks/useWorkoutTracking";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Calendar, Clock, Dumbbell, Save, Check, Brain } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, Dumbbell, Save, Check, Brain, Bell } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
+import { scheduleLocalNotification, requestNotificationPermission } from "@/services/notificationService";
 
 interface Exercise {
   id: string;
@@ -42,6 +44,8 @@ const AIWorkoutDetail = () => {
   const [progress, setProgress] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
   const [totalExercises, setTotalExercises] = useState(0);
+  const { isOffline, completeWorkout } = useWorkoutTracking();
+  const [showReminderButton, setShowReminderButton] = useState(true);
 
   useEffect(() => {
     if (!id) return;
@@ -50,6 +54,27 @@ const AIWorkoutDetail = () => {
       try {
         setLoading(true);
         
+        // First check local cache
+        const cachedPlan = localStorage.getItem(`workout_plan_${id}`);
+        if (cachedPlan) {
+          const parsedPlan = JSON.parse(cachedPlan);
+          setWorkoutPlan(parsedPlan);
+          processExercises(parsedPlan);
+          
+          // In background, check for newer data
+          fetchFromServer();
+        } else {
+          await fetchFromServer();
+        }
+      } catch (error) {
+        console.error('Error fetching workout plan:', error);
+        toast.error('Failed to load workout plan');
+        setLoading(false);
+      }
+    };
+    
+    const fetchFromServer = async () => {
+      try {
         const { data, error } = await supabase
           .from('workout_plans')
           .select('*')
@@ -57,6 +82,9 @@ const AIWorkoutDetail = () => {
           .single();
         
         if (error) throw error;
+        
+        // Cache the data locally
+        localStorage.setItem(`workout_plan_${id}`, JSON.stringify(data));
         
         setWorkoutPlan(data);
         
@@ -88,7 +116,7 @@ const AIWorkoutDetail = () => {
         // Initialize exercises from the workout plan
         processExercises(data);
       } catch (error) {
-        console.error('Error fetching workout plan:', error);
+        console.error('Error fetching workout plan from server:', error);
         toast.error('Failed to load workout plan');
       } finally {
         setLoading(false);
@@ -118,7 +146,7 @@ const AIWorkoutDetail = () => {
         dayExercises.exercises.forEach((exercise: any) => {
           allExercises.push({
             ...exercise,
-            id: crypto.randomUUID(), // Generate a temporary ID for each exercise
+            id: exercise.id || crypto.randomUUID(), // Use existing ID if available or generate a temporary one
             completed: false
           });
         });
@@ -160,98 +188,99 @@ const AIWorkoutDetail = () => {
       // Estimate calories burned
       const caloriesBurned = Math.floor(totalDuration * 8);
       
-      // Prepare exercise data for logging
-      const completedExercises = exercises
-        .filter(ex => ex.completed)
-        .map(ex => ({
-          exercise_id: ex.id,
-          sets_completed: ex.sets,
-          reps_completed: typeof ex.reps === 'string' ? parseInt(ex.reps.split('-')[0]) : ex.reps,
-          notes: ex.notes
-        }));
+      // Get only completed exercises
+      const completedExercises = exercises.filter(ex => ex.completed);
       
-      try {
-        // First try using the complete_workout function
-        const { data: logData, error: completeError } = await supabase.rpc(
-          'complete_workout',
-          {
-            p_user_id: user.id,
-            p_workout_id: id,
-            p_duration: totalDuration,
-            p_calories_burned: caloriesBurned,
-            p_is_from_ai_plan: true,
-            p_ai_workout_plan_id: id
-          }
-        );
-        
-        if (completeError) throw completeError;
-        
-        // If workout was logged successfully, log the exercises
-        if (logData) {
-          // Log each exercise individually
-          for (const exercise of completedExercises) {
-            await supabase
-              .from('exercise_logs')
-              .insert({
-                workout_log_id: logData,
-                exercise_id: exercise.exercise_id,
-                sets_completed: exercise.sets_completed,
-                reps_completed: exercise.reps_completed,
-                notes: exercise.notes
-              });
-          }
-          
-          toast.success('Workout completed successfully!');
-          
-          // Redirect to progress page
-          navigate('/progress');
-          return;
-        }
-      } catch (rpcError) {
-        console.warn('RPC function failed, falling back to direct insert:', rpcError);
+      if (completedExercises.length === 0) {
+        toast.error('Please complete at least one exercise before saving');
+        setSaving(false);
+        return;
       }
       
-      // Fallback to direct insert if RPC fails
-      const { data: logData, error: logError } = await supabase
-        .from('workout_logs')
-        .insert({
-          user_id: user.id,
-          workout_id: id,
-          workout_name: workoutPlan.title,
-          workout_description: workoutPlan.description,
-          duration: totalDuration,
-          calories_burned: caloriesBurned,
-          is_from_ai_plan: true,
-          ai_workout_plan_id: id,
-          workout_type: 'completed'
-        })
-        .select('id')
-        .single();
+      // Use the new hook for completing workouts (handles online/offline)
+      const workoutLogId = await completeWorkout({
+        workoutPlanId: id,
+        exercises,
+        duration: totalDuration,
+        caloriesBurned,
+        title: workoutPlan.title,
+        description: workoutPlan.description
+      });
       
-      if (logError) throw logError;
-      
-      // Log each exercise individually
-      for (const exercise of completedExercises) {
-        await supabase
-          .from('exercise_logs')
-          .insert({
-            workout_log_id: logData.id,
-            exercise_id: exercise.exercise_id,
-            sets_completed: exercise.sets_completed,
-            reps_completed: exercise.reps_completed,
-            notes: exercise.notes
-          });
+      if (workoutLogId) {
+        // Update the local workout plan to reflect completion
+        const updatedPlan = {
+          ...workoutPlan,
+          times_completed: (workoutPlan.times_completed || 0) + 1,
+          last_completed: new Date().toISOString()
+        };
+        
+        // Update in cache
+        localStorage.setItem(`workout_plan_${id}`, JSON.stringify(updatedPlan));
+        
+        // Redirect to progress page
+        navigate('/progress');
       }
-      
-      toast.success('Workout completed successfully!');
-      
-      // Redirect to progress page
-      navigate('/progress');
     } catch (error) {
       console.error('Error completing workout:', error);
-      toast.error('Failed to save workout completion');
+      toast.error('Failed to save workout completion. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+  
+  const handleSetReminder = async () => {
+    if (!workoutPlan || !user?.id) return;
+    
+    // Request notification permission if not granted
+    if (Notification.permission !== 'granted') {
+      const granted = await requestNotificationPermission();
+      if (!granted) {
+        toast.error('Permission to send notifications was denied');
+        return;
+      }
+    }
+    
+    try {
+      // Create a reminder 30 minutes from now
+      const reminderTime = new Date(Date.now() + 30 * 60 * 1000);
+      
+      // Schedule the notification
+      const scheduled = await scheduleLocalNotification(
+        'Workout Reminder',
+        {
+          body: `Don't forget your "${workoutPlan.title}" workout!`,
+          timestamp: reminderTime.getTime(),
+          workoutPlanId: id
+        }
+      );
+      
+      if (scheduled) {
+        toast.success('Reminder set for 30 minutes from now');
+        setShowReminderButton(false);
+        
+        // Also save to database
+        const { error } = await supabase
+          .from('workout_reminders')
+          .insert({
+            user_id: user.id,
+            title: `Reminder for ${workoutPlan.title}`,
+            workout_plan_id: id,
+            scheduled_date: format(reminderTime, 'yyyy-MM-dd'),
+            scheduled_time: format(reminderTime, 'HH:mm'),
+            is_recurring: false,
+            is_enabled: true
+          });
+          
+        if (error) {
+          console.error('Error saving reminder to database:', error);
+        }
+      } else {
+        toast.error('Failed to set reminder');
+      }
+    } catch (error) {
+      console.error('Error setting reminder:', error);
+      toast.error('Failed to set reminder');
     }
   };
   
@@ -283,6 +312,33 @@ const AIWorkoutDetail = () => {
   return (
     <DashboardLayout title={workoutPlan.title}>
       <div className="mb-6">
+        {isOffline && (
+          <div className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 p-2 rounded mb-4 text-sm flex items-center justify-center">
+            You're currently offline. Completed workouts will be synced when you reconnect.
+          </div>
+        )}
+        
+        <div className="flex justify-between items-center mb-4">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/ai-workouts')}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to AI Workouts
+          </Button>
+          
+          {showReminderButton && (
+            <Button
+              variant="outline"
+              onClick={handleSetReminder}
+              className="flex items-center"
+            >
+              <Bell className="mr-2 h-4 w-4" />
+              Remind Me Later
+            </Button>
+          )}
+        </div>
+        
         <Button
           variant="outline"
           onClick={() => navigate('/ai-workouts')}

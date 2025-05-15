@@ -588,6 +588,61 @@ export type Database = {
           }
         ]
       }
+      workout_reminders: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          workout_plan_id?: string | null
+          scheduled_date: string
+          scheduled_time: string
+          is_recurring: boolean
+          recurrence_pattern?: string | null
+          is_enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          workout_plan_id?: string | null
+          scheduled_date: string
+          scheduled_time: string
+          is_recurring?: boolean
+          recurrence_pattern?: string | null
+          is_enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          workout_plan_id?: string | null
+          scheduled_date?: string
+          scheduled_time?: string
+          is_recurring?: boolean
+          recurrence_pattern?: string | null
+          is_enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_reminders_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_reminders_workout_plan_id_fkey"
+            columns: ["workout_plan_id"]
+            referencedRelation: "workout_plans"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

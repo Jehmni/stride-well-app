@@ -9,6 +9,9 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LoadingSpinner from "./components/ui/LoadingSpinner";
 import { seedGroceryStores } from "./utils/seedStoreData";
 import { seedExerciseData } from "./utils/seedExerciseData";
+import { registerReminderServiceWorker } from "./services/notificationService";
+import { register as registerServiceWorker } from "./services/serviceWorkerRegistration";
+import { syncAllWorkouts } from "./services/offlineStorageService";
 
 // Import Index directly to avoid lazy loading issues
 import Index from "./pages/Index";
@@ -26,15 +29,39 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Friends = lazy(() => import("./pages/Friends"));
 const Challenges = lazy(() => import("./pages/Challenges"));
 const AIWorkoutsPage = lazy(() => import("./pages/ai/AIWorkoutsPage"));
-const AIWorkoutDetail = lazy(() => import("./pages/ai/AIWorkoutDetail"));
+const AIWorkoutDetail = lazy(() => import("./pages/ai/AIWorkoutDetailPage"));
+const AIWorkoutGeneration = lazy(() => import("./pages/ai/AIWorkoutGenerationPage"));
+const Reminders = lazy(() => import("./pages/Reminders"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 60, // 1 hour
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function App() {  
   React.useEffect(() => {
     // Seed store and exercise data on app initialization
     seedGroceryStores();
     seedExerciseData();
+    
+    // Register the notification and service worker
+    registerReminderServiceWorker();
+    registerServiceWorker();
+    
+    // Sync offline workouts on app startup if online
+    if (navigator.onLine) {
+      syncAllWorkouts().then(count => {
+        if (count > 0) {
+          console.log(`Synced ${count} workouts on app startup`);
+        }
+      });
+    }
   }, []);
   
   return (
@@ -109,6 +136,22 @@ function App() {
                   } 
                 />
                 <Route 
+                  path="/ai-workouts/generate" 
+                  element={
+                    <ProtectedRoute requiresOnboarding={true}>
+                      <AIWorkoutGeneration />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/ai-workouts/:id" 
+                  element={
+                    <ProtectedRoute requiresOnboarding={true}>
+                      <AIWorkoutDetail />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
                   path="/meal-plan" 
                   element={
                     <ProtectedRoute requiresOnboarding={true}>
@@ -129,6 +172,16 @@ function App() {
                   element={
                     <ProtectedRoute requiresOnboarding={true}>
                       <Profile />
+                    </ProtectedRoute>
+                  } 
+                />
+                
+                {/* New reminders route */}
+                <Route 
+                  path="/reminders" 
+                  element={
+                    <ProtectedRoute requiresOnboarding={true}>
+                      <Reminders />
                     </ProtectedRoute>
                   } 
                 />

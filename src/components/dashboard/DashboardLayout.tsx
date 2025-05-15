@@ -9,7 +9,8 @@ import {
   User,
   Utensils,
   X,
-  Brain
+  Brain,
+  Bell
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -32,6 +33,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
     { icon: <Brain size={24} />, label: "AI Workouts", path: "/ai-workouts" },
     { icon: <Utensils size={24} />, label: "Meal Plan", path: "/meal-plan" },
     { icon: <BarChart3 size={24} />, label: "Progress", path: "/progress" },
+    { icon: <Bell size={24} />, label: "Reminders", path: "/reminders" },
     { icon: <User size={24} />, label: "Profile", path: "/profile" },
   ];
 
