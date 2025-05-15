@@ -10,10 +10,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Dumbbell, Calendar, ListChecks, Play, Brain, Info, Loader2, ArrowLeft } from 'lucide-react';
+import { Dumbbell, Calendar, ListChecks, Play, Brain, Info, Loader2, ArrowLeft, RefreshCw } from 'lucide-react';
 import AIGeneratedNotice from '@/components/common/AIGeneratedNotice';
 import WorkoutWeeklySchedule from '@/components/workout/WorkoutWeeklySchedule';
 import WorkoutExerciseList from '@/components/workout/WorkoutExerciseList';
+import { regenerateWorkoutPlan } from '@/integrations/ai/workoutAIService';
 
 interface Exercise {
   id: string;
@@ -52,6 +53,9 @@ const AIWorkoutDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [isTrackingMode, setIsTrackingMode] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regenerationProgress, setRegenerationProgress] = useState(0);
+  const [regenerationStatus, setRegenerationStatus] = useState('');
 
   useEffect(() => {
     const fetchWorkoutPlan = async () => {
@@ -75,10 +79,10 @@ const AIWorkoutDetailPage: React.FC = () => {
         }
         
         // Format exercise data if needed
-        let exercises = data.exercises || [];
-        if (Array.isArray(exercises) && exercises.length > 0) {
+        let exercises: Exercise[] = [];
+        if (data.exercises && Array.isArray(data.exercises) && data.exercises.length > 0) {
           // Make sure each exercise has an id for tracking
-          exercises = exercises.map((ex, index) => ({
+          exercises = data.exercises.map((ex: any, index: number) => ({
             ...ex,
             id: ex.id || `exercise-${index}-${Date.now()}`
           }));
@@ -86,7 +90,14 @@ const AIWorkoutDetailPage: React.FC = () => {
         
         setWorkoutPlan({
           ...data,
-          exercises
+          id: data.id as string,
+          title: data.title as string,
+          description: data.description as string,
+          fitness_goal: data.fitness_goal as string,
+          weekly_structure: data.weekly_structure as WorkoutDay[],
+          exercises,
+          ai_generated: data.ai_generated as boolean,
+          created_at: data.created_at as string
         });
       } catch (err) {
         console.error('Error fetching workout plan:', err);
@@ -121,6 +132,42 @@ const AIWorkoutDetailPage: React.FC = () => {
   const handleCancelTracking = () => {
     setIsTrackingMode(false);
     setActiveTab('overview');
+  };
+
+  const handleRegenerateWorkout = async () => {
+    if (!user?.id) {
+      toast.error('You must be logged in to regenerate a workout plan');
+      return;
+    }
+    
+    // Prevent multiple regeneration attempts
+    if (isRegenerating) return;
+    
+    setIsRegenerating(true);
+    toast.info('Generating a new AI workout plan...');
+    
+    try {
+      const success = await regenerateWorkoutPlan(
+        user.id,
+        (message, progress) => {
+          setRegenerationStatus(message);
+          setRegenerationProgress(progress);
+        }
+      );
+      
+      if (success) {
+        toast.success('New workout plan generated successfully!');
+        // Navigate to AI workouts page to see the new plan
+        setTimeout(() => navigate('/ai-workouts'), 1500);
+      } else {
+        toast.error('Failed to generate new workout plan. Please try again.');
+        setIsRegenerating(false);
+      }
+    } catch (error) {
+      console.error('Error regenerating workout plan:', error);
+      toast.error('An error occurred while generating your workout plan');
+      setIsRegenerating(false);
+    }
   };
 
   // Get today's workout from the weekly structure
@@ -200,7 +247,19 @@ const AIWorkoutDetailPage: React.FC = () => {
         </div>
         
         {workoutPlan.ai_generated && (
-          <AIGeneratedNotice className="mb-6" />
+          <div className="flex items-center justify-between mb-6">
+            <AIGeneratedNotice />
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+              onClick={handleRegenerateWorkout}
+              disabled={isRegenerating}
+            >
+              <RefreshCw className={`h-4 w-4 ${isRegenerating ? 'animate-spin' : ''}`} />
+              {isRegenerating ? 'Generating...' : 'Generate New Plan'}
+            </Button>
+          </div>
         )}
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

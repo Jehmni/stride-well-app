@@ -69,6 +69,8 @@ export const useWorkoutTracking = (): WorkoutTrackingHook => {
     try {
       // If online, try to log directly to the server
       if (isOnline) {
+        console.log('Logging workout online:', workout);
+        
         // Step 1: Create workout log
         const { data: logData, error: logError } = await supabase
           .from('workout_logs')
@@ -91,13 +93,25 @@ export const useWorkoutTracking = (): WorkoutTrackingHook => {
         
         if (logError) {
           console.error('Error logging workout:', logError);
-          throw new Error('Failed to log workout');
+          toast.error(`Failed to log workout: ${logError.message}`);
+          return null;
+        }
+        
+        if (!logData || !logData.id) {
+          console.error('No workout log ID returned');
+          toast.error('Failed to log workout: No ID returned');
+          return null;
         }
         
         // Step 2: Log exercises
         const workoutLogId = logData.id;
+        console.log('Workout logged, now logging exercises for workout_log_id:', workoutLogId);
+        
+        let exerciseLogErrors = 0;
         
         for (const exercise of workout.exercises) {
+          console.log('Logging exercise:', exercise);
+          
           const { error: exerciseError } = await supabase
             .from('exercise_logs')
             .insert({
@@ -107,19 +121,27 @@ export const useWorkoutTracking = (): WorkoutTrackingHook => {
               reps_completed: exercise.reps_completed,
               weight_used: exercise.weight_used,
               notes: exercise.notes,
-              workout_plan_id: workout.workout_plan_id
+              workout_plan_id: workout.workout_plan_id,
+              completed_at: new Date().toISOString()
             });
           
           if (exerciseError) {
             console.error('Error logging exercise:', exerciseError);
+            exerciseLogErrors++;
             // Continue with other exercises even if one fails
           }
         }
         
-        toast.success('Workout logged successfully!');
+        if (exerciseLogErrors > 0) {
+          toast.warning(`Workout logged with ${exerciseLogErrors} exercise tracking errors`);
+        } else {
+          toast.success('Workout logged successfully!');
+        }
+        
         return workoutLogId;
       } else {
         // Offline: Save to local storage
+        console.log('Logging workout offline:', workout);
         const offlineWorkoutId = saveWorkoutOffline({
           workoutPlanId: workout.workout_plan_id,
           userId: user.id,

@@ -487,16 +487,22 @@ export async function regenerateWorkoutPlan(
     const { error: deleteError } = await supabase
       .from('workout_plans')
       .delete()
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .eq('ai_generated', true);
       
     if (deleteError) {
       console.error("Failed to delete existing workout plans:", deleteError);
       // Continue anyway - this is not a critical error
     }
     
-    // 3. Generate new workout plan
+    // 3. Generate new workout plan using force regenerate
     onProgress?.("Generating AI workout plan...", 50);
-    const workoutPlan = await generateAIWorkoutPlan(profile);
+    
+    // Import the generatePersonalizedWorkoutPlan function from the workoutService
+    const { generatePersonalizedWorkoutPlan } = await import('@/services/workoutService');
+    
+    // Generate a new plan, forcing regeneration
+    const workoutPlan = await generatePersonalizedWorkoutPlan(profile, true);
     
     if (!workoutPlan) {
       console.error("Failed to generate new workout plan");

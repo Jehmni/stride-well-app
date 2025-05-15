@@ -287,12 +287,37 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
     if (!userId) return;
     
     try {
-      // Insert into workout_logs table
+      // Create a proper workout entry if we're using the placeholder ID
+      let actualWorkoutId = workoutId;
+      
+      if (workoutId === 'today-workout') {
+        // Create a real workout entry first
+        const { data: workoutData, error: workoutError } = await supabase
+          .from('workouts')
+          .insert({
+            user_id: userId,
+            name: todayWorkout.title,
+            description: todayWorkout.description,
+            day_of_week: new Date().getDay() === 0 ? 7 : new Date().getDay() // Convert Sunday from 0 to 7
+          })
+          .select('id')
+          .single();
+          
+        if (workoutError) {
+          console.error("Error creating workout record:", workoutError);
+          throw workoutError;
+        }
+        
+        console.log("Created new workout with ID:", workoutData.id);
+        actualWorkoutId = workoutData.id;
+      }
+      
+      // Insert into workout_logs table with the valid workout ID
       const { data, error } = await supabase
         .from('workout_logs')
         .insert({
           user_id: userId,
-          workout_id: 'today-workout',
+          workout_id: actualWorkoutId,
           duration: todayWorkout.duration,
           calories_burned: Math.floor(Math.random() * 200) + 200 // Random calories between 200-400
         })

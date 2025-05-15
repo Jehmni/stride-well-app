@@ -1,21 +1,24 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile } from "@/models/models";
 import { WorkoutDay, WorkoutExercise, WorkoutPlan } from "@/components/workout/types";
 import { getExerciseProgressHistoryRPC, logExerciseCompletionRPC } from '@/integrations/supabase/functions';
 import { generateAIWorkoutPlan } from '@/integrations/ai/workoutAIService';
+import { isValidUUID } from "@/lib/utils";
 
 /**
  * Generate a personalized workout plan based on user data and fitness goal
  * Tries AI-generation first, then falls back to rule-based if needed
  * @param userProfile User's profile data
+ * @param forceRegenerate If true, will always generate a new plan even if one exists
  * @returns A workout plan or null if generation failed
  */
 export const generatePersonalizedWorkoutPlan = async (
-  userProfile: UserProfile
-): Promise<WorkoutPlan | null> => {  try {
-    // First, check for existing plans in the database
-    const existingPlan = await getExistingWorkoutPlan(userProfile);
+  userProfile: UserProfile,
+  forceRegenerate = false
+): Promise<WorkoutPlan | null> => {  
+  try {
+    // First, check for existing plans in the database unless regeneration is forced
+    const existingPlan = await getExistingWorkoutPlan(userProfile, forceRegenerate);
     if (existingPlan) {
       console.log("Using existing workout plan from the database");
       return existingPlan;
@@ -53,51 +56,58 @@ export const generatePersonalizedWorkoutPlan = async (
 };
 
 /**
- * Check if a user already has a workout plan in the database
- * @param userProfile User profile to check for
+ * Get existing workout plan from the database for a user
+ * @param userProfile User profile to get workout plan for
+ * @param forceRegenerate If true, will return null to force regeneration even if a plan exists
  * @returns Existing workout plan or null
  */
-async function getExistingWorkoutPlan(userProfile: UserProfile): Promise<WorkoutPlan | null> {
+const getExistingWorkoutPlan = async (
+  userProfile: UserProfile,
+  forceRegenerate = false
+): Promise<WorkoutPlan | null> => {
+  // If regeneration is forced, skip checking for existing plans
+  if (forceRegenerate) {
+    console.log("Force regenerate flag is set, will create a new plan");
+    return null;
+  }
+
   try {
-    const { data: existingPlans, error } = await supabase
+    // Check for existing AI workout plans
+    const { data, error } = await supabase
       .from('workout_plans')
       .select('*')
-      .eq('fitness_goal', userProfile.fitness_goal)
       .eq('user_id', userProfile.id)
+      .eq('ai_generated', true)
       .order('created_at', { ascending: false })
       .limit(1);
-
+    
     if (error) {
       console.error("Error fetching existing workout plans:", error);
       return null;
     }
-
-    if (existingPlans && existingPlans.length > 0) {      // Convert from database format to WorkoutPlan format
-      const dbPlan = existingPlans[0];
+    
+    if (data && data.length > 0) {
+      // Found an existing workout plan
+      const existingPlan = data[0];
       
-      // Ensure the ai_generated property is a boolean
-      let isAIGenerated = false;
-      if ('ai_generated' in dbPlan && typeof dbPlan.ai_generated === 'boolean') {
-        isAIGenerated = dbPlan.ai_generated;
-      }
-      
+      // Convert to proper format
       return {
-        id: dbPlan.id,
-        title: dbPlan.title,
-        description: dbPlan.description,
-        fitness_goal: dbPlan.fitness_goal,
-        weekly_structure: dbPlan.weekly_structure as unknown as WorkoutDay[],
-        exercises: dbPlan.exercises as unknown as WorkoutExercise[],
-        ai_generated: isAIGenerated
+        id: existingPlan.id,
+        title: existingPlan.title,
+        description: existingPlan.description,
+        fitness_goal: existingPlan.fitness_goal,
+        weekly_structure: (existingPlan.weekly_structure || []) as WorkoutDay[],
+        exercises: (existingPlan.exercises || []) as WorkoutExercise[],
+        ai_generated: existingPlan.ai_generated
       };
     }
-
+    
     return null;
   } catch (error) {
-    console.error("Error checking for existing workout plans:", error);
+    console.error("Error in getExistingWorkoutPlan:", error);
     return null;
   }
-}
+};
 
 /**
  * Save a workout plan to the database
@@ -431,17 +441,42 @@ export const logWorkoutCompletion = async (
       notes, rating, isCustom 
     });
     
-    // Use the new complete_workout function if available
-    try {
-      // Get the workout name and description if possible
-      let workoutName = null;
-      let workoutDescription = null;
+    let actualWorkoutId = workoutId;
+    let workoutName = null;
+    let workoutDescription = null;
+    
+    // For special IDs like "today-workout", create a real workout entry
+    if (workoutId === 'today-workout' || !isValidUUID(workoutId)) {
+      console.log("Converting non-UUID workout ID to valid UUID:", workoutId);
       
+      // Create a real workout entry
+      const { data: workoutData, error: workoutError } = await supabase
+        .from('workouts')
+        .insert({
+          user_id: userId,
+          name: "Daily Workout",
+          description: "Completed daily workout",
+          day_of_week: new Date().getDay() === 0 ? 7 : new Date().getDay() // Convert Sunday from 0 to 7
+        })
+        .select('id, name, description')
+        .single();
+        
+      if (workoutError) {
+        console.error("Error creating workout record:", workoutError);
+        throw workoutError;
+      }
+      
+      console.log("Created new workout with ID:", workoutData.id);
+      actualWorkoutId = workoutData.id;
+      workoutName = workoutData.name;
+      workoutDescription = workoutData.description;
+    } else {
+      // Get the workout name and description if possible
       try {
         const { data: workoutData } = await supabase
           .from('workouts')
           .select('name, description')
-          .eq('id', workoutId)
+          .eq('id', actualWorkoutId)
           .single();
           
         if (workoutData) {
@@ -451,17 +486,20 @@ export const logWorkoutCompletion = async (
       } catch (e) {
         console.log("Could not fetch workout details:", e);
       }
-      
+    }
+    
+    // Use the new complete_workout function if available
+    try {
       const { data: rpcData, error: rpcError } = await supabase.rpc(
         'complete_workout',
         {
-          workout_id_param: workoutId,
-          user_id_param: userId,
-          duration_param: duration,
-          calories_param: caloriesBurned,
-          notes_param: notes,
-          rating_param: rating,
-          is_custom_param: isCustom
+          p_workout_id: actualWorkoutId,
+          p_user_id: userId,
+          p_duration: duration,
+          p_calories_burned: caloriesBurned,
+          p_notes: notes,
+          p_rating: rating,
+          p_is_from_ai_plan: false
         }
       );
       
@@ -474,12 +512,13 @@ export const logWorkoutCompletion = async (
     } catch (rpcErr) {
       console.warn("RPC function not available, falling back to direct insert:", rpcErr);
     }
-      // Fall back to direct insert if RPC fails
+    
+    // Fall back to direct insert if RPC fails
     const { data, error } = await supabase
       .from('workout_logs')
       .insert({
         user_id: userId,
-        workout_id: workoutId,
+        workout_id: actualWorkoutId,
         duration,
         calories_burned: caloriesBurned,
         notes,
@@ -538,21 +577,85 @@ export const logExerciseCompletion = async (
       throw new Error("Missing required parameters: workout log ID or exercise ID");
     }
     
-    // Use RPC function wrapper to log exercise completion
-    const { data, error } = await logExerciseCompletionRPC({
-      workout_log_id_param: workoutLogId,
-      exercise_id_param: exerciseId,
-      sets_completed_param: setsCompleted,
-      reps_completed_param: repsCompleted !== undefined ? repsCompleted : null,
-      weight_used_param: weightUsed !== undefined ? weightUsed : null,
-      notes_param: notes || null
+    console.log("Logging exercise with params:", {
+      workoutLogId,
+      exerciseId,
+      setsCompleted,
+      repsCompleted: repsCompleted || null,
+      weightUsed: weightUsed || null,
+      notes: notes || null
     });
-
-    if (error) {
-      console.error("RPC returned error:", error);
-      throw new Error(error.message || "Error logging exercise completion");
+    
+    // First try with newer parameter format
+    try {
+      const { data: newData, error: newError } = await supabase.rpc(
+        'log_exercise_completion',
+        {
+          p_workout_log_id: workoutLogId,
+          p_exercise_id: exerciseId,
+          p_sets_completed: setsCompleted,
+          p_reps_completed: repsCompleted || null,
+          p_weight_used: weightUsed || null,
+          p_notes: notes || null
+        }
+      );
+      
+      if (!newError) {
+        console.log("Successfully logged exercise via newer RPC format");
+        return newData;
+      }
+    } catch (newErr) {
+      console.log("Newer RPC format failed, trying older format", newErr);
     }
-    return data;
+    
+    // Fall back to older parameter format
+    try {
+      const { data, error } = await supabase.rpc(
+        'log_exercise_completion',
+        {
+          workout_log_id_param: workoutLogId,
+          exercise_id_param: exerciseId,
+          sets_completed_param: setsCompleted,
+          reps_completed_param: repsCompleted !== undefined ? repsCompleted : null,
+          weight_used_param: weightUsed !== undefined ? weightUsed : null,
+          notes_param: notes || null
+        }
+      );
+
+      if (error) {
+        console.error("RPC returned error:", error);
+        throw new Error(error.message || "Error logging exercise completion");
+      }
+      
+      console.log("Successfully logged exercise via older RPC format");
+      return data;
+    } catch (rpcErr) {
+      console.error("RPC function error:", rpcErr);
+      throw new Error("Failed to log exercise via RPC. Falling back to direct insert.");
+    }
+    
+    // If both RPC attempts fail, try direct insert as a last resort
+    const { data: directData, error: directError } = await supabase
+      .from('exercise_logs')
+      .insert({
+        workout_log_id: workoutLogId,
+        exercise_id: exerciseId,
+        sets_completed: setsCompleted,
+        reps_completed: repsCompleted,
+        weight_used: weightUsed,
+        notes: notes,
+        completed_at: new Date().toISOString()
+      })
+      .select('id')
+      .single();
+      
+    if (directError) {
+      console.error("Direct insert error:", directError);
+      throw new Error(directError.message);
+    }
+    
+    console.log("Successfully logged exercise via direct insert");
+    return directData.id;
   } catch (error) {
     console.error("Error logging exercise completion:", error);
     throw error; // Rethrow the error so the calling function can handle it
