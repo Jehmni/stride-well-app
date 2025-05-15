@@ -19,4 +19,17 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-components': ['@/components/ui'],
+          'dashboard-core': ['@/components/dashboard', '@/hooks/useAuth', '@/hooks/useWorkoutTracking'],
+          'data-hooks': ['@/hooks/useWorkoutStats', '@/hooks/useWorkoutSchedule', '@/hooks/useNutrition'],
+        }
+      }
+    },
+    sourcemap: true
+  }
 }));

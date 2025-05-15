@@ -16,12 +16,14 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Import Index directly to avoid lazy loading issues
 import Index from "./pages/Index";
+// Import Dashboard directly to avoid chunking issues
+import Dashboard from "./pages/Dashboard";
 
 // Lazy load other page components
 const Login = lazy(() => import("./pages/Login"));
 const Signup = lazy(() => import("./pages/Signup"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
+// const Dashboard = lazy(() => import("./pages/Dashboard"));
 const WorkoutPlan = lazy(() => import("./pages/WorkoutPlan"));
 const MealPlan = lazy(() => import("./pages/MealPlan"));
 const Progress = lazy(() => import("./pages/Progress"));
