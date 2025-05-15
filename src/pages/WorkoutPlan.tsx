@@ -9,7 +9,7 @@ import AIGeneratedNotice from "@/components/common/AIGeneratedNotice";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { TodayWorkoutProps, WorkoutDay, WorkoutExercise, UserWorkout, WorkoutPlan as WorkoutPlanType } from "@/components/workout/types";
+import { TodayWorkoutProps, WorkoutDay, WorkoutExercise, UserWorkout } from "@/components/workout/types";
 import { Activity, Calendar, RefreshCw, Bug, Brain } from "lucide-react";
 import { generatePersonalizedWorkoutPlan, fetchUserWorkouts } from "@/services/workoutService";
 import { regenerateWorkoutPlan } from "@/integrations/ai/workoutAIService";
@@ -18,8 +18,9 @@ import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import AIWorkoutDebugger from "@/components/debug/AIWorkoutDebugger";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { WorkoutPlan } from "@/models/models";
 
-const WorkoutPlan: React.FC = () => {
+const WorkoutPlanPage: React.FC = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [isGeneratingAIPlan, setIsGeneratingAIPlan] = useState<boolean>(false);
@@ -52,7 +53,9 @@ const WorkoutPlan: React.FC = () => {
     { name: "Deadlifts", sets: 3, reps: "6-8", muscle: "Back" },
     { name: "Shoulder Press", sets: 3, reps: "8-10", muscle: "Shoulders" },
     { name: "Pull-ups", sets: 3, reps: "Max", muscle: "Back" }
-  ]);  useEffect(() => {
+  ]);
+
+  useEffect(() => {
     if (profile) {
       // Load personalized workout plan using the AI-driven service
       const loadWorkoutPlan = async () => {
@@ -118,7 +121,8 @@ const WorkoutPlan: React.FC = () => {
             setIsAIGenerated(false);
             setTodayWorkout(
               workoutByGoal[profile.fitness_goal as keyof typeof workoutByGoal] || workoutByGoal["general-fitness"]
-            );          }
+            );
+          }
         } catch (error) {
           console.error("Error loading workout plan:", error);
           setIsGeneratingAIPlan(false);
@@ -143,23 +147,28 @@ const WorkoutPlan: React.FC = () => {
     }
   }, [profile, user?.id]);
 
-  // Define workout image helper function
-  const getWorkoutImage = (focus: string): string => {
-    const focusLower = focus.toLowerCase();
-    if (focusLower.includes('upper') || focusLower.includes('chest') || focusLower.includes('arms')) {
-      return "/assets/images/upper-body.jpg";
-    } else if (focusLower.includes('lower') || focusLower.includes('leg')) {
-      return "/assets/images/lower-body.jpg";
-    } else if (focusLower.includes('core') || focusLower.includes('ab')) {
-      return "/assets/images/core-workout.jpg";
-    } else if (focusLower.includes('cardio')) {
-      return "/assets/images/cardio.jpg";
-    } else if (focusLower.includes('full')) {
-      return "/assets/images/full-body.jpg";
-    } else if (focusLower.includes('recovery') || focusLower.includes('rest')) {
-      return "/assets/images/recovery.jpg";
+  const getWorkoutImage = (plan: WorkoutPlan | string | null) => {
+    if (!plan) return "/placeholder.svg";
+    
+    // Handle string parameter (for backward compatibility)
+    if (typeof plan === 'string') {
+      // Default image for string input
+      return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='300' viewBox='0 0 500 300'%3E%3Crect fill='%23444' width='500' height='300'/%3E%3Ctext fill='%23fff' font-family='sans-serif' font-size='30' x='50%25' y='50%25' text-anchor='middle'%3EWorkout Plan%3C/text%3E%3C/svg%3E";
     }
-    return "/assets/images/workout-generic.jpg";
+    
+    // Use general fitness images based on the type of workout
+    if (plan.title.toLowerCase().includes('strength')) {
+      return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='300' viewBox='0 0 500 300'%3E%3Crect fill='%23506' width='500' height='300'/%3E%3Ctext fill='%23fff' font-family='sans-serif' font-size='30' x='50%25' y='50%25' text-anchor='middle'%3EStrength Workout%3C/text%3E%3C/svg%3E";
+    } else if (plan.title.toLowerCase().includes('cardio')) {
+      return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='300' viewBox='0 0 500 300'%3E%3Crect fill='%23056' width='500' height='300'/%3E%3Ctext fill='%23fff' font-family='sans-serif' font-size='30' x='50%25' y='50%25' text-anchor='middle'%3ECardio Workout%3C/text%3E%3C/svg%3E";
+    } else if (plan.title.toLowerCase().includes('stretch') || plan.title.toLowerCase().includes('flexibility')) {
+      return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='300' viewBox='0 0 500 300'%3E%3Crect fill='%23065' width='500' height='300'/%3E%3Ctext fill='%23fff' font-family='sans-serif' font-size='30' x='50%25' y='50%25' text-anchor='middle'%3EFlexibility Workout%3C/text%3E%3C/svg%3E";
+    } else if (plan.title.toLowerCase().includes('core')) {
+      return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='300' viewBox='0 0 500 300'%3E%3Crect fill='%23905' width='500' height='300'/%3E%3Ctext fill='%23fff' font-family='sans-serif' font-size='30' x='50%25' y='50%25' text-anchor='middle'%3ECore Workout%3C/text%3E%3C/svg%3E";
+    }
+    
+    // Default image
+    return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='300' viewBox='0 0 500 300'%3E%3Crect fill='%23444' width='500' height='300'/%3E%3Ctext fill='%23fff' font-family='sans-serif' font-size='30' x='50%25' y='50%25' text-anchor='middle'%3EWorkout Plan%3C/text%3E%3C/svg%3E";
   };
 
   // Define workout by goal mapping
@@ -250,27 +259,31 @@ const WorkoutPlan: React.FC = () => {
       
       {/* AI Workout Generation Notice */}
       {isGeneratingAIPlan && (
-        <AIGeneratedNotice 
-          title="Creating your AI workout plan" 
-          isGenerating={true} 
-        />
+        <div className="mb-4">
+          <h3 className="text-lg font-medium mb-2">Creating your AI workout plan</h3>
+          <AIGeneratedNotice />
+        </div>
       )}
       
       {/* Regeneration Progress UI */}
       {isRegenerating && (
-        <AIGeneratedNotice
-          title="Regenerating Your Workout Plan"
-          isGenerating={true}
-          progress={regenerationProgress}
-          statusMessage={regenerationStatus}
-          type="workout"
-        />
+        <div className="mb-4">
+          <h3 className="text-lg font-medium mb-2">Regenerating Your Workout Plan</h3>
+          <div className="mb-2">
+            <p className="text-sm text-muted-foreground">{regenerationStatus}</p>
+            <Progress value={regenerationProgress} className="h-1 mt-1" />
+          </div>
+          <AIGeneratedNotice />
+        </div>
       )}
       
       {/* AI Generated Notice with Regenerate Button */}
       {!isGeneratingAIPlan && !isRegenerating && isAIGenerated && (
-        <div className="flex items-center justify-between">
-          <AIGeneratedNotice title="AI-Powered Workout Plan" />
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+          <div>
+            <h3 className="text-lg font-medium mb-2">AI-Powered Workout Plan</h3>
+            <AIGeneratedNotice />
+          </div>
           <Button
             variant="outline"
             size="sm"
@@ -328,7 +341,7 @@ const WorkoutPlan: React.FC = () => {
           <Activity className="h-4 w-4 mr-2" />
           View Progress
         </Button>
-          </div>
+      </div>
 
       <WorkoutPlanHeader
         fitnessGoal={profile?.fitness_goal || "general-fitness"}
@@ -368,4 +381,4 @@ const WorkoutPlan: React.FC = () => {
   );
 };
 
-export default WorkoutPlan;
+export default WorkoutPlanPage;

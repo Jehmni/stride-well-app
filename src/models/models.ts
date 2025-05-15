@@ -1,4 +1,3 @@
-
 // Types for user data
 export interface UserProfile {
   id: string;
@@ -198,6 +197,19 @@ export interface WorkoutPlanInsert {
   fitness_goal: string;
   weekly_structure: Json;
   exercises: Json;
+}
+
+export interface WorkoutPlan {
+  id: string;
+  title: string;
+  description: string | null;
+  fitness_goal: string;
+  weekly_structure: Json;
+  exercises: Json;
+  user_id: string;
+  created_at: string;
+  times_completed?: number;
+  last_completed?: string;
 }
 
 // Adding the FitnessGoals enum
