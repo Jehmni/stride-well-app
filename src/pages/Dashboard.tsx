@@ -10,6 +10,10 @@ import WorkoutStatistics from "@/components/workout/WorkoutStatistics";
 import { useAuth } from "@/hooks/useAuth";
 import { calculateBMI } from "@/utils/healthCalculations";
 import { generatePersonalizedWorkoutPlan } from "@/services/workoutService";
+import { useWorkoutStats } from "@/hooks/useWorkoutStats";
+import { useWorkoutSchedule } from "@/hooks/useWorkoutSchedule";
+import { useNutrition } from "@/hooks/useNutrition";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -26,6 +30,15 @@ const Dashboard: React.FC = () => {
   
   // Calculate BMI if height and weight are available
   const userBMI = profile ? calculateBMI(profile.height, profile.weight) : null;
+  
+  // Get workout statistics
+  const workoutStats = useWorkoutStats(user?.id);
+  
+  // Get workout schedule
+  const workoutSchedule = useWorkoutSchedule(user?.id);
+  
+  // Get nutrition data
+  const [nutritionData, logNutrition] = useNutrition(user?.id);
   
   // Fetch personalized workout on component mount
   useEffect(() => {
@@ -78,56 +91,86 @@ const Dashboard: React.FC = () => {
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatsCard
-          title="Workouts Completed"
-          value="12"
-          icon={<Dumbbell className="h-6 w-6 text-fitness-primary" />}
-          change={{ value: 20, isPositive: true }}
-        />
+        {workoutStats.isLoading ? (
+          <Skeleton className="h-32 w-full" />
+        ) : (
+          <StatsCard
+            title="Workouts Completed"
+            value={workoutStats.totalCount}
+            icon={<Dumbbell className="h-6 w-6 text-fitness-primary" />}
+            change={workoutStats.previousWeekCount > 0 ? {
+              value: workoutStats.weeklyPercentChange,
+              isPositive: workoutStats.isPositive
+            } : undefined}
+          />
+        )}
+        
         <StatsCard
           title="Current Weight"
           value={`${profile?.weight || 70} kg`}
           icon={<Weight className="h-6 w-6 text-fitness-primary" />}
-          change={{ value: 2.5, isPositive: true }}
+          change={profile?.updated_at ? { value: 2.5, isPositive: true } : undefined}
         />
+        
         <StatsCard
           title="BMI"
           value={userBMI ? userBMI.toFixed(1) : "N/A"}
           icon={<Activity className="h-6 w-6 text-fitness-primary" />}
           description={userBMI ? getBMICategory(userBMI) : "Not calculated"}
         />
-        <StatsCard
-          title="Active Calories"
-          value="1,248"
-          icon={<Activity className="h-6 w-6 text-fitness-primary" />}
-          description="Daily Burn"
-        />
+        
+        {workoutStats.isLoading ? (
+          <Skeleton className="h-32 w-full" />
+        ) : (
+          <StatsCard
+            title="Active Calories"
+            value={workoutStats.dailyCalories.toLocaleString()}
+            icon={<Activity className="h-6 w-6 text-fitness-primary" />}
+            description={`${workoutStats.weeklyCalories.toLocaleString()} this week`}
+          />
+        )}
       </div>
 
       {/* Today's Workout */}
       <h2 className="text-xl font-semibold mb-4">Today's Workout</h2>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <WorkoutCard
-          title={selectedWorkout.title}
-          description={selectedWorkout.description}
-          duration={45}
-          exercises={8}
-          date="Today"
-          image={selectedWorkout.image}
-          onClick={() => navigate('/workouts')}
-        />
+        {workoutSchedule.isLoading ? (
+          <Skeleton className="h-64 w-full" />
+        ) : workoutSchedule.todayWorkout ? (
+          <WorkoutCard
+            title={workoutSchedule.todayWorkout.name}
+            description={workoutSchedule.todayWorkout.description || "Your scheduled workout for today"}
+            duration={workoutSchedule.todayWorkout.estimatedDuration}
+            exercises={workoutSchedule.todayWorkout.exercises}
+            date="Today"
+            image="https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-4.0.3&auto=format&fit=crop&w=1740&q=80"
+            onClick={() => navigate('/workouts')}
+          />
+        ) : (
+          <WorkoutCard
+            title={selectedWorkout.title}
+            description={selectedWorkout.description}
+            duration={45}
+            exercises={8}
+            date="Today"
+            image={selectedWorkout.image}
+            onClick={() => navigate('/workouts')}
+          />
+        )}
 
         <NutritionCard
-          calories={1450}
-          protein={92}
-          carbs={145}
-          fat={48}
+          calories={nutritionData.current.calories}
+          protein={nutritionData.current.protein}
+          carbs={nutritionData.current.carbs}
+          fat={nutritionData.current.fat}
           target={{
-            calories: 2000,
-            protein: 150,
-            carbs: 200,
-            fat: 60
+            calories: nutritionData.target?.calories || 2000,
+            protein: nutritionData.target?.protein || 150,
+            carbs: nutritionData.target?.carbs || 200,
+            fat: nutritionData.target?.fat || 60
           }}
+          isLoading={nutritionData.isLoading}
+          error={nutritionData.error}
           onClick={() => navigate('/meal-plan')}
         />
 
@@ -151,33 +194,56 @@ const Dashboard: React.FC = () => {
         </button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <WorkoutCard
-          title="Core Strength"
-          description="Focus on abs and lower back for a stronger core"
-          duration={30}
-          exercises={6}
-          date="Tomorrow"
-          image="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-          onClick={() => navigate('/workouts')}
-        />
-        <WorkoutCard
-          title="Mobility & Flexibility"
-          description="Improve range of motion and prevent injuries"
-          duration={35}
-          exercises={8}
-          date="Wed, Apr 11"
-          image="https://images.unsplash.com/photo-1518611012118-696072aa579a?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
-          onClick={() => navigate('/workouts')}
-        />
-        <WorkoutCard
-          title="Active Recovery"
-          description="Light activity to promote recovery and reduce soreness"
-          duration={25}
-          exercises={5}
-          date="Thu, Apr 12"
-          image="https://images.unsplash.com/photo-1603287681836-b174ce5074c2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1471&q=80"
-          onClick={() => navigate('/workouts')}
-        />
+        {workoutSchedule.isLoading ? (
+          <>
+            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-48 w-full" />
+          </>
+        ) : workoutSchedule.upcomingWorkouts.length > 0 ? (
+          workoutSchedule.upcomingWorkouts.map(workout => (
+            <WorkoutCard
+              key={workout.id}
+              title={workout.name}
+              description={workout.description || `Scheduled workout for ${workout.dayLabel}`}
+              duration={workout.estimatedDuration}
+              exercises={workout.exercises}
+              date={workout.dayLabel}
+              image="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+              onClick={() => navigate('/workouts')}
+            />
+          ))
+        ) : (
+          <>
+            <WorkoutCard
+              title="Core Strength"
+              description="Focus on abs and lower back for a stronger core"
+              duration={30}
+              exercises={6}
+              date="Tomorrow"
+              image="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+              onClick={() => navigate('/workouts')}
+            />
+            <WorkoutCard
+              title="Mobility & Flexibility"
+              description="Improve range of motion and prevent injuries"
+              duration={35}
+              exercises={8}
+              date="Wed, Apr 11"
+              image="https://images.unsplash.com/photo-1518611012118-696072aa579a?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+              onClick={() => navigate('/workouts')}
+            />
+            <WorkoutCard
+              title="Active Recovery"
+              description="Light activity to promote recovery and reduce soreness"
+              duration={25}
+              exercises={5}
+              date="Thu, Apr 12"
+              image="https://images.unsplash.com/photo-1603287681836-b174ce5074c2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1471&q=80"
+              onClick={() => navigate('/workouts')}
+            />
+          </>
+        )}
       </div>
     </DashboardLayout>
   );
