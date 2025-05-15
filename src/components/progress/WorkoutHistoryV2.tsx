@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Dumbbell } from "lucide-react";
+import { Dumbbell, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { WorkoutLog, SelectQueryError } from "@/models/models";
 import WorkoutLogCard, { ExtendedWorkoutLog } from "@/components/workout/WorkoutLogCard";
+import { toast } from "@/components/ui/use-toast";
 
 // Type guard to check if an object is a valid WorkoutLog (not an error)
 function isValidWorkoutLog(log: any): log is Omit<WorkoutLog, "workout"> & { workout?: any } {
@@ -19,6 +20,7 @@ const WorkoutHistoryV2: React.FC = () => {
   const { user } = useAuth();
   const [workoutLogs, setWorkoutLogs] = useState<ExtendedWorkoutLog[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
   const [diagnosticData, setDiagnosticData] = useState<string | null>(null);
 
@@ -67,8 +69,9 @@ const WorkoutHistoryV2: React.FC = () => {
               )
             )
           )
-        `)        .eq("user_id", user.id)
-        .eq("workout_type", "completed") // Ensure we only get completed workouts 
+        `)
+        .eq("user_id", user.id)
+        // Show all workout logs, not just completed ones
         .order("completed_at", { ascending: false })
         .limit(20);
         
@@ -186,6 +189,48 @@ const WorkoutHistoryV2: React.FC = () => {
     }
   };
 
+  // Function to sync workout history data
+  const syncWorkoutHistory = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setIsSyncing(true);
+      
+      // Call the comprehensive RPC function to sync all workout data
+      const { data, error } = await supabase.rpc(
+        'sync_all_workout_data',
+        { p_user_id: user.id }
+      );
+      
+      if (error) {
+        console.error("Error syncing workout data:", error);
+        toast({
+          title: "Sync Failed",
+          description: "Could not sync workout history. Please try again.",
+          variant: "destructive"
+        });
+      } else {
+        console.log("Sync result:", data);
+        toast({
+          title: "Sync Complete",
+          description: "Your workout history has been synced successfully."
+        });
+        
+        // Refresh the workout logs
+        await fetchWorkoutLogs();
+      }
+    } catch (error) {
+      console.error("Exception during workout history sync:", error);
+      toast({
+        title: "Sync Error",
+        description: "An unexpected error occurred during sync.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -205,6 +250,16 @@ const WorkoutHistoryV2: React.FC = () => {
         <p className="text-gray-500 mb-6 max-w-md">
           Complete your first workout to start tracking your progress.
         </p>
+        <Button variant="outline" onClick={syncWorkoutHistory} disabled={isSyncing}>
+          {isSyncing ? (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              Syncing...
+            </>
+          ) : (
+            <>Sync Workout Data</>
+          )}
+        </Button>
       </div>
     );
   }
@@ -214,6 +269,21 @@ const WorkoutHistoryV2: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-2xl font-semibold">Workout History</h3>
         <div className="flex space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={syncWorkoutHistory}
+            disabled={isSyncing}
+          >
+            {isSyncing ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Syncing...
+              </>
+            ) : (
+              <>Sync Data</>
+            )}
+          </Button>
           {import.meta.env.DEV && (
             <Button variant="outline" size="sm" onClick={runDiagnostics}>
               Debug
