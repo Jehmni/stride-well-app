@@ -77,7 +77,7 @@ const WorkoutTemplates: React.FC = () => {
     startWorkoutFromTemplate(id, {
       onSuccess: (result) => {
         if (result?.workoutId) {
-          navigate(`/workout/${result.workoutId}`);
+          navigate(`/workouts`);
         }
       }
     });
