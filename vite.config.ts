@@ -29,18 +29,37 @@ export default defineConfig(({ mode }) => ({
     // Reduce the number of chunks and ensure they're loaded correctly
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-components': ['@/components/ui'],
-          'dashboard-core': ['@/components/dashboard', '@/hooks/useAuth', '@/hooks/useWorkoutTracking'],
-          'data-hooks': ['@/hooks/useWorkoutStats', '@/hooks/useWorkoutSchedule', '@/hooks/useNutrition'],
-          'exercise-features': ['@/components/workout', '@/services/exerciseService'],
-          'auth-related': ['@/pages/Login', '@/pages/Signup'],
-          'ai-features': [
-            '@/pages/ai/AIWorkoutsPage',
-            '@/pages/ai/AIWorkoutDetailPage',
-            '@/pages/ai/AIWorkoutGenerationPage'
-          ]
+        manualChunks(id) {
+          // Create a vendor chunk for node_modules
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@tanstack')) {
+              return 'vendor-tanstack';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+            return 'vendor';
+          }
+          
+          // Create custom chunks for different parts of the app
+          if (id.includes('/components/dashboard/')) {
+            return 'dashboard-components';
+          }
+          if (id.includes('/components/workout/')) {
+            return 'workout-components';
+          }
+          if (id.includes('/hooks/')) {
+            return 'hooks';
+          }
+          if (id.includes('/pages/ai/')) {
+            return 'ai-features';
+          }
+          
+          // Default chunk for the main app code
+          return undefined;
         },
         // Ensure chunk file names are consistent between builds
         chunkFileNames: 'assets/[name]-[hash].js',
