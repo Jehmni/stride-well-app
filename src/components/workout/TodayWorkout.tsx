@@ -391,23 +391,6 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
                   >
                     View Progress
                   </Button>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          className="flex-1"
-                          onClick={handleWorkoutCompleted}
-                        >
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          New Session
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Start a fresh workout session without affecting history</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
                   <DetailedWorkoutLog 
                     workoutId="today-workout" 
                     workoutTitle={todayWorkout.title}
@@ -443,6 +426,32 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
           )}
 
           <div className="mt-6 flex justify-end gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      // Clear any local storage data for the workout without affecting history
+                      localStorage.removeItem(`completedExercises-today-workout`);
+                      
+                      // Reload today's workout data
+                      fetchTodayExercises();
+                      
+                      // Show success message
+                      toast.success("Ready for a new workout session!");
+                    }}
+                    className="flex items-center"
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Start New Session
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Uncheck all exercises and start a fresh session without affecting workout history</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button 
               variant="outline"
               onClick={() => setShowTracking(false)}
