@@ -10,6 +10,7 @@ interface NetworkErrorHandlerProps {
 const NetworkErrorHandler: React.FC<NetworkErrorHandlerProps> = ({ children }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [hasChunkError, setHasChunkError] = useState(false);
+  const [isDashboardError, setIsDashboardError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -22,8 +23,24 @@ const NetworkErrorHandler: React.FC<NetworkErrorHandlerProps> = ({ children }) =
       const { message, filename } = event;
       console.error('Script error detected:', message, filename);
       
-      // Check if this is a chunk loading error
-      if (
+      // Check if this is a Dashboard chunk loading error
+      if (message.includes('Dashboard-') && message.includes('Failed to fetch')) {
+        setIsDashboardError(true);
+        setHasChunkError(true);
+        setErrorMessage(message);
+        event.preventDefault();
+        
+        // Try to preload the Dashboard component if it's available
+        try {
+          import('../../pages/Dashboard').catch(e => {
+            console.error('Failed to load Dashboard component directly:', e);
+          });
+        } catch (e) {
+          console.error('Could not even attempt to load Dashboard:', e);
+        }
+      }
+      // Check if this is a general chunk loading error
+      else if (
         message.includes('Failed to fetch dynamically imported module') ||
         message.includes('Loading chunk') ||
         message.includes('Loading CSS chunk')
@@ -46,12 +63,27 @@ const NetworkErrorHandler: React.FC<NetworkErrorHandlerProps> = ({ children }) =
   }, []);
 
   const handleReload = () => {
+    // Clear cached resources if possible
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => {
+          caches.delete(name);
+        });
+      });
+    }
+    
     // Clear error state
     setHasChunkError(false);
+    setIsDashboardError(false);
     setErrorMessage(null);
     
     // Reload the page
     window.location.reload();
+  };
+
+  // Redirect to another page if Dashboard fails to load
+  const handleRedirectHome = () => {
+    window.location.href = '/';
   };
 
   if (!isOnline) {
@@ -65,6 +97,37 @@ const NetworkErrorHandler: React.FC<NetworkErrorHandlerProps> = ({ children }) =
           </AlertDescription>
         </Alert>
         {children}
+      </div>
+    );
+  }
+
+  if (isDashboardError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
+        <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+        <h2 className="text-2xl font-bold mb-4">Dashboard Loading Error</h2>
+        <p className="mb-4">We're having trouble loading the Dashboard component. This is a known issue we're working to fix.</p>
+        <div className="flex flex-col md:flex-row gap-4 w-full max-w-md mx-auto">
+          <Button 
+            onClick={handleReload}
+            className="flex items-center gap-2 flex-1"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Try Again
+          </Button>
+          <Button 
+            onClick={handleRedirectHome}
+            variant="outline"
+            className="flex items-center gap-2 flex-1"
+          >
+            Go to Homepage
+          </Button>
+        </div>
+        {errorMessage && (
+          <p className="text-xs text-gray-500 mt-8 max-w-lg mx-auto overflow-hidden text-ellipsis">
+            Error details: {errorMessage}
+          </p>
+        )}
       </div>
     );
   }

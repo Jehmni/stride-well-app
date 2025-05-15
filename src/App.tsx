@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -18,8 +18,45 @@ import NetworkErrorHandler from "./components/common/NetworkErrorHandler";
 
 // Import Index directly to avoid lazy loading issues
 import Index from "./pages/Index";
-// Import Dashboard directly to avoid chunking issues
-import Dashboard from "./pages/Dashboard";
+// Import Dashboard directly but also with dynamic loading fallback
+// This approach ensures the component works in both development and production environments
+import DashboardComponent from "./pages/Dashboard";
+import DashboardFallback from "./components/dashboard/DashboardFallback";
+
+// Create a wrapped Dashboard component with error handling
+const Dashboard = () => {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    // Check if a previous error was stored (for refreshes)
+    const storedError = sessionStorage.getItem('dashboard_load_error');
+    if (storedError) {
+      setHasError(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Listen for errors that might indicate Dashboard loading issues
+    const handleError = (event: ErrorEvent) => {
+      if (event.message.includes('Dashboard-') && event.message.includes('Failed to fetch')) {
+        console.error('Dashboard loading error detected:', event);
+        setHasError(true);
+        sessionStorage.setItem('dashboard_load_error', 'true');
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  // If there was an error, use the fallback component
+  if (hasError) {
+    return <DashboardFallback />;
+  }
+
+  // Otherwise use the real Dashboard component
+  return <DashboardComponent />;
+};
 
 // Lazy load other page components with preloading
 const Login = preloadModule(() => import("./pages/Login"));
