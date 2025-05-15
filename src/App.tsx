@@ -72,6 +72,7 @@ const Challenges = preloadModule(() => import("./pages/Challenges"));
 const AIWorkoutsPage = preloadModule(() => import("./pages/ai/AIWorkoutsPage"));
 const AIWorkoutDetail = preloadModule(() => import("./pages/ai/AIWorkoutDetailPage"));
 const AIWorkoutGeneration = preloadModule(() => import("./pages/ai/AIWorkoutGenerationPage"));
+const CreateAIWorkout = preloadModule(() => import("./pages/CreateAIWorkout"));
 const Reminders = preloadModule(() => import("./pages/Reminders"));
 
 // Simple error boundary for catching chunk loading errors
@@ -198,6 +199,14 @@ function App() {
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <Dashboard />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/create-ai-workout" 
+                    element={
+                      <ProtectedRoute requiresOnboarding={true}>
+                        <CreateAIWorkout />
                       </ProtectedRoute>
                     } 
                   />

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { 
   Tabs, 
@@ -10,6 +9,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import WorkoutHistoryV2 from "@/components/progress/WorkoutHistoryV2";
 import WorkoutStatistics from "@/components/workout/WorkoutStatistics";
 import ExerciseDashboard from "@/components/workout/ExerciseDashboard";
+import MeasurementsTracker from "@/components/progress/MeasurementsTracker";
 import { useAuth } from "@/hooks/useAuth";
 import { calculateBMI, getBMICategory } from "@/utils/healthCalculations";
 import UserAvatar from "@/components/profile/UserAvatar"; 
@@ -18,7 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
 const Progress: React.FC = () => {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const [dbIssueType, setDbIssueType] = useState<"exercise-logging" | "ai-workouts" | "both" | null>(null);
   const [isChecking, setIsChecking] = useState(true);
@@ -85,12 +85,8 @@ const Progress: React.FC = () => {
         </div>
       </div>
       
-      {!isChecking && dbIssueType && (
-        <DbFixesNotice 
-          hasIssues={true} 
-          issueType={dbIssueType} 
-          onFixClick={handleApplyFixes}
-        />
+      {!isChecking && dbIssueType && user && (
+        <DbFixesNotice userId={user.id} />
       )}
       
       {/* Health Stats Overview */}
@@ -109,9 +105,9 @@ const Progress: React.FC = () => {
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">BMI</h3>
           <div className="text-2xl font-bold">{userBMI ? userBMI.toFixed(1) : "--"}</div>
           {bmiCategory && <span className="text-sm text-gray-500">{bmiCategory}</span>}
-                  </div>
-                </div>
-        <Tabs defaultValue="workouts">
+        </div>
+      </div>
+      <Tabs defaultValue="workouts">
         <TabsList className="mb-6">
           <TabsTrigger value="workouts">Workout History</TabsTrigger>
           <TabsTrigger value="exercises">Exercise Progress</TabsTrigger>
@@ -121,20 +117,18 @@ const Progress: React.FC = () => {
         
         <TabsContent value="workouts">
           <WorkoutHistoryV2 />
-          </TabsContent>
-          
+        </TabsContent>
+        
         <TabsContent value="exercises">
           <ExerciseDashboard />
-          </TabsContent>
-          
+        </TabsContent>
+        
         <TabsContent value="statistics">
           <WorkoutStatistics />
-          </TabsContent>
+        </TabsContent>
         
         <TabsContent value="measurements">
-          <div className="p-12 text-center">
-            <p className="text-gray-500">Body measurements tracking coming soon!</p>
-          </div>
+          <MeasurementsTracker />
         </TabsContent>
       </Tabs>
     </DashboardLayout>

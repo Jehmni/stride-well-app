@@ -643,6 +643,50 @@ export type Database = {
           }
         ]
       }
+      body_measurements: {
+        Row: {
+          id: string
+          user_id: string
+          chest: number | null
+          waist: number | null
+          hips: number | null
+          arms: number | null
+          thighs: number | null
+          recorded_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          chest?: number | null
+          waist?: number | null
+          hips?: number | null
+          arms?: number | null
+          thighs?: number | null
+          recorded_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          chest?: number | null
+          waist?: number | null
+          hips?: number | null
+          arms?: number | null
+          thighs?: number | null
+          recorded_at?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "body_measurements_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
