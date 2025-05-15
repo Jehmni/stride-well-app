@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
 import { scheduleLocalNotification, requestNotificationPermission } from "@/services/notificationService";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Exercise {
   id: string;
@@ -387,7 +388,27 @@ const AIWorkoutDetail = () => {
         
         <Card className="mb-6">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Workout Progress</CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-lg">Workout Progress</CardTitle>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={resetAllExercises}
+                      className="flex items-center"
+                    >
+                      <RefreshCw className="mr-1 h-3 w-3" />
+                      Reset All
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Reset all exercise progress</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -480,14 +501,23 @@ const AIWorkoutDetail = () => {
                   )}
                 </Button>
                 
-                <Button 
-                  variant="outline"
-                  className="w-full" 
-                  onClick={resetAllExercises}
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Reset All
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="outline"
+                        className="w-full" 
+                        onClick={resetAllExercises}
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Reset All
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Clear all progress and start over</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </CardFooter>
           </Card>
