@@ -328,7 +328,7 @@ const WorkoutPlan: React.FC = () => {
           <Activity className="h-4 w-4 mr-2" />
           View Progress
         </Button>
-      </div>
+          </div>
 
       <WorkoutPlanHeader
         fitnessGoal={profile?.fitness_goal || "general-fitness"}
@@ -343,7 +343,7 @@ const WorkoutPlan: React.FC = () => {
         <WeeklyStructure weeklyStructure={weeklyStructure} />
         <KeyExercises exercises={keyExercises} />
       </div>
-      
+
       <CustomWorkoutList 
         userId={user?.id} 
         userWorkouts={userWorkouts}

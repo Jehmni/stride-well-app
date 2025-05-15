@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Calendar, Clock, Dumbbell, Save, Check, Brain, Bell } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, Dumbbell, Save, Check, Brain, Bell, RefreshCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -44,7 +44,7 @@ const AIWorkoutDetail = () => {
   const [progress, setProgress] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
   const [totalExercises, setTotalExercises] = useState(0);
-  const { isOffline, completeWorkout } = useWorkoutTracking();
+  const { isOnline, logWorkout } = useWorkoutTracking();
   const [showReminderButton, setShowReminderButton] = useState(true);
 
   useEffect(() => {
@@ -168,6 +168,15 @@ const AIWorkoutDetail = () => {
     );
   };
   
+  const resetAllExercises = () => {
+    setExercises(prevExercises => 
+      prevExercises.map(ex => ({ ...ex, completed: false }))
+    );
+    setProgress(0);
+    setCompletedCount(0);
+    toast.info('All exercises have been reset');
+  };
+  
   const handleCompleteWorkout = async () => {
     if (!user?.id || !id) {
       toast.error('You must be logged in to save workout progress');
@@ -197,12 +206,20 @@ const AIWorkoutDetail = () => {
         return;
       }
       
-      // Use the new hook for completing workouts (handles online/offline)
-      const workoutLogId = await completeWorkout({
-        workoutPlanId: id,
-        exercises,
+      // Format exercises for the logWorkout function
+      const formattedExercises = completedExercises.map(ex => ({
+        exercise_id: ex.id,
+        sets_completed: ex.sets,
+        reps_completed: typeof ex.reps === 'string' ? parseInt(ex.reps) || 1 : ex.reps,
+        weight_used: null
+      }));
+      
+      // Use the hook for completing workouts (handles online/offline)
+      const workoutLogId = await logWorkout({
+        workout_plan_id: id,
+        exercises: formattedExercises,
         duration: totalDuration,
-        caloriesBurned,
+        calories_burned: caloriesBurned,
         title: workoutPlan.title,
         description: workoutPlan.description
       });
@@ -312,7 +329,7 @@ const AIWorkoutDetail = () => {
   return (
     <DashboardLayout title={workoutPlan.title}>
       <div className="mb-6">
-        {isOffline && (
+        {!isOnline && (
           <div className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 p-2 rounded mb-4 text-sm flex items-center justify-center">
             You're currently offline. Completed workouts will be synced when you reconnect.
           </div>
@@ -444,23 +461,34 @@ const AIWorkoutDetail = () => {
               </div>
             </CardContent>
             <CardFooter>
-              <Button 
-                className="w-full" 
-                disabled={completedCount === 0 || saving}
-                onClick={handleCompleteWorkout}
-              >
-                {saving ? (
-                  <>
-                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Complete Workout
-                  </>
-                )}
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                <Button 
+                  className="w-full" 
+                  disabled={completedCount === 0 || saving}
+                  onClick={handleCompleteWorkout}
+                >
+                  {saving ? (
+                    <>
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="mr-2 h-4 w-4" />
+                      Complete Workout
+                    </>
+                  )}
+                </Button>
+                
+                <Button 
+                  variant="outline"
+                  className="w-full" 
+                  onClick={resetAllExercises}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Reset All
+                </Button>
+              </div>
             </CardFooter>
           </Card>
         </div>

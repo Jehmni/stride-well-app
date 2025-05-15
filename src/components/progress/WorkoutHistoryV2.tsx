@@ -52,22 +52,11 @@ const WorkoutHistoryV2: React.FC = () => {
           is_custom,
           workout_name,
           workout_description,
-          workout:workouts(
+          ai_workout_plan:workout_plans(
             id, 
-            name, 
+            title,
             description,
-            exercises:workout_exercises(
-              id,
-              sets,
-              reps,
-              duration,
-              rest_time,
-              exercise:exercises(
-                id,
-                name,
-                muscle_group
-              )
-            )
+            exercises
           )
         `)
         .eq("user_id", user.id)
@@ -198,8 +187,8 @@ const WorkoutHistoryV2: React.FC = () => {
       
       // Call the comprehensive RPC function to sync all workout data
       const { data, error } = await supabase.rpc(
-        'sync_all_workout_data',
-        { p_user_id: user.id }
+        'sync_workout_progress',
+        { user_id_param: user.id, workout_id_param: '', completed_exercises_param: [] }
       );
       
       if (error) {

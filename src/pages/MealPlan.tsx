@@ -419,7 +419,7 @@ const MealPlan: React.FC = () => {
               <h3 className="text-xl font-semibold flex items-center">
                 <Calendar className="mr-2 h-5 w-5" />
                 Your Meal Plans
-              </h3>
+          </h3>
               <div className="flex items-center space-x-2">
                 <Button
                   variant="outline"
@@ -451,7 +451,7 @@ const MealPlan: React.FC = () => {
                           value={newPlan.name}
                           onChange={(e) => setNewPlan({...newPlan, name: e.target.value})}
                         />
-                      </div>
+            </div>
                       <div className="space-y-2">
                         <Label htmlFor="plan-description">Description (optional)</Label>
                         <Input
@@ -460,7 +460,7 @@ const MealPlan: React.FC = () => {
                           value={newPlan.description}
                           onChange={(e) => setNewPlan({...newPlan, description: e.target.value})}
                         />
-                      </div>
+            </div>
                       <div className="space-y-2">
                         <Label htmlFor="plan-day">Day of Week (optional)</Label>
                         <Select
@@ -481,7 +481,7 @@ const MealPlan: React.FC = () => {
                             <SelectItem value="6">Sunday</SelectItem>
                           </SelectContent>
                         </Select>
-                      </div>
+            </div>
                       <div className="space-y-2">
                         <Label htmlFor="plan-calories">Target Calories</Label>
                         <Input
@@ -490,7 +490,7 @@ const MealPlan: React.FC = () => {
                           value={newPlan.calories}
                           onChange={(e) => setNewPlan({...newPlan, calories: e.target.value})}
                         />
-                      </div>
+            </div>
                       <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="plan-protein">Protein (g)</Label>
@@ -500,7 +500,7 @@ const MealPlan: React.FC = () => {
                             value={newPlan.protein}
                             onChange={(e) => setNewPlan({...newPlan, protein: e.target.value})}
                           />
-                        </div>
+          </div>
                         <div className="space-y-2">
                           <Label htmlFor="plan-carbs">Carbs (g)</Label>
                           <Input
@@ -531,12 +531,12 @@ const MealPlan: React.FC = () => {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
-              </div>
-            </div>
-            
+          </div>
+        </div>
+        
             {showSearch && (
-              <div className="mb-4">
-                <Input
+            <div className="mb-4">
+                <Input 
                   placeholder="Search meals..."
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
@@ -561,7 +561,7 @@ const MealPlan: React.FC = () => {
                     >
                       Create Your First Plan
                     </Button>
-                  </div>
+            </div>
                 ) : (
                   <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
                     <div className="p-4 border-b">
@@ -817,7 +817,7 @@ const MealPlan: React.FC = () => {
                                           </p>
                                         )}
                                         <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                                          <div className="flex items-center">
+                  <div className="flex items-center">
                                             <Utensils className="h-3 w-3 mr-1" />
                                             <span>{meal.calories} kcal</span>
                                           </div>
@@ -923,9 +923,9 @@ const MealPlan: React.FC = () => {
                                 <span className={`ml-3 ${item.checked ? 'line-through text-gray-400' : ''}`}>
                                   {item.name}
                                 </span>
-                              </div>
-                            ))}
-                          </div>
+                </div>
+              ))}
+            </div>
                         </div>
                       );
                     })}
@@ -935,9 +935,9 @@ const MealPlan: React.FC = () => {
                     <Button onClick={() => setActiveTab("stores")}>
                       <Map className="h-4 w-4 mr-2" />
                       Find Stores Nearby
-                    </Button>
-                  </div>
-                </div>
+            </Button>
+          </div>
+        </div>
               )}
             </div>
           </TabsContent>
@@ -949,7 +949,7 @@ const MealPlan: React.FC = () => {
                 <h3 className="text-lg font-semibold flex items-center">
                   <Map className="mr-2 h-5 w-5" />
                   Find Nearby Grocery Stores
-                </h3>
+          </h3>
                 <p className="text-gray-600 dark:text-gray-400 mt-2">
                   Locate stores near you that carry the ingredients you need.
                 </p>
@@ -973,7 +973,7 @@ const MealPlan: React.FC = () => {
                       Location access is required to find nearby stores.
                       Please enable location services in your browser.
                     </p>
-                  </div>
+              </div>
                 )}
               </div>
             </div>
