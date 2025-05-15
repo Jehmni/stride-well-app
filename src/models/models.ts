@@ -232,3 +232,44 @@ export interface ExerciseLog {
   completed_at: string;
   exercise?: Exercise;
 }
+
+// Workout Template
+export interface WorkoutTemplate {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  is_favorite: boolean;
+  source_workout_id: string | null;
+  source_workout_log_id: string | null;
+  exercises: WorkoutTemplateExercise[];
+  created_at: string;
+  updated_at: string;
+  last_used_at: string | null;
+  use_count: number;
+}
+
+// Workout Template Exercise
+export interface WorkoutTemplateExercise {
+  id: string;
+  template_id: string;
+  exercise_id: string;
+  sets: number;
+  reps: string | number;
+  rest_time: number | null;
+  weight: number | null;
+  order_position: number;
+  notes: string | null;
+  exercise?: Exercise;
+}
+
+// Exercise Variation/Alternative
+export interface ExerciseVariation {
+  id: string;
+  primary_exercise_id: string;
+  alternative_exercise_id: string;
+  variation_type: 'equipment' | 'difficulty' | 'similar' | 'target';
+  description: string | null;
+  primary_exercise?: Exercise;
+  alternative_exercise?: Exercise;
+}

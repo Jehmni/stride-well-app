@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import SyncStatus from "@/components/SyncStatus";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -60,9 +61,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
       <aside className="fixed inset-y-0 left-0 hidden w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 md:flex flex-col z-10">
         <div className="h-16 flex items-center justify-between px-6 bg-fitness-primary">
           <h2 className="text-2xl font-bold text-white">CorePilot</h2>
-          <Avatar className="h-8 w-8 bg-primary-foreground text-primary">
-            <AvatarFallback>{getUserInitials()}</AvatarFallback>
-          </Avatar>
+          <div className="flex items-center gap-2">
+            <SyncStatus />
+            <Avatar className="h-8 w-8 bg-primary-foreground text-primary">
+              <AvatarFallback>{getUserInitials()}</AvatarFallback>
+            </Avatar>
+          </div>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
@@ -96,6 +100,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
         <div className="h-16 px-4 flex items-center justify-between">
           <h2 className="text-xl font-bold">CorePilot</h2>
           <div className="flex items-center space-x-2">
+            <SyncStatus />
             <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
               <AvatarFallback>{getUserInitials()}</AvatarFallback>
             </Avatar>
