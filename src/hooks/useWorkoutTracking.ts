@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
+import { logWorkoutWithExercisesRPC } from '@/integrations/supabase/functions';
+import { LogWorkoutWithExercisesParams, ExerciseLogData } from '@/types/rpc';
 
 // Storage key for offline workouts
 const OFFLINE_WORKOUTS_KEY = 'offline_workouts';
@@ -57,14 +59,62 @@ const syncAllWorkouts = async (): Promise<number> => {
     const unsyncedWorkouts = existingWorkouts.filter(w => !w.synced);
     if (unsyncedWorkouts.length === 0) return 0;
     
-    // TODO: Implement actual sync logic
-    console.log('Would sync these workouts:', unsyncedWorkouts);
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error('No authenticated user found for syncing');
+      return 0;
+    }
     
-    // For now just mark all as synced
-    existingWorkouts.forEach(w => w.synced = true);
+    let syncedCount = 0;
+    
+    // Process each unsynced workout
+    for (const workout of unsyncedWorkouts) {
+      try {
+        // Use the helper function to avoid type errors
+        const params: LogWorkoutWithExercisesParams = {
+          workout_id_param: workout.workout_plan_id,
+          user_id_param: user.id,
+          duration_param: workout.duration || 0,
+          calories_param: workout.calories_burned || 0,
+          exercise_data_param: workout.exercises as ExerciseLogData[],
+          is_ai_workout_param: true,
+          ai_workout_plan_id_param: workout.workout_plan_id
+        };
+        
+        const result = await logWorkoutWithExercisesRPC(params);
+        
+        if (result) {
+          console.log('Offline workout synced successfully:', result);
+          
+          // Update any additional fields
+          const { error: updateError } = await supabase
+            .from('workout_logs')
+            .update({
+              workout_name: workout.title || 'Offline Workout',
+              workout_description: workout.description || 'Synced from offline storage',
+              notes: workout.notes || null,
+              workout_type: 'completed'
+            })
+            .eq('id', result);
+            
+          if (updateError) {
+            console.warn('Warning: Could not update additional workout log fields:', updateError);
+          }
+        }
+        
+        // Mark as synced
+        workout.synced = true;
+        syncedCount++;
+      } catch (error) {
+        console.error(`Error syncing workout ${workout.id}:`, error);
+      }
+    }
+    
+    // Save updated state back to local storage
     localStorage.setItem(OFFLINE_WORKOUTS_KEY, JSON.stringify(existingWorkouts));
     
-    return unsyncedWorkouts.length;
+    return syncedCount;
   } catch (error) {
     console.error('Error syncing workouts:', error);
     return 0;
@@ -138,29 +188,23 @@ export const useWorkoutTracking = (): WorkoutTrackingHook => {
         console.log('Logging workout online:', workout);
         
         try {
-          // Use RPC function for optimized logging
-          const { data: result, error: rpcError } = await supabase.rpc(
-            'log_workout_with_exercises',
-            {
-              workout_id_param: workout.workout_plan_id,
-              user_id_param: user.id,
-              duration_param: workout.duration || 0,
-              calories_param: workout.calories_burned || 0,
-              exercise_data_param: workout.exercises,
-              is_ai_workout_param: true,
-              ai_workout_plan_id_param: workout.workout_plan_id
-            }
-          );
+          // Use the helper function to avoid type errors
+          const params: LogWorkoutWithExercisesParams = {
+            workout_id_param: workout.workout_plan_id,
+            user_id_param: user.id,
+            duration_param: workout.duration || 0,
+            calories_param: workout.calories_burned || 0,
+            exercise_data_param: workout.exercises as ExerciseLogData[],
+            is_ai_workout_param: true,
+            ai_workout_plan_id_param: workout.workout_plan_id
+          };
           
-          if (rpcError) {
-            console.error('RPC error:', rpcError);
-            throw rpcError;
-          }
+          const result = await logWorkoutWithExercisesRPC(params);
           
-          console.log('Workout logged successfully via RPC:', result);
-          
-          // Update any additional fields that RPC doesn't set
           if (result) {
+            console.log('Workout logged successfully via RPC:', result);
+            
+            // Update any additional fields
             const { error: updateError } = await supabase
               .from('workout_logs')
               .update({
@@ -174,81 +218,35 @@ export const useWorkoutTracking = (): WorkoutTrackingHook => {
             if (updateError) {
               console.warn('Warning: Could not update additional workout log fields:', updateError);
             }
-          }
-          
-          // Sync with local storage for offline mode
-          addToOfflineQueue({
-            id: result,
-            ...workout,
-            user_id: user.id,
-            synced: true
-          });
-          
-          return result;
-        } catch (rpcError) {
-          console.warn('RPC function failed, falling back to direct inserts:', rpcError);
-          
-          // Step 1: Create workout log
-          const { data: logData, error: logError } = await supabase
-            .from('workout_logs')
-            .insert({
-              user_id: user.id,
-              workout_id: workout.workout_plan_id,
-              workout_name: workout.title || 'Completed Workout',
-              workout_description: workout.description || 'Completed workout session',
-              duration: workout.duration,
-              calories_burned: workout.calories_burned,
-              notes: workout.notes,
-              completed_at: new Date().toISOString(),
-              workout_type: 'completed',
-              is_from_ai_plan: true,
-              ai_workout_plan_id: workout.workout_plan_id
-            })
-            .select('id')
-            .single();
             
-          if (logError) {
-            console.error("Error creating workout log:", logError);
-            throw logError;
+            // Sync with local storage for offline mode
+            addToOfflineQueue({
+              id: result,
+              ...workout,
+              user_id: user.id,
+              synced: true
+            });
+            
+            return result;
           }
           
-          const workoutLogId = logData.id;
-          console.log("Workout log created via direct insert:", workoutLogId);
+          return null;
+        } catch (error) {
+          console.error('Error logging workout:', error);
           
-          // Step 2: Log exercises
-          if (workout.exercises && workout.exercises.length > 0) {
-            for (const exercise of workout.exercises) {
-              try {
-                const { error: exerciseLogError } = await supabase
-                  .from('exercise_logs')
-                  .insert({
-                    workout_log_id: workoutLogId,
-                    exercise_id: exercise.exercise_id,
-                    sets_completed: exercise.sets_completed,
-                    reps_completed: exercise.reps_completed,
-                    weight_used: exercise.weight_used,
-                    notes: exercise.notes,
-                    completed_at: new Date().toISOString()
-                  });
-                  
-                if (exerciseLogError) {
-                  console.error(`Error logging exercise ${exercise.exercise_id}:`, exerciseLogError);
-                }
-              } catch (err) {
-                console.error(`Error in exercise logging for ${exercise.exercise_id}:`, err);
-              }
-            }
-          }
+          // Fall back to offline storage if online attempt fails
+          const offlineId = 'offline-' + new Date().getTime();
           
-          // Sync with local storage for offline mode
+          // Add to offline queue
           addToOfflineQueue({
-            id: workoutLogId,
+            id: offlineId,
             ...workout,
-            user_id: user.id,
-            synced: true
+            user_id: user?.id,
+            synced: false
           });
           
-          return workoutLogId;
+          toast.info('Saved workout locally due to error. Will sync when possible.');
+          return offlineId;
         }
       } else {
         // Offline mode - save to queue for later sync

@@ -532,6 +532,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
                 key={exercise.id}
                 exercise={exercise}
                 onComplete={handleExerciseComplete}
+                workoutId={workoutId}
               />
             ))}
           </div>

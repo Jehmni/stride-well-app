@@ -343,7 +343,6 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
     
     // Clear any local storage data for the workout without affecting workout history
     localStorage.removeItem(`completedExercises-today-workout`);
-    localStorage.removeItem('completedExercises');
     
     // Reload today's workout data
     fetchTodayExercises();
@@ -435,7 +434,6 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
                     onClick={() => {
                       // Clear local storage for workout exercises (both formats)
                       localStorage.removeItem(`completedExercises-today-workout`);
-                      localStorage.removeItem('completedExercises');
                       
                       // Reload today's workout data
                       fetchTodayExercises();

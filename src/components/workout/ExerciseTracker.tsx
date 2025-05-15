@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,9 +8,10 @@ import { supabase } from "@/integrations/supabase/client";
 interface ExerciseTrackerProps {
   exercise: WorkoutExerciseDetail;
   onComplete: (exerciseId: string) => void;
+  workoutId: string;
 }
 
-const ExerciseTracker: React.FC<ExerciseTrackerProps> = ({ exercise, onComplete }) => {
+const ExerciseTracker: React.FC<ExerciseTrackerProps> = ({ exercise, onComplete, workoutId }) => {
   const [setProgress, setSetProgress] = useState<boolean[]>([]);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
 
@@ -20,12 +20,12 @@ const ExerciseTracker: React.FC<ExerciseTrackerProps> = ({ exercise, onComplete 
     setSetProgress(Array(exercise.sets).fill(false));
     
     // Check if this exercise is already marked as completed in local storage
-    const completedExercises = JSON.parse(localStorage.getItem('completedExercises') || '{}');
+    const completedExercises = JSON.parse(localStorage.getItem(`completedExercises-${workoutId}`) || '{}');
     if (completedExercises[exercise.id]) {
       setIsCompleted(true);
       setSetProgress(Array(exercise.sets).fill(true));
     }
-  }, [exercise.id, exercise.sets]);
+  }, [exercise.id, exercise.sets, workoutId]);
 
   const handleSetComplete = (setIndex: number) => {
     const newSetProgress = [...setProgress];
@@ -46,9 +46,9 @@ const ExerciseTracker: React.FC<ExerciseTrackerProps> = ({ exercise, onComplete 
       setIsCompleted(true);
       
       // Store completion status in localStorage for persistent state
-      const completedExercises = JSON.parse(localStorage.getItem('completedExercises') || '{}');
+      const completedExercises = JSON.parse(localStorage.getItem(`completedExercises-${workoutId}`) || '{}');
       completedExercises[exercise.id] = true;
-      localStorage.setItem('completedExercises', JSON.stringify(completedExercises));
+      localStorage.setItem(`completedExercises-${workoutId}`, JSON.stringify(completedExercises));
       
       // Notify parent component
       onComplete(exercise.id);
@@ -78,9 +78,9 @@ const ExerciseTracker: React.FC<ExerciseTrackerProps> = ({ exercise, onComplete 
               setSetProgress(Array(exercise.sets).fill(false));
               
               // Remove from local storage
-              const completedExercises = JSON.parse(localStorage.getItem('completedExercises') || '{}');
+              const completedExercises = JSON.parse(localStorage.getItem(`completedExercises-${workoutId}`) || '{}');
               delete completedExercises[exercise.id];
-              localStorage.setItem('completedExercises', JSON.stringify(completedExercises));
+              localStorage.setItem(`completedExercises-${workoutId}`, JSON.stringify(completedExercises));
             }}
           >
             Reset
