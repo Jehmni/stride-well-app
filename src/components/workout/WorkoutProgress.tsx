@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle, Award, RefreshCw, Clock } from "lucide-react";
+import { CheckCircle, Award, RefreshCw, Clock, RotateCcw } from "lucide-react";
 import { WorkoutExerciseDetail } from "./types";
 import ExerciseTracker from "./ExerciseTracker";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +12,24 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import { isValidUUID } from "@/lib/utils";
 import { ExerciseLogData } from "@/types/rpc";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { v4 as uuidv4 } from 'uuid';
 
 interface WorkoutProgressProps {
   exercises: WorkoutExerciseDetail[];
@@ -26,13 +44,20 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
   userId,
   onWorkoutCompleted
 }) => {
-  const [completedExercises, setCompletedExercises] = useState<string[]>([]);
+  const [completedExercises, setCompletedExercises] = useState<Record<string, {
+    id: string;
+    sets_completed: number;
+    reps_completed: number;
+    weight_used?: number;
+    notes?: string;
+  }>>({});
   const [progress, setProgress] = useState<number>(0);
   const [isWorkoutComplete, setIsWorkoutComplete] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'unsynced' | 'error'>('unsynced');
+  const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
 
   useEffect(() => {
     if (!exercises.length) return;
@@ -43,11 +68,19 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
       .filter(ex => savedCompleted[ex.id])
       .map(ex => ex.id);
     
-    setCompletedExercises(completedIds);
+    setCompletedExercises(completedIds.map(id => ({
+      [id]: {
+        id,
+        sets_completed: 0,
+        reps_completed: 0,
+        weight_used: 0,
+        notes: ""
+      }
+    })).reduce((acc, curr) => ({ ...acc, ...curr }), {}));
     
     // Calculate progress
     const newProgress = exercises.length 
-      ? Math.round((completedIds.length / exercises.length) * 100) 
+      ? Math.round((Object.keys(completedExercises).length / exercises.length) * 100) 
       : 0;
     
     setProgress(newProgress);
@@ -55,7 +88,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
     
     // If user is logged in, try to sync with remote progress
     if (userId) {
-      syncWithRemoteProgress(completedIds);
+      syncWithRemoteProgress(Object.keys(completedExercises));
     }
   }, [exercises, workoutId, userId]);
   
@@ -95,11 +128,19 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
           console.log("Remote data is newer, updating local state");
           
           // Update local state
-          setCompletedExercises(remoteCompletedExercises);
+          setCompletedExercises(remoteCompletedExercises.map(id => ({
+            [id]: {
+              id,
+              sets_completed: 0,
+              reps_completed: 0,
+              weight_used: 0,
+              notes: ""
+            }
+          })).reduce((acc, curr) => ({ ...acc, ...curr }), {}));
           
           // Calculate progress with remote data
           const newProgress = exercises.length 
-            ? Math.round((remoteCompletedExercises.length / exercises.length) * 100) 
+            ? Math.round((Object.keys(completedExercises).length / exercises.length) * 100) 
             : 0;
           
           setProgress(newProgress);
@@ -191,41 +232,25 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
     }
   };
   
-  const handleExerciseComplete = (exerciseId: string) => {
-    if (!completedExercises.includes(exerciseId)) {
-      const updated = [...completedExercises, exerciseId];
-      setCompletedExercises(updated);
-      
-      // Save to localStorage for immediate UI update
-      const savedCompleted = JSON.parse(localStorage.getItem(`completedExercises-${workoutId}`) || '{}');
-      savedCompleted[exerciseId] = true;
-      localStorage.setItem(`completedExercises-${workoutId}`, JSON.stringify(savedCompleted));
-      
-      // Save timestamp for sync conflict resolution
-      localStorage.setItem(`lastUpdated-${workoutId}`, new Date().toISOString());
-      
-      // Calculate new progress
-      const newProgress = exercises.length 
-        ? Math.round((updated.length / exercises.length) * 100) 
-        : 0;
-      
-      setProgress(newProgress);
-      setSyncStatus('unsynced');
-      
-      // Sync to remote if user is logged in
-      if (userId) {
-        syncToRemote(updated);
+  const handleExerciseComplete = (exerciseId: string, data?: {
+    sets_completed: number;
+    reps_completed: number;
+    weight_used?: number;
+    notes?: string;
+  }) => {
+    setCompletedExercises(prev => ({
+      ...prev,
+      [exerciseId]: {
+        id: exerciseId,
+        sets_completed: data?.sets_completed || 0,
+        reps_completed: data?.reps_completed || 0,
+        weight_used: data?.weight_used,
+        notes: data?.notes
       }
-      
-      // Check if workout is complete
-      if (newProgress === 100) {
-        setIsWorkoutComplete(true);
-        completeWorkout();
-      }
-    }
+    }));
   };
   
-  const completeWorkout = async () => {
+  const handleWorkoutComplete = async () => {
     if (!userId) {
       toast({
         title: "Error",
@@ -422,7 +447,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
     }
   };
   
-  const resetWorkoutProgress = () => {
+  const handleResetAll = () => {
     try {
       console.log("Resetting workout progress for workout ID:", workoutId);
       
@@ -430,7 +455,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
       localStorage.removeItem(`completedExercises-${workoutId}`);
       
       // Reset state
-      setCompletedExercises([]);
+      setCompletedExercises({});
       setProgress(0);
       setIsWorkoutComplete(false);
       setLastSynced(null);
@@ -482,7 +507,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
         </p>
         <Button 
           variant="outline"
-          onClick={resetWorkoutProgress}
+          onClick={handleResetAll}
         >
           Start New Session
         </Button>
@@ -492,10 +517,70 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
 
   return (
     <div className="space-y-4">
-      <div>
-        <div className="flex justify-between mb-2">
-          <span className="text-sm font-medium">Progress</span>
-          <span className="text-sm font-medium">{progress}%</span>
+      <div className="flex justify-between items-center">
+        <div className="flex items-center space-x-2">
+          <CheckCircle className="h-5 w-5 text-fitness-primary" />
+          <h3 className="text-lg font-medium">Workout Progress</h3>
+        </div>
+        
+        <div className="flex space-x-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowResetConfirm(true)}
+                  disabled={Object.keys(completedExercises).length === 0}
+                >
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  Reset All
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Reset all exercise progress</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
+          <Button 
+            onClick={handleWorkoutComplete}
+            disabled={isSaving || Object.keys(completedExercises).length === 0}
+            size="sm"
+          >
+            {isSaving ? (
+              <>Processing...</>
+            ) : (
+              <>
+                <CheckCircle className="h-4 w-4 mr-1" />
+                Complete Workout
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+      
+      <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset All Exercises?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will reset progress for all exercises in this workout. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetAll}>
+              Reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      <div className="mb-4">
+        <div className="flex justify-between text-sm mb-1">
+          <span>{Object.keys(completedExercises).length} of {exercises.length} exercises completed</span>
+          <span>{Math.round(progress)}%</span>
         </div>
         <Progress value={progress} className="h-2" />
       </div>
@@ -510,7 +595,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
             variant="ghost" 
             size="sm" 
             className="h-6 px-2"
-            onClick={() => syncWithRemoteProgress(completedExercises)}
+            onClick={() => syncWithRemoteProgress(Object.keys(completedExercises))}
             disabled={isSyncing}
           >
             <RefreshCw className={`h-3 w-3 mr-1 ${isSyncing ? "animate-spin" : ""}`} />

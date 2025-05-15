@@ -10,8 +10,6 @@ import {
   SheetTitle,
   SheetTrigger
 } from "@/components/ui/sheet";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,12 +17,12 @@ import { Slider } from "@/components/ui/slider";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { logWorkoutCompletion } from "@/services/workoutService";
+import { logWorkoutWithExercises } from "@/services/workoutService";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Check, ClipboardList, Activity, Timer, ArrowRight } from "lucide-react";
-import ExerciseLogForm from "./ExerciseLogForm";
+import { Check, ClipboardList, Activity, Timer, Dumbbell } from "lucide-react";
 import { WorkoutExerciseDetail } from "./types";
+import { Separator } from "@/components/ui/separator";
 
 interface DetailedWorkoutLogProps {
   workoutId: string;
@@ -43,6 +41,15 @@ const formSchema = z.object({
   notes: z.string().optional(),
 });
 
+// Rating options with emoji
+const ratingOptions = [
+  { value: 1, label: "😓 Very Hard" },
+  { value: 2, label: "😰 Hard" },
+  { value: 3, label: "😐 Moderate" },
+  { value: 4, label: "😊 Easy" },
+  { value: 5, label: "😁 Very Easy" },
+];
+
 const DetailedWorkoutLog: React.FC<DetailedWorkoutLogProps> = ({ 
   workoutId, 
   workoutTitle, 
@@ -52,9 +59,6 @@ const DetailedWorkoutLog: React.FC<DetailedWorkoutLogProps> = ({
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [workoutLogId, setWorkoutLogId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"summary" | "exercises">("summary");
-  const [completedExercises, setCompletedExercises] = useState<string[]>([]);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -73,23 +77,53 @@ const DetailedWorkoutLog: React.FC<DetailedWorkoutLogProps> = ({
     }
 
     setIsSubmitting(true);
-    try {      const logId = await logWorkoutCompletion(
-        user.id,
-        workoutId,
-        values.duration,
-        values.caloriesBurned || null,
-        values.notes || null,
-        values.rating
-      );
+    
+    try {
+      // Get completed exercises from local storage
+      const completedExercises = JSON.parse(localStorage.getItem(`completedExercises-${workoutId}`) || '{}');
       
-      if (logId) {
-        console.log("Workout log created with ID:", logId);
-        setWorkoutLogId(logId);
-        toast.success("Workout log created! Now let's log your exercises.");
-        setActiveTab("exercises");
+      // Prepare exercise logs
+      const exerciseLogs = Object.entries(completedExercises)
+        .filter(([_, data]) => data && typeof data === 'object' && data.completed)
+        .map(([exerciseId, data]: [string, any]) => ({
+          exercise_id: exerciseId,
+          sets_completed: data.details?.sets_completed || 0,
+          reps_completed: data.details?.reps_completed || 0,
+          weight_used: data.details?.weight_used || null,
+          notes: data.details?.notes || null
+        }));
+      
+      // Check if any exercises were completed
+      if (exerciseLogs.length === 0) {
+        toast.error("Please complete at least one exercise before logging the workout");
+        return;
+      }
+      
+      // Log workout with exercises
+      const result = await logWorkoutWithExercises({
+        userId: user.id,
+        workoutId,
+        workoutTitle,
+        duration: values.duration,
+        caloriesBurned: values.caloriesBurned || null,
+        notes: values.notes || null,
+        rating: values.rating,
+        exercises: exerciseLogs
+      });
+      
+      if (result) {
+        toast.success("Workout logged successfully!");
+        
+        // Clear completed exercises from local storage
+        localStorage.removeItem(`completedExercises-${workoutId}`);
+        
+        // Close the sheet and call the onComplete callback
+        setIsOpen(false);
+        if (onComplete) {
+          onComplete();
+        }
       } else {
-        console.error("Failed to create workout log - no ID returned");
-        toast.error("Failed to create workout log");
+        toast.error("Failed to log workout");
       }
     } catch (error) {
       console.error("Error logging workout:", error);
@@ -98,30 +132,6 @@ const DetailedWorkoutLog: React.FC<DetailedWorkoutLogProps> = ({
       setIsSubmitting(false);
     }
   };
-
-  const handleExerciseComplete = (exerciseId: string) => {
-    setCompletedExercises(prev => [...prev, exerciseId]);
-  };
-
-  const allExercisesCompleted = exercises.length > 0 && 
-    completedExercises.length === exercises.length;
-
-  const handleFinish = () => {
-    setIsOpen(false);
-    if (onComplete) {
-      onComplete();
-    }
-    toast.success("Workout completed and logged successfully!");
-  };
-
-  // Rating options with emoji
-  const ratingOptions = [
-    { value: 1, label: "😓 Very Hard" },
-    { value: 2, label: "😰 Hard" },
-    { value: 3, label: "😐 Moderate" },
-    { value: 4, label: "😊 Easy" },
-    { value: 5, label: "😁 Very Easy" },
-  ];
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -134,206 +144,127 @@ const DetailedWorkoutLog: React.FC<DetailedWorkoutLogProps> = ({
         <SheetHeader>
           <SheetTitle>Log Workout: {workoutTitle}</SheetTitle>
           <SheetDescription>
-            Record your workout details and track your progress
+            Record details for your completed workout
           </SheetDescription>
         </SheetHeader>
         
-        <div className="py-4">
-          <Tabs value={activeTab} onValueChange={(tab) => setActiveTab(tab as "summary" | "exercises")}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="summary" disabled={!workoutLogId && activeTab === "exercises"}>
-                <Activity className="mr-2 h-4 w-4" /> Workout Summary
-              </TabsTrigger>
-              <TabsTrigger value="exercises" disabled={!workoutLogId}>
-                <Timer className="mr-2 h-4 w-4" /> Log Exercises
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="summary" className="space-y-4 mt-4">
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="duration"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Duration (minutes)</FormLabel>
-                        <FormControl>
-                          <div className="space-y-2">
-                            <Slider
-                              value={[field.value]}
-                              min={5}
-                              max={180}
-                              step={5}
-                              onValueChange={(vals) => field.onChange(vals[0])}
-                            />
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>5 min</span>
-                              <span>{field.value} minutes</span>
-                              <span>180 min</span>
-                            </div>
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="caloriesBurned"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Estimated Calories Burned (optional)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="Enter calories"
-                            {...field}
-                            value={field.value || ''}
-                            onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="rating"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>How difficult was this workout?</FormLabel>
-                        <FormControl>
-                          <div className="grid grid-cols-5 gap-2">
-                            {ratingOptions.map((option) => (
-                              <Button
-                                key={option.value}
-                                type="button"
-                                variant={field.value === option.value ? "default" : "outline"}
-                                className="h-14 flex flex-col"
-                                onClick={() => field.onChange(option.value)}
-                              >
-                                <div className="text-lg">{option.label.split(' ')[0]}</div>
-                                <div className="text-xs mt-1">
-                                  {option.label.split(' ').slice(1).join(' ')}
-                                </div>
-                              </Button>
-                            ))}
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="notes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notes (optional)</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="How did this workout feel? What went well or what could improve?"
-                            className="resize-none"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      "Saving..."
-                    ) : (
-                      <>Continue to Exercise Log <ArrowRight className="ml-2 h-4 w-4" /></>
-                    )}
-                  </Button>
-                </form>
-              </Form>
-            </TabsContent>
-            
-            <TabsContent value="exercises" className="mt-4">
-              {workoutLogId ? (
-                <div className="space-y-6">
-                  <div className="text-sm text-muted-foreground">
-                    Complete {completedExercises.length}/{exercises.length} exercises
-                  </div>
-                  
-                  <Separator />
-                  
-                  {exercises.map((exercise) => (
-                    <div key={exercise.exercise_id} className="mt-4">
-                      {completedExercises.includes(exercise.exercise_id) ? (
-                        <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-md flex items-center">
-                          <Check className="text-green-600 dark:text-green-400 mr-2" />
-                          <span><strong>{exercise.exercise.name}</strong> completed</span>
-                        </div>
-                      ) : (                        <ExerciseLogForm
-                          workoutLogId={workoutLogId}
-                          exerciseId={exercise.exercise_id}
-                          exerciseName={exercise.exercise.name}
-                          recommendedSets={exercise.sets}
-                          recommendedReps={`${exercise.reps || '10-12'}`}
-                          onComplete={() => handleExerciseComplete(exercise.exercise_id)}
-                        />
-                      )}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 py-6">
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="duration"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex justify-between items-center">
+                      <FormLabel>Workout Duration (minutes)</FormLabel>
+                      <span className="text-sm font-medium">{field.value} min</span>
                     </div>
-                  ))}
-                  
-                  <Separator />
-                  
-                  <Button
-                    onClick={handleFinish}
-                    className="w-full"
-                    variant={allExercisesCompleted ? "default" : "outline"}
-                    disabled={!allExercisesCompleted}
-                  >
-                    {allExercisesCompleted ? (
-                      <>
-                        <Check className="mr-2 h-4 w-4" />
-                        Complete Workout Log
-                      </>
-                    ) : (
-                      `Log remaining exercises (${exercises.length - completedExercises.length} left)`
-                    )}
-                  </Button>
+                    <FormControl>
+                      <Slider
+                        min={5}
+                        max={180}
+                        step={5}
+                        defaultValue={[30]}
+                        onValueChange={(value) => field.onChange(value[0])}
+                        value={[field.value]}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="caloriesBurned"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Estimated Calories Burned (optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Enter calories"
+                        {...field}
+                        value={field.value || ''}
+                        onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="rating"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>How difficult was this workout?</FormLabel>
+                    <div className="grid grid-cols-5 gap-2">
+                      {ratingOptions.map((option) => (
+                        <Button
+                          key={option.value}
+                          type="button"
+                          variant={field.value === option.value ? "default" : "outline"}
+                          className={`h-14 px-2 flex flex-col justify-center ${field.value === option.value ? 'bg-fitness-primary text-white' : ''}`}
+                          onClick={() => field.onChange(option.value)}
+                        >
+                          <span className="text-lg">{option.label.split(' ')[0]}</span>
+                          <span className="text-xs whitespace-nowrap">{option.label.split(' ').slice(1).join(' ')}</span>
+                        </Button>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes (optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="How did the workout feel? What could be improved?"
+                        className="min-h-[100px]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <Separator className="my-4" />
+              
+              <div>
+                <h3 className="text-sm font-medium mb-2 flex items-center">
+                  <Dumbbell className="h-4 w-4 mr-1" />
+                  Completed Exercises
+                </h3>
+                <div className="text-sm text-gray-500 mb-4">
+                  Exercise details from your workout will be included automatically.
                 </div>
-              ) : (
-                <div className="flex items-center justify-center h-40 text-center">
-                  <div>
-                    <p className="text-muted-foreground">
-                      Please complete the workout summary first
-                    </p>
-                    <Button 
-                      variant="outline" 
-                      className="mt-4"
-                      onClick={() => setActiveTab("summary")}
-                    >
-                      Back to Summary
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
-        
-        <SheetFooter className="mt-4">
-          <SheetClose asChild>
-            <Button type="button" variant="outline">
-              Cancel
-            </Button>
-          </SheetClose>
-        </SheetFooter>
+              </div>
+            </div>
+            
+            <SheetFooter className="flex-col sm:flex-row gap-2">
+              <SheetClose asChild>
+                <Button variant="outline" className="w-full">Cancel</Button>
+              </SheetClose>
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Logging..." : "Save Workout Log"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </Form>
       </SheetContent>
     </Sheet>
   );

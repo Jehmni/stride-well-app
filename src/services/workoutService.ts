@@ -4,6 +4,7 @@ import { WorkoutDay, WorkoutExercise, WorkoutPlan } from "@/components/workout/t
 import { getExerciseProgressHistoryRPC, logExerciseCompletionRPC } from '@/integrations/supabase/functions';
 import { generateAIWorkoutPlan } from '@/integrations/ai/workoutAIService';
 import { isValidUUID } from "@/lib/utils";
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Generate a personalized workout plan based on user data and fitness goal
@@ -748,5 +749,76 @@ export const getUserWorkoutStatistics = async (userId: string) => {
       totalDuration: 0,
       averageDuration: 0
     };
+  }
+};
+
+/**
+ * Logs a workout completion with all exercise details in one call
+ */
+export const logWorkoutWithExercises = async ({
+  userId,
+  workoutId,
+  workoutTitle,
+  duration,
+  caloriesBurned,
+  notes,
+  rating,
+  exercises
+}: {
+  userId: string;
+  workoutId: string;
+  workoutTitle: string;
+  duration: number;
+  caloriesBurned: number | null;
+  notes: string | null;
+  rating: number;
+  exercises: Array<{
+    exercise_id: string;
+    sets_completed: number;
+    reps_completed: number;
+    weight_used: number | null;
+    notes: string | null;
+  }>;
+}): Promise<string | null> => {
+  try {
+    // Generate workout log ID
+    const workoutLogId = uuidv4();
+    
+    // Create workout log
+    const { error: workoutError } = await supabase
+      .from('workout_logs')
+      .insert({
+        id: workoutLogId,
+        user_id: userId,
+        workout_id: workoutId,
+        completed_at: new Date().toISOString(),
+        duration,
+        calories_burned: caloriesBurned,
+        notes,
+        rating,
+        workout_type: 'completed',
+        workout_name: workoutTitle,
+        is_custom: false
+      });
+
+    if (workoutError) throw workoutError;
+
+    // Insert exercise logs
+    const { error: exercisesError } = await supabase
+      .from('exercise_logs')
+      .insert(
+        exercises.map(ex => ({
+          workout_log_id: workoutLogId,
+          ...ex,
+          completed_at: new Date().toISOString()
+        }))
+      );
+
+    if (exercisesError) throw exercisesError;
+
+    return workoutLogId;
+  } catch (error) {
+    console.error("Error logging workout with exercises:", error);
+    return null;
   }
 };
