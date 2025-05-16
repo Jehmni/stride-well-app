@@ -29,15 +29,6 @@ const NetworkErrorHandler: React.FC<NetworkErrorHandlerProps> = ({ children }) =
         setHasChunkError(true);
         setErrorMessage(message);
         event.preventDefault();
-        
-        // Try to preload the Dashboard component if it's available
-        try {
-          import('../../pages/Dashboard').catch(e => {
-            console.error('Failed to load Dashboard component directly:', e);
-          });
-        } catch (e) {
-          console.error('Could not even attempt to load Dashboard:', e);
-        }
       }
       // Check if this is a general chunk loading error
       else if (
