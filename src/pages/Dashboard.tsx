@@ -8,7 +8,7 @@ import AIWorkoutCard from "@/components/dashboard/AIWorkoutCard";
 import StatsCard from "@/components/dashboard/StatsCard";
 import WorkoutStatistics from "@/components/workout/WorkoutStatistics";
 import { useAuth } from "@/hooks/useAuth";
-import { calculateBMI } from "@/utils/healthCalculations";
+import { calculateBMI, getBMICategory } from "@/utils/healthCalculations";
 import { generatePersonalizedWorkoutPlan } from "@/services/workoutService";
 import { useWorkoutStats } from "@/hooks/useWorkoutStats";
 import { useWorkoutSchedule } from "@/hooks/useWorkoutSchedule";
@@ -247,14 +247,6 @@ const Dashboard: React.FC = () => {
       </div>
     </DashboardLayout>
   );
-};
-
-// Helper function to determine BMI category
-const getBMICategory = (bmi: number): string => {
-  if (bmi < 18.5) return "Underweight";
-  if (bmi < 25) return "Normal Weight";
-  if (bmi < 30) return "Overweight";
-  return "Obese";
 };
 
 export default Dashboard;
