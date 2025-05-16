@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import * as React from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -14,20 +14,14 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({
-  session: null,
-  user: null,
-  profile: null,
-  isLoading: true,
-  signOut: async () => {},
-  refreshProfile: async () => {},
-});
+// Create the context with a more explicit null check approach
+const AuthContext = React.createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Database['public']['Tables']['user_profiles']['Row'] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = React.useState<Session | null>(null);
+  const [user, setUser] = React.useState<User | null>(null);
+  const [profile, setProfile] = React.useState<Database['public']['Tables']['user_profiles']['Row'] | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   // Fetch user profile data
   const fetchProfile = async (userId: string) => {
@@ -61,7 +55,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // Handle auth state changes
-  useEffect(() => {
+  React.useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
@@ -111,16 +105,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Create the auth context value
+  const contextValue: AuthContextType = {
+    session,
+    user,
+    profile,
+    isLoading,
+    signOut,
+    refreshProfile
+  };
+
   return (
-    <AuthContext.Provider value={{ session, user, profile, isLoading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
+// Export the hook with a proper null check
+export const useAuth = (): AuthContextType => {
+  const context = React.useContext(AuthContext);
+  if (context === null) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
