@@ -5,11 +5,12 @@ import WeeklyStructure from "@/components/workout/WeeklyStructure";
 import KeyExercises from "@/components/workout/KeyExercises";
 import TodayWorkout from "@/components/workout/TodayWorkout";
 import CustomWorkoutList from "@/components/workout/CustomWorkoutList";
+import WorkoutDetails from "@/components/workout/WorkoutDetails";
 import AIGeneratedNotice from "@/components/common/AIGeneratedNotice";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { TodayWorkoutProps, WorkoutDay, WorkoutExercise, UserWorkout } from "@/components/workout/types";
+import { TodayWorkoutProps, WorkoutDay, WorkoutExercise, UserWorkout, WorkoutExerciseDetail } from "@/components/workout/types";
 import { Activity, Calendar, RefreshCw, Bug, Brain } from "lucide-react";
 import { generatePersonalizedWorkoutPlan, fetchUserWorkouts } from "@/services/workoutService";
 import { regenerateWorkoutPlan } from "@/integrations/ai/workoutAIService";
@@ -19,6 +20,7 @@ import { Progress } from "@/components/ui/progress";
 import AIWorkoutDebugger from "@/components/debug/AIWorkoutDebugger";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { WorkoutPlan } from "@/models/models";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const WorkoutPlanPage: React.FC = () => {
   const { user, profile } = useAuth();
@@ -54,6 +56,10 @@ const WorkoutPlanPage: React.FC = () => {
     { name: "Shoulder Press", sets: 3, reps: "8-10", muscle: "Shoulders" },
     { name: "Pull-ups", sets: 3, reps: "Max", muscle: "Back" }
   ]);
+  const [activeTab, setActiveTab] = useState<string>("overview");
+  const [workoutExercises, setWorkoutExercises] = useState<WorkoutExerciseDetail[]>([]);
+  const [allExercises, setAllExercises] = useState<any[]>([]);
+  const [isLoadingExercises, setIsLoadingExercises] = useState<boolean>(false);
 
   useEffect(() => {
     if (profile) {
@@ -143,9 +149,62 @@ const WorkoutPlanPage: React.FC = () => {
         }).catch(error => {
           console.error("Error fetching workouts:", error);
         });
+
+        // Fetch all exercises for the exercise form
+        fetchAllExercises();
       }
     }
   }, [profile, user?.id]);
+
+  // Fetch all exercises for the exercise form
+  const fetchAllExercises = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('exercises')
+        .select('*')
+        .order('name', { ascending: true });
+        
+      if (error) throw error;
+      
+      setAllExercises(data || []);
+    } catch (error) {
+      console.error("Error fetching exercises:", error);
+    }
+  };
+
+  // Fetch exercises for the selected workout
+  useEffect(() => {
+    if (selectedWorkout) {
+      fetchWorkoutExercises(selectedWorkout);
+      setActiveTab("exercises");
+    } else {
+      setWorkoutExercises([]);
+      setActiveTab("overview");
+    }
+  }, [selectedWorkout]);
+
+  const fetchWorkoutExercises = async (workoutId: string) => {
+    try {
+      setIsLoadingExercises(true);
+      
+      const { data, error } = await supabase
+        .from('workout_exercises')
+        .select(`
+          *,
+          exercise:exercises(*)
+        `)
+        .eq('workout_id', workoutId)
+        .order('order_position', { ascending: true });
+        
+      if (error) throw error;
+      
+      setWorkoutExercises(data || []);
+    } catch (error) {
+      console.error("Error fetching workout exercises:", error);
+    } finally {
+      setIsLoadingExercises(false);
+    }
+  };
 
   const getWorkoutImage = (plan: WorkoutPlan | string | null) => {
     if (!plan) return "/placeholder.svg";
@@ -232,7 +291,34 @@ const WorkoutPlanPage: React.FC = () => {
 
   const handleWorkoutCreated = (workout: UserWorkout) => {
     setUserWorkouts([...userWorkouts, workout]);
+    // Automatically select the newly created workout
+    setSelectedWorkout(workout.id);
   };
+
+  const handleExerciseAdded = (exercise: WorkoutExerciseDetail) => {
+    setWorkoutExercises([...workoutExercises, exercise]);
+  };
+
+  const handleRemoveExercise = async (exerciseId: string) => {
+    try {
+      const { error } = await supabase
+        .from('workout_exercises')
+        .delete()
+        .eq('id', exerciseId);
+      
+      if (error) throw error;
+      
+      // Update state after successful deletion
+      setWorkoutExercises(workoutExercises.filter(ex => ex.id !== exerciseId));
+    } catch (error) {
+      console.error("Error removing exercise:", error);
+    }
+  };
+
+  const handleStartWorkout = (workoutId: string) => {
+    navigate(`/workout-session/${workoutId}`);
+  };
+
   return (
     <DashboardLayout title="Workout Plan">
       {/* AI Workout Link Card */}
@@ -262,7 +348,7 @@ const WorkoutPlanPage: React.FC = () => {
         <div className="mb-4">
           <h3 className="text-lg font-medium mb-2">Creating your AI workout plan</h3>
           <AIGeneratedNotice />
-                  </div>
+        </div>
       )}
       
       {/* Regeneration Progress UI */}
@@ -343,28 +429,65 @@ const WorkoutPlanPage: React.FC = () => {
         </Button>
       </div>
 
-      <WorkoutPlanHeader
-        fitnessGoal={profile?.fitness_goal || "general-fitness"}
-      />
-      
-      <TodayWorkout 
-        todayWorkout={todayWorkout}
-        userId={user?.id}
-      />
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <WeeklyStructure weeklyStructure={weeklyStructure} />
-        <KeyExercises exercises={keyExercises} />
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          {selectedWorkout && <TabsTrigger value="exercises">Edit Exercises</TabsTrigger>}
+        </TabsList>
+        
+        <TabsContent value="overview">
+          <WorkoutPlanHeader
+            fitnessGoal={profile?.fitness_goal || "general-fitness"}
+          />
+          
+          <TodayWorkout 
+            todayWorkout={todayWorkout}
+            userId={user?.id}
+          />
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <WeeklyStructure weeklyStructure={weeklyStructure} />
+            <KeyExercises exercises={keyExercises} />
+          </div>
 
-      <CustomWorkoutList 
-        userId={user?.id} 
-        userWorkouts={userWorkouts}
-        selectedWorkout={selectedWorkout}
-        onSelectWorkout={handleSelectWorkout}
-        onDeleteWorkout={handleDeleteWorkout}
-        onWorkoutCreated={handleWorkoutCreated}
-      />
+          <CustomWorkoutList 
+            userId={user?.id} 
+            userWorkouts={userWorkouts}
+            selectedWorkout={selectedWorkout}
+            onSelectWorkout={handleSelectWorkout}
+            onDeleteWorkout={handleDeleteWorkout}
+            onWorkoutCreated={handleWorkoutCreated}
+          />
+        </TabsContent>
+        
+        {selectedWorkout && (
+          <TabsContent value="exercises">
+            <div className="mb-4 flex justify-between items-center">
+              <Button
+                variant="outline"
+                onClick={() => setActiveTab("overview")}
+              >
+                Back to Overview
+              </Button>
+              
+              <Button
+                onClick={() => handleStartWorkout(selectedWorkout)}
+              >
+                Start Workout
+              </Button>
+            </div>
+            
+            <WorkoutDetails
+              selectedWorkout={selectedWorkout}
+              userWorkouts={userWorkouts}
+              workoutExercises={workoutExercises}
+              exercises={allExercises}
+              onExerciseAdded={handleExerciseAdded}
+              onRemoveExercise={handleRemoveExercise}
+            />
+          </TabsContent>
+        )}
+      </Tabs>
       
       {/* Add AI Workout Debugger in development mode */}
       {import.meta.env.DEV && (

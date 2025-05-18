@@ -63,6 +63,7 @@ const Login = preloadModule(() => import("./pages/Login"));
 const Signup = preloadModule(() => import("./pages/Signup"));
 const Onboarding = preloadModule(() => import("./pages/Onboarding"));
 const WorkoutPlan = preloadModule(() => import("./pages/WorkoutPlan"));
+const WorkoutSession = preloadModule(() => import("./pages/WorkoutSession"));
 const MealPlan = preloadModule(() => import("./pages/MealPlan"));
 const Progress = preloadModule(() => import("./pages/Progress"));
 const Profile = preloadModule(() => import("./pages/Profile"));
@@ -215,6 +216,14 @@ function App() {
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <WorkoutPlan />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/workout-session/:workoutId" 
+                    element={
+                      <ProtectedRoute requiresOnboarding={true}>
+                        <WorkoutSession />
                       </ProtectedRoute>
                     } 
                   />
