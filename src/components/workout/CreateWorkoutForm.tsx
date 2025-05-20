@@ -56,7 +56,9 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
         ...exercise,
         sets: 3,
         reps: 10,
-        notes: "",
+        weight_kg: '',
+        comments: '',
+        notes: '',
         tempId: Math.random().toString(36).slice(2),
       },
     ]);
@@ -133,6 +135,20 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
         dayOfWeek: "0"
       });
       setWorkoutExercises([]);
+
+      for (let i = 0; i < workoutExercises.length; i++) {
+        const ex = workoutExercises[i];
+        await supabase.from('workout_exercises').insert({
+          workout_id: data[0].id,
+          exercise_id: ex.id,
+          sets: ex.sets,
+          reps: ex.reps,
+          weight_kg: ex.weight_kg || null,
+          comments: ex.comments || null,
+          notes: ex.notes,
+          order_position: i
+        });
+      }
     } catch (error: any) {
       console.error("Error creating workout:", error);
       toast.error("Failed to create workout");
@@ -233,13 +249,15 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
             <div className="space-y-2">
               {workoutExercises.length === 0 && <div className="text-muted-foreground">No exercises added yet.</div>}
               {workoutExercises.map((ex, idx) => (
-                <div key={ex.tempId} className="flex items-center gap-2 bg-secondary/50 p-2 rounded">
-                  <span className="font-medium flex-1">{ex.name} <span className="text-xs text-muted-foreground">({ex.muscle_group})</span></span>
+                <div key={ex.tempId} className="flex flex-wrap items-center gap-2 bg-secondary/50 p-2 rounded">
+                  <span className="font-medium flex-1 min-w-[120px]">{ex.name} <span className="text-xs text-muted-foreground">({ex.muscle_group})</span></span>
                   <Input type="number" min={1} className="w-16" value={ex.sets} onChange={e => updateExerciseField(ex.tempId, 'sets', Number(e.target.value))} />
                   <span>sets</span>
                   <Input type="number" min={1} className="w-16" value={ex.reps} onChange={e => updateExerciseField(ex.tempId, 'reps', Number(e.target.value))} />
                   <span>reps</span>
-                  <Input className="w-32" placeholder="Notes" value={ex.notes} onChange={e => updateExerciseField(ex.tempId, 'notes', e.target.value)} />
+                  <Input type="number" min={0} step="0.1" className="w-20" placeholder="kg" value={ex.weight_kg} onChange={e => updateExerciseField(ex.tempId, 'weight_kg', e.target.value)} />
+                  <span>kg</span>
+                  <Input className="w-32" placeholder="Comments" value={ex.comments} onChange={e => updateExerciseField(ex.tempId, 'comments', e.target.value)} />
                   <Button size="icon" variant="ghost" onClick={() => moveExercise(ex.tempId, 'up')} disabled={idx === 0}>↑</Button>
                   <Button size="icon" variant="ghost" onClick={() => moveExercise(ex.tempId, 'down')} disabled={idx === workoutExercises.length - 1}>↓</Button>
                   <Button size="icon" variant="destructive" onClick={() => removeExercise(ex.tempId)}>✕</Button>
