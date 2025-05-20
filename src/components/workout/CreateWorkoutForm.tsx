@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,6 +30,81 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
     description: "",
     dayOfWeek: "0"
   });
+  const [exercises, setExercises] = useState<any[]>([]);
+  const [workoutExercises, setWorkoutExercises] = useState<any[]>([]);
+  const [showNewExercise, setShowNewExercise] = useState(false);
+  const [newExercise, setNewExercise] = useState({
+    name: "",
+    muscle_group: "",
+    difficulty: "Beginner",
+    exercise_type: "strength",
+    equipment_required: "",
+  });
+
+  useEffect(() => {
+    const fetchExercises = async () => {
+      const { data, error } = await supabase.from("exercises").select("*");
+      if (!error && data) setExercises(data);
+    };
+    fetchExercises();
+  }, []);
+
+  const addExerciseToWorkout = (exercise: any) => {
+    setWorkoutExercises([
+      ...workoutExercises,
+      {
+        ...exercise,
+        sets: 3,
+        reps: 10,
+        notes: "",
+        tempId: Math.random().toString(36).slice(2),
+      },
+    ]);
+  };
+
+  const handleCreateNewExercise = async () => {
+    if (!newExercise.name) return;
+    const { data, error } = await supabase
+      .from("exercises")
+      .insert(newExercise)
+      .select();
+    if (!error && data && data[0]) {
+      setExercises([...exercises, data[0]]);
+      addExerciseToWorkout(data[0]);
+      setShowNewExercise(false);
+      setNewExercise({
+        name: "",
+        muscle_group: "",
+        difficulty: "Beginner",
+        exercise_type: "strength",
+        equipment_required: "",
+      });
+    }
+  };
+
+  const removeExercise = (tempId: string) => {
+    setWorkoutExercises(workoutExercises.filter((ex) => ex.tempId !== tempId));
+  };
+
+  const updateExerciseField = (tempId: string, field: string, value: any) => {
+    setWorkoutExercises(
+      workoutExercises.map((ex) =>
+        ex.tempId === tempId ? { ...ex, [field]: value } : ex
+      )
+    );
+  };
+
+  const moveExercise = (tempId: string, direction: 'up' | 'down') => {
+    const idx = workoutExercises.findIndex((ex) => ex.tempId === tempId);
+    if (idx < 0) return;
+    const newArr = [...workoutExercises];
+    if (direction === 'up' && idx > 0) {
+      [newArr[idx - 1], newArr[idx]] = [newArr[idx], newArr[idx - 1]];
+    } else if (direction === 'down' && idx < newArr.length - 1) {
+      [newArr[idx + 1], newArr[idx]] = [newArr[idx], newArr[idx + 1]];
+    }
+    setWorkoutExercises(newArr);
+  };
 
   const createWorkout = async () => {
     if (!userId) return;
@@ -58,6 +132,7 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
         description: "",
         dayOfWeek: "0"
       });
+      setWorkoutExercises([]);
     } catch (error: any) {
       console.error("Error creating workout:", error);
       toast.error("Failed to create workout");
@@ -118,6 +193,59 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
                 <SelectItem value="6">Sunday</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Exercises in this Workout</Label>
+            <div className="flex gap-2 mb-2">
+              <Select onValueChange={val => {
+                const ex = exercises.find(e => e.id === val);
+                if (ex) addExerciseToWorkout(ex);
+              }}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Select exercise from list" />
+                </SelectTrigger>
+                <SelectContent>
+                  {exercises.map(ex => (
+                    <SelectItem key={ex.id} value={ex.id}>{ex.name} ({ex.muscle_group})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button type="button" variant="outline" onClick={() => setShowNewExercise(v => !v)}>
+                + New Exercise
+              </Button>
+            </div>
+            {showNewExercise && (
+              <div className="bg-muted p-3 rounded mb-2 space-y-2">
+                <Input placeholder="Exercise Name" value={newExercise.name} onChange={e => setNewExercise({ ...newExercise, name: e.target.value })} />
+                <Input placeholder="Muscle Group" value={newExercise.muscle_group} onChange={e => setNewExercise({ ...newExercise, muscle_group: e.target.value })} />
+                <Input placeholder="Equipment (optional)" value={newExercise.equipment_required} onChange={e => setNewExercise({ ...newExercise, equipment_required: e.target.value })} />
+                <Select value={newExercise.difficulty} onValueChange={val => setNewExercise({ ...newExercise, difficulty: val })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Beginner">Beginner</SelectItem>
+                    <SelectItem value="Intermediate">Intermediate</SelectItem>
+                    <SelectItem value="Advanced">Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button type="button" onClick={handleCreateNewExercise}>Add Exercise</Button>
+              </div>
+            )}
+            <div className="space-y-2">
+              {workoutExercises.length === 0 && <div className="text-muted-foreground">No exercises added yet.</div>}
+              {workoutExercises.map((ex, idx) => (
+                <div key={ex.tempId} className="flex items-center gap-2 bg-secondary/50 p-2 rounded">
+                  <span className="font-medium flex-1">{ex.name} <span className="text-xs text-muted-foreground">({ex.muscle_group})</span></span>
+                  <Input type="number" min={1} className="w-16" value={ex.sets} onChange={e => updateExerciseField(ex.tempId, 'sets', Number(e.target.value))} />
+                  <span>sets</span>
+                  <Input type="number" min={1} className="w-16" value={ex.reps} onChange={e => updateExerciseField(ex.tempId, 'reps', Number(e.target.value))} />
+                  <span>reps</span>
+                  <Input className="w-32" placeholder="Notes" value={ex.notes} onChange={e => updateExerciseField(ex.tempId, 'notes', e.target.value)} />
+                  <Button size="icon" variant="ghost" onClick={() => moveExercise(ex.tempId, 'up')} disabled={idx === 0}>↑</Button>
+                  <Button size="icon" variant="ghost" onClick={() => moveExercise(ex.tempId, 'down')} disabled={idx === workoutExercises.length - 1}>↓</Button>
+                  <Button size="icon" variant="destructive" onClick={() => removeExercise(ex.tempId)}>✕</Button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
         <DialogFooter>
