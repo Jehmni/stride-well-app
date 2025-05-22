@@ -126,6 +126,7 @@ const ExerciseTracker: React.FC<ExerciseTrackerProps> = ({ exercise, onComplete,
             <h4 className="font-medium text-base mr-2">{exercise.exercise.name}</h4>
             <Badge variant="outline">{exercise.exercise.muscle_group}</Badge>
           </div>
+          <p className="text-gray-500 dark:text-gray-400 text-xs mb-1 italic">Click the chevron to expand for reps, weight, and notes</p>
           <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
             {exercise.sets} sets × {repsText} reps
             {exercise.rest_time && ` • ${exercise.rest_time}s rest`}
@@ -145,6 +146,7 @@ const ExerciseTracker: React.FC<ExerciseTrackerProps> = ({ exercise, onComplete,
                 size="icon"
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="shrink-0"
+                aria-label={isExpanded ? "Hide details" : "Show details"}
               >
                 {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
               </Button>
@@ -172,16 +174,6 @@ const ExerciseTracker: React.FC<ExerciseTrackerProps> = ({ exercise, onComplete,
       
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
         <CollapsibleContent className="space-y-4 mt-3 pt-3 border-t">
-          {exercise.instructions && (
-            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded text-sm">
-              <div className="flex items-center mb-1 text-gray-600 dark:text-gray-400">
-                <Info size={14} className="mr-1" />
-                <span className="font-medium">Instructions</span>
-              </div>
-              <p>{exercise.instructions}</p>
-            </div>
-          )}
-          
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor={`reps-${exercise.id}`} className="text-xs">Reps per Set</Label>
