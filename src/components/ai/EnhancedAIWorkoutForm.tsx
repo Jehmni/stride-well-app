@@ -213,8 +213,7 @@ const EnhancedAIWorkoutForm: React.FC = () => {
             ],
             temperature: 0.7,
             response_format: { type: "json_object" },
-          }),
-        });
+          }),        });
 
         console.log("AI Workout Generation: OpenAI API response status:", response.status);
         
@@ -222,18 +221,17 @@ const EnhancedAIWorkoutForm: React.FC = () => {
           const errorData = await response.json();
           console.error("AI Workout Generation: OpenAI API error:", errorData);
           toast.error("Failed to generate AI workout");
-          setIsLoading(false);
           return;
-        }      // 4. Parse response and save to database
-      const data = await response.json();
-      console.log("AI Workout Generation: Got response from OpenAI API");
-      
-      try {
+        }
+
+        // 4. Parse response and save to database
+        const data = await response.json();
+        console.log("AI Workout Generation: Got response from OpenAI API");
+        
         // Verify that we have a valid response
         if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
           console.error("AI Workout Generation: Invalid OpenAI response format:", data);
           toast.error("Received invalid response from AI service");
-          setIsLoading(false);
           return;
         }
         
@@ -268,16 +266,17 @@ const EnhancedAIWorkoutForm: React.FC = () => {
         
         toast.success("AI workout generated successfully!");
         navigate(`/ai-workouts/${savedWorkout.id}`);
-      } catch (parseError) {
-        console.error("AI Workout Generation: Error parsing or saving workout plan:", parseError);
-        toast.error("Failed to process the AI response. Please try again.");
-      }
+        
       } catch (error) {
-        console.error("Error generating AI workout:", error);
-        toast.error("Failed to generate and save workout plan");
-      } finally {
-        setIsLoading(false);
+        console.error("Error in OpenAI API call or data processing:", error);
+        toast.error("Failed to generate AI workout. Please try again.");
       }
+    } catch (error) {
+      console.error("Error generating AI workout:", error);
+      toast.error("Failed to generate and save workout plan");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const createEnhancedPrompt = (
