@@ -80,14 +80,22 @@ interface WorkoutPlan {
  */
 export const generateEnhancedAIWorkout = async (userProfile: EnhancedUserProfile): Promise<string | null> => {
   try {
+    console.log("Starting enhanced AI workout generation process");
+    
     // Get OpenAI configuration
     const aiConfig = await getAIConfig('openai');
     if (!aiConfig || !aiConfig.api_key || !aiConfig.is_enabled) {
       console.error('OpenAI API is not configured or disabled');
       return null;
     }
+    
+    console.log("OpenAI configuration retrieved successfully");
 
     const prompt = createEnhancedWorkoutPrompt(userProfile);
+    
+    console.log("Calling OpenAI API to generate workout plan");
+    console.log(`API Endpoint: ${aiConfig.api_endpoint}`);
+    console.log(`Model: ${aiConfig.model_name || 'gpt-4'}`);
     
     const response = await fetch(aiConfig.api_endpoint, {
       method: 'POST',
@@ -110,26 +118,31 @@ export const generateEnhancedAIWorkout = async (userProfile: EnhancedUserProfile
         temperature: 0.6,
         response_format: { type: "json_object" }
       })
-    });
-
-    if (!response.ok) {
+    });    if (!response.ok) {
       const errorData = await response.json();
       console.error('OpenAI API error:', errorData);
       return null;
     }
 
+    console.log("OpenAI API response received, parsing data");
     const data = await response.json();
-    const workoutPlan = JSON.parse(data.choices[0].message.content) as AIWorkoutResponse;
     
-    // Save the workout plan to the database or offline if necessary
-    let workoutId: string | null = null;
-    
-    if (navigator.onLine) {
-      // Try to save to the database
-      workoutId = await saveWorkoutPlan(workoutPlan, userProfile);
-    } else {
-      // Save offline and queue for syncing
-      const tempId = 'temp_' + Date.now();
+    try {
+      const workoutPlan = JSON.parse(data.choices[0].message.content) as AIWorkoutResponse;
+      console.log("Successfully parsed workout plan JSON");
+      
+      // Save the workout plan to the database or offline if necessary
+      let workoutId: string | null = null;
+      
+      if (navigator.onLine) {
+        // Try to save to the database
+        console.log("Online - saving workout plan to database");
+        workoutId = await saveWorkoutPlan(workoutPlan, userProfile);
+        console.log("Workout plan saved with ID:", workoutId);
+      } else {
+        // Save offline and queue for syncing
+        console.log("Offline - saving workout plan locally");
+        const tempId = 'temp_' + Date.now();
       
       const offlineWorkout = {
         workoutPlanId: tempId,
@@ -153,12 +166,15 @@ export const generateEnhancedAIWorkout = async (userProfile: EnhancedUserProfile
       registerForBackgroundSync()
         .then(registered => {
           console.log('Background sync registration:', registered ? 'success' : 'failed');
-        });
-      
+        });      
       workoutId = tempId;
     }
     
     return workoutId;
+    } catch (parseError) {
+      console.error('Error parsing AI workout response:', parseError);
+      return null;
+    }
   } catch (error) {
     console.error('Error generating enhanced AI workout:', error);
     return null;
@@ -279,6 +295,9 @@ ${health_conditions?.length ? `- Health Considerations: ${health_conditions.join
  */
 const saveWorkoutPlan = async (workoutPlan: AIWorkoutResponse, userProfile: EnhancedUserProfile): Promise<string | null> => {
   try {
+    console.log("Saving workout plan to database");
+    
+    // Create the plan object
     const plan = {
       title: workoutPlan.title,
       description: workoutPlan.description,
@@ -288,6 +307,9 @@ const saveWorkoutPlan = async (workoutPlan: AIWorkoutResponse, userProfile: Enha
       ai_generated: true,
       user_id: userProfile.id
     };
+
+    console.log("Inserting workout plan with fields:", 
+                Object.keys(plan).join(", "));
 
     const { data, error } = await supabase
       .from('workout_plans')
@@ -300,20 +322,28 @@ const saveWorkoutPlan = async (workoutPlan: AIWorkoutResponse, userProfile: Enha
       return null;
     }
 
+    console.log("Workout plan saved successfully with ID:", data.id);
+
     // Cache the plan locally as well for offline access
-    localStorage.setItem(`workout_plan_${data.id}`, JSON.stringify({
-      id: data.id,
-      title: workoutPlan.title,
-      description: workoutPlan.description,
-      fitness_goal: userProfile.fitness_goal || workoutPlan.fitness_goal,
-      target_muscle_groups: workoutPlan.target_muscle_groups,
-      estimated_calories: workoutPlan.estimated_calories,
-      difficulty_level: workoutPlan.difficulty_level,
-      weekly_structure: workoutPlan.weekly_structure,
-      exercises: workoutPlan.exercises,
-      user_id: userProfile.id,
-      created_at: new Date().toISOString()
-    }));
+    try {
+      localStorage.setItem(`workout_plan_${data.id}`, JSON.stringify({
+        id: data.id,
+        title: workoutPlan.title,
+        description: workoutPlan.description,
+        fitness_goal: userProfile.fitness_goal || workoutPlan.fitness_goal,
+        target_muscle_groups: workoutPlan.target_muscle_groups,
+        estimated_calories: workoutPlan.estimated_calories,
+        difficulty_level: workoutPlan.difficulty_level,
+        weekly_structure: workoutPlan.weekly_structure,
+        exercises: workoutPlan.exercises,
+        user_id: userProfile.id,
+        created_at: new Date().toISOString()
+      }));
+      console.log("Workout plan cached locally for offline access");
+    } catch (cacheError) {
+      console.warn("Error caching workout plan locally:", cacheError);
+      // Continue even if caching fails
+    }
 
     return data.id;
   } catch (error) {

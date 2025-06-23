@@ -155,86 +155,129 @@ const EnhancedAIWorkoutForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("== AI Workout Generation: Starting workflow ==");
     if (!user || !profile) {
+      console.error("AI Workout Generation: Missing user or profile data");
       toast.error("You must be logged in to generate a workout");
       return;
     }
 
-    setIsLoading(true);    try {
+    setIsLoading(true);
+    try {
       // 0. Clear existing AI plans to ensure fresh generation
-      console.log("Clearing existing AI workout plans...");
-      await clearExistingAIPlans(user.id);
+      console.log("AI Workout Generation: Clearing existing AI workout plans...");
+      const cleared = await clearExistingAIPlans(user.id);
+      console.log("AI Workout Generation: Cleared existing plans:", cleared);
       
       // 1. Get OpenAI configuration
+      console.log("AI Workout Generation: Getting OpenAI configuration...");
       const aiConfig = await getAIConfig("openai");
+      console.log("AI Workout Generation: OpenAI config:", aiConfig ? "Found" : "Not found", 
+                  aiConfig ? `API key: ${aiConfig.api_key ? "Present" : "Missing"}, Enabled: ${aiConfig.is_enabled}` : "");
+      
       if (!aiConfig || !aiConfig.api_key || !aiConfig.is_enabled) {
+        console.error("AI Workout Generation: OpenAI not configured correctly");
         toast.error("AI workout generation is not configured");
         return;
       }
 
       // 2. Create prompt with all user data
+      console.log("AI Workout Generation: Creating enhanced prompt...");
       const prompt = createEnhancedPrompt(profile, formData, measurements);
+      console.log("AI Workout Generation: Prompt created successfully");
 
       // 3. Call OpenAI API
-      const response = await fetch(aiConfig.api_endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${aiConfig.api_key}`,
-        },
-        body: JSON.stringify({
-          model: aiConfig.model_name || "gpt-4o",
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are a professional fitness trainer who creates personalized workout plans. Respond only with a JSON object that follows the structure shown in the user's message. Do not include any explanations or text outside of the JSON structure.",
-            },
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          temperature: 0.7,
-          response_format: { type: "json_object" },
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("OpenAI API error:", errorData);
-        toast.error("Failed to generate AI workout");
-        return;
-      }
-
-      // 4. Parse response and save to database
-      const data = await response.json();
-      const workoutPlan = JSON.parse(data.choices[0].message.content);
+      console.log("AI Workout Generation: Calling OpenAI API...");
+      console.log(`API Endpoint: ${aiConfig.api_endpoint}`);
+      console.log(`Model: ${aiConfig.model_name || "gpt-4o"}`);
       
-      const { data: savedWorkout, error } = await supabase
-        .from("workout_plans")
-        .insert({
-          title: workoutPlan.title,
-          description: workoutPlan.description,
-          fitness_goal: formData.fitnessGoal,
-          weekly_structure: workoutPlan.weekly_structure,
-          exercises: workoutPlan.exercises,
-          ai_generated: true,
-          user_id: user.id,
-        })
-        .select("id")
-        .single();
+      try {
+        const response = await fetch(aiConfig.api_endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${aiConfig.api_key}`,
+          },
+          body: JSON.stringify({
+            model: aiConfig.model_name || "gpt-4o",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are a professional fitness trainer who creates personalized workout plans. Respond only with a JSON object that follows the structure shown in the user's message. Do not include any explanations or text outside of the JSON structure.",
+              },
+              {
+                role: "user",
+                content: prompt,
+              },
+            ],
+            temperature: 0.7,
+            response_format: { type: "json_object" },
+          }),
+        });
 
-      if (error) {
-        throw error;
-      }      toast.success("AI workout generated successfully!");
-      navigate(`/ai-workouts/${savedWorkout.id}`);
-    } catch (error) {
-      console.error("Error generating AI workout:", error);
-      toast.error("Failed to generate and save workout plan");
-    } finally {
-      setIsLoading(false);
-    }
+        console.log("AI Workout Generation: OpenAI API response status:", response.status);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("AI Workout Generation: OpenAI API error:", errorData);
+          toast.error("Failed to generate AI workout");
+          setIsLoading(false);
+          return;
+        }      // 4. Parse response and save to database
+      const data = await response.json();
+      console.log("AI Workout Generation: Got response from OpenAI API");
+      
+      try {
+        // Verify that we have a valid response
+        if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
+          console.error("AI Workout Generation: Invalid OpenAI response format:", data);
+          toast.error("Received invalid response from AI service");
+          setIsLoading(false);
+          return;
+        }
+        
+        const workoutPlanJson = data.choices[0].message.content;
+        console.log("AI Workout Generation: Parsing workout plan JSON");
+        
+        // Parse the workout plan
+        const workoutPlan = JSON.parse(workoutPlanJson);
+        console.log("AI Workout Generation: Workout plan parsed successfully");
+        
+        console.log("AI Workout Generation: Saving workout plan to database");
+        const { data: savedWorkout, error } = await supabase
+          .from("workout_plans")
+          .insert({
+            title: workoutPlan.title,
+            description: workoutPlan.description,
+            fitness_goal: formData.fitnessGoal,
+            weekly_structure: workoutPlan.weekly_structure,
+            exercises: workoutPlan.exercises,
+            ai_generated: true,
+            user_id: user.id,
+          })
+          .select("id")
+          .single();
+
+        if (error) {
+          console.error("AI Workout Generation: Error saving to database:", error);
+          throw error;
+        }
+        
+        console.log("AI Workout Generation: Workout plan saved successfully with ID:", savedWorkout.id);
+        
+        toast.success("AI workout generated successfully!");
+        navigate(`/ai-workouts/${savedWorkout.id}`);
+      } catch (parseError) {
+        console.error("AI Workout Generation: Error parsing or saving workout plan:", parseError);
+        toast.error("Failed to process the AI response. Please try again.");
+      }
+      } catch (error) {
+        console.error("Error generating AI workout:", error);
+        toast.error("Failed to generate and save workout plan");
+      } finally {
+        setIsLoading(false);
+      }
   };
 
   const createEnhancedPrompt = (
@@ -508,4 +551,4 @@ const EnhancedAIWorkoutForm: React.FC = () => {
   );
 };
 
-export default EnhancedAIWorkoutForm; 
+export default EnhancedAIWorkoutForm;

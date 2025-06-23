@@ -416,6 +416,18 @@ const getPlanDescription = (fitnessGoal: string): string => {
  */
 export const clearExistingAIPlans = async (userId: string): Promise<boolean> => {
   try {
+    console.log(`Attempting to clear AI plans for user: ${userId}`);
+    
+    // First, count how many plans will be deleted
+    const { count, error: countError } = await supabase
+      .from('workout_plans')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('ai_generated', true);
+      
+    console.log(`Found ${count || 0} AI workout plans to delete`);
+    
+    // Then delete them
     const { error } = await supabase
       .from('workout_plans')
       .delete()
@@ -427,7 +439,7 @@ export const clearExistingAIPlans = async (userId: string): Promise<boolean> => 
       return false;
     }
     
-    console.log("✓ Cleared existing AI workout plans for user:", userId);
+    console.log(`✓ Cleared ${count || 0} existing AI workout plans for user: ${userId}`);
     return true;
   } catch (error) {
     console.error("Error in clearExistingAIPlans:", error);
