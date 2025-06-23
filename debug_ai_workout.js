@@ -9,7 +9,7 @@ const MODEL = process.env.VITE_OPENAI_MODEL || "gpt-4o";
 
 async function testAIWorkoutGeneration() {
   console.log("=== Testing AI Workout Generation ===");
-  console.log("API Key:", API_KEY ? "Present (first few chars: " + API_KEY.substring(0, 10) + "...)" : "Missing");
+  console.log("API Key:", API_KEY ? "Present" : "Missing");
   console.log("API Endpoint:", API_ENDPOINT);
   console.log("Model:", MODEL);
   

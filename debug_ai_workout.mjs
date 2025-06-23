@@ -7,13 +7,20 @@ const API_KEY = process.env.VITE_OPENAI_API_KEY;
 const API_ENDPOINT = process.env.VITE_OPENAI_API_URL || "https://api.openai.com/v1/chat/completions";
 const MODEL = process.env.VITE_OPENAI_MODEL || "gpt-4o";
 
+if (!API_KEY) {
+  console.error("❌ VITE_OPENAI_API_KEY environment variable is required");
+  process.exit(1);
+  console.log("API Key:", API_KEY ? "Present" : "Missing");if (!API_KEY) {
+  console.error("❌ VITE_OPENAI_API_KEY environment variable is required");
+  process.exit(1);
+}
+
 async function testAIWorkoutGeneration() {
   console.log("=== Testing AI Workout Generation ===");
-  console.log("API Key:", API_KEY ? "Present (first few chars: " + API_KEY.substring(0, 10) + "...)" : "Missing");
+  console.log("API Key:", API_KEY ? "Present" : "Missing");
   console.log("API Endpoint:", API_ENDPOINT);
   console.log("Model:", MODEL);
-  
-  const userProfile = {
+    const userProfile = {
     id: "test-user-id",
     age: 30,
     sex: "male",
@@ -24,6 +31,17 @@ async function testAIWorkoutGeneration() {
     available_equipment: ["dumbbells", "pull-up-bar", "resistance-bands"],
     workout_frequency: 4
   };
+  
+  // Validate user profile
+  if (!userProfile.age || userProfile.age < 1 || userProfile.age > 120) {
+    throw new Error('Invalid age provided');
+  }
+  if (userProfile.height && (userProfile.height < 50 || userProfile.height > 300)) {
+    throw new Error('Invalid height provided');
+  }
+  if (userProfile.weight && (userProfile.weight < 10 || userProfile.weight > 500)) {
+    throw new Error('Invalid weight provided');
+  }
   
   try {
     // Create prompt
@@ -44,48 +62,61 @@ async function testAIWorkoutGeneration() {
           {
             role: 'system',
             content: 'You are an expert personal trainer who creates personalized workout plans. Respond only with a JSON object that follows the structure shown in the user\'s message. Do not include any explanations or text outside of the JSON structure.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (parseError) {
+        errorData = await response.text();
+      }
+      console.error(
+        `OpenAI API Error (${response.status} ${response.statusText}):`,
+        errorData
+      );
+      return;
+    }        ],
         temperature: 0.6,
         response_format: { type: "json_object" }
       })
     });
-    
-    console.log("OpenAI API Response Status:", response.status);
+      console.log("OpenAI API Response Status:", response.status);
     
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error("OpenAI API Error:", JSON.stringify(errorData, null, 2));
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (parseError) {
+        errorData = await response.text();
+      }
+      console.error(`OpenAI API Error (${response.status} ${response.statusText}):`, errorData);
       return;
     }
-    
-    // Parse response
-    const data = await response.json();
-    console.log("\nResponse received from OpenAI API.");
-    
-    try {
-      const workoutPlan = JSON.parse(data.choices[0].message.content);
-      console.log("\nWorkout plan parsed successfully!");
-      console.log("Title:", workoutPlan.title);
-      console.log("Description:", workoutPlan.description);
-      console.log("Target muscle groups:", workoutPlan.target_muscle_groups?.join(", "));
-      console.log("Days in plan:", Object.keys(workoutPlan.weekly_structure?.days || {}).length);
-      
       // Print the first exercise as a sample
-      const firstDayKey = Object.keys(workoutPlan.weekly_structure?.days || {})[0];
-      if (firstDayKey && workoutPlan.exercises) {
+      const days = workoutPlan.weekly_structure?.days;
+      if (days && Object.keys(days).length > 0 && Array.isArray(workoutPlan.exercises)) {
+        const firstDayKey = Object.keys(days)[0];
         const firstDayExercises = workoutPlan.exercises.find(day => day.day === firstDayKey);
-        if (firstDayExercises && firstDayExercises.exercises.length > 0) {
+        if (firstDayExercises && Array.isArray(firstDayExercises.exercises) && firstDayExercises.exercises.length > 0) {
           console.log("\nSample exercise from", firstDayKey, ":");
           console.log(JSON.stringify(firstDayExercises.exercises[0], null, 2));
         }
-      }
+      }      console.log("Title:", workoutPlan.title);
+      console.log("Description:", workoutPlan.description);
+      console.log("Target muscle groups:", workoutPlan.target_muscle_groups?.join(", "));      console.log("Days in plan:", Object.keys(workoutPlan.weekly_structure?.days || {}).length);
       
-      console.log("\n✅ TEST SUCCESSFUL: AI workout plan generation is working properly!");
+      // Print the first exercise as a sample
+      const days = workoutPlan.weekly_structure?.days;
+      if (days && Object.keys(days).length > 0 && Array.isArray(workoutPlan.exercises)) {
+      // Print the first exercise as a sample
+      const days = workoutPlan.weekly_structure?.days;
+      if (days && Object.keys(days).length > 0 && Array.isArray(workoutPlan.exercises)) {
+        const firstDayKey = Object.keys(days)[0];
+        const firstDayExercises = workoutPlan.exercises.find(day => day.day === firstDayKey);
+        if (firstDayExercises && Array.isArray(firstDayExercises.exercises) && firstDayExercises.exercises.length > 0) {
+          console.log("\nSample exercise from", firstDayKey, ":");
+          console.log(JSON.stringify(firstDayExercises.exercises[0], null, 2));
+        }
+      }      console.log("\n✅ TEST SUCCESSFUL: AI workout plan generation is working properly!");
     } catch (parseError) {
       console.error("\n❌ Failed to parse workout plan JSON:", parseError);
       console.log("Raw content:", data.choices[0].message.content);
@@ -104,13 +135,13 @@ function createTestPrompt(userProfile) {
     fitness_goal, 
     fitness_level,
     available_equipment,
-    workout_frequency
-  } = userProfile;
+    workout_frequency  } = userProfile;
   
-  // Calculate BMI if height and weight are available
-  const bmi = (height && weight) ? weight / ((height / 100) * (height / 100)) : null;
-  
-  let prompt = `Create a highly personalized workout plan with these details:
+  // Calculate BMI if height and weight are available and valid
+  const bmi = (height && weight && height > 0 && weight > 0) ? 
+  const bmi = (height && weight && height > 0 && weight > 0) ?
+  const bmi = (height && weight && height > 0 && weight > 0) ?
+    weight / ((height / 100) * (height / 100)) : null;  let prompt = `Create a highly personalized workout plan with these details:
 
 USER PROFILE:
 - Age: ${age || 'Not specified'}
