@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Chrome Cache - Stride Well</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .step {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Chrome Caching Issue</h1>
+        <p>If you're seeing "Outdated Optimize Dep" errors in Chrome, follow these steps:</p>
+        
+        <div class="step">
+            <h3>Method 1: Hard Reload (Recommended)</h3>
+            <ol>
+                <li>Open Chrome DevTools by pressing <strong>F12</strong></li>
+                <li>Right-click on the refresh button (⟳)</li>
+                <li>Select <strong>"Empty Cache and Hard Reload"</strong></li>
+            </ol>
+            <button class="button" onclick="hardReload()">Try Hard Reload</button>
+        </div>
+
+        <div class="step">
+            <h3>Method 2: Clear Site Data</h3>
+            <ol>
+                <li>Press <strong>Ctrl+Shift+Delete</strong></li>
+                <li>Select "Cached images and files"</li>
+                <li>Set time range to "All time"</li>
+                <li>Click "Clear data"</li>
+            </ol>
+        </div>
+
+        <div class="step warning">
+            <h3>Method 3: Disable Cache (For Development)</h3>
+            <ol>
+                <li>Open Chrome DevTools (<strong>F12</strong>)</li>
+                <li>Go to <strong>Network</strong> tab</li>
+                <li>Check <strong>"Disable cache"</strong></li>
+                <li>Keep DevTools open while developing</li>
+            </ol>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="button" onclick="goToApp()">Go to Stride Well App</button>
+            <button class="button" onclick="location.reload(true)">Force Page Reload</button>
+        </div>
+
+        <p style="margin-top: 30px; font-size: 14px; color: #666;">
+            <strong>Note:</strong> This page helps resolve Chrome caching issues with Vite development server.
+            The issue occurs when Chrome caches outdated dependency optimizations.
+        </p>
+    </div>
+
+    <script>
+        function hardReload() {
+            // Force a hard reload
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for(let registration of registrations) {
+                        registration.unregister();
+                    }
+                });
+            }
+            
+            // Clear localStorage and sessionStorage
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // Force reload with cache bypass
+            window.location.reload(true);
+        }
+
+        function goToApp() {
+            // Clear cache and go to app
+            if ('caches' in window) {
+                caches.keys().then(function(names) {
+                    for (let name of names) {
+                        caches.delete(name);
+                    }
+                });
+            }
+            window.location.href = '/';
+        }
+
+        // Auto-clear cache when this page loads
+        if ('caches' in window) {
+            caches.keys().then(function(names) {
+                for (let name of names) {
+                    caches.delete(name);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

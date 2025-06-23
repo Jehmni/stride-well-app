@@ -2,13 +2,15 @@
   "name": "vite_react_shadcn_ts",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
-  "scripts": {
+  "type": "module",  "scripts": {
     "dev": "vite",
+    "dev:clean": "rimraf node_modules/.vite && vite --force",
+    "dev:force": "vite --force",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "clear-cache": "rimraf node_modules/.vite"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -47,7 +49,8 @@
     "date-fns": "^3.6.0",
     "dotenv": "^16.5.0",
     "embla-carousel-react": "^8.3.0",
-    "input-otp": "^1.2.4",    "lucide-react": "^0.462.0",
+    "input-otp": "^1.2.4",
+    "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "node-fetch": "^3.3.2",
     "react": "^18.3.1",
@@ -78,6 +81,7 @@
     "globals": "^15.9.0",
     "lovable-tagger": "^1.1.7",
     "postcss": "^8.4.47",
+    "rimraf": "^6.0.1",
     "tailwindcss": "^3.4.11",
     "terser": "^5.39.2",
     "typescript": "^5.8.3",
