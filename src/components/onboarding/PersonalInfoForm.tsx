@@ -19,16 +19,23 @@ const PersonalInfoForm: React.FC = () => {
     height: "",
     weight: ""
   });
-  const navigate = useNavigate();
-
-  useEffect(() => {
+  const navigate = useNavigate();  useEffect(() => {
     // Pre-fill form with existing profile data if available
     if (profile) {
+      // Calculate age from date_of_birth if available
+      let calculatedAge = "";
+      if (profile.date_of_birth) {
+        const birthDate = new Date(profile.date_of_birth);
+        const today = new Date();
+        const age = today.getFullYear() - birthDate.getFullYear();
+        calculatedAge = age.toString();
+      }
+      
       setFormData({
-        age: profile.age.toString(),
-        sex: profile.sex,
-        height: profile.height.toString(),
-        weight: profile.weight.toString()
+        age: calculatedAge,
+        sex: profile.gender || "", // Map 'gender' to 'sex' field
+        height: profile.height ? profile.height.toString() : "",
+        weight: profile.weight ? profile.weight.toString() : ""
       });
     }
   }, [profile]);
@@ -37,25 +44,36 @@ const PersonalInfoForm: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    try {
-      if (!user) {
+    try {      if (!user) {
         toast.error("You must be logged in to continue");
         return;
       }
       
+      console.log("Updating profile for user:", user.id);
+      console.log("Form data:", formData);
+      
       // Update user profile in database
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('user_profiles')
         .update({
-          age: parseInt(formData.age),
-          sex: formData.sex,
+          gender: formData.sex, // Map 'sex' to 'gender' field
           height: parseFloat(formData.height),
           weight: parseFloat(formData.weight),
+          // Calculate date_of_birth from age if provided
+          ...(formData.age && {
+            date_of_birth: new Date(new Date().getFullYear() - parseInt(formData.age), 0, 1).toISOString().split('T')[0]
+          }),
           updated_at: new Date().toISOString()
         })
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select();
       
-      if (error) throw error;
+      if (error) {
+        console.error("Profile update error:", error);
+        throw new Error(`Profile update failed: ${error.message} (Code: ${error.code})`);
+      }
+      
+      console.log("Profile updated successfully:", data);
       
       // Refresh profile data in context
       await refreshProfile();

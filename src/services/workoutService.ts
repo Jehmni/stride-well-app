@@ -120,10 +120,10 @@ async function saveWorkoutPlan(
   plan: Omit<WorkoutPlan, "id">, 
   userId: string
 ): Promise<WorkoutPlan | null> {
-  try {
-    const { data: insertedPlan, error } = await supabase
+  try {    const { data: insertedPlan, error } = await supabase
       .from('workout_plans')
       .insert({
+        name: plan.title, // Use title as name since name is required
         title: plan.title,
         description: plan.description,
         fitness_goal: plan.fitness_goal,
@@ -409,6 +409,32 @@ const getPlanDescription = (fitnessGoal: string): string => {
   }
 };
 
+/**
+ * Clear all existing AI-generated workout plans for a user
+ * @param userId User ID to clear plans for
+ * @returns True if successful
+ */
+export const clearExistingAIPlans = async (userId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('workout_plans')
+      .delete()
+      .eq('user_id', userId)
+      .eq('ai_generated', true);
+    
+    if (error) {
+      console.error("Error clearing existing AI plans:", error);
+      return false;
+    }
+    
+    console.log("✓ Cleared existing AI workout plans for user:", userId);
+    return true;
+  } catch (error) {
+    console.error("Error in clearExistingAIPlans:", error);
+    return false;
+  }
+};
+
 // Fetch user's saved workouts
 export const fetchUserWorkouts = async (userId: string) => {
   try {
@@ -588,16 +614,15 @@ export const logExerciseCompletion = async (
     });
     
     // First try with newer parameter format
-    try {
-      const { data: newData, error: newError } = await supabase.rpc(
+    try {      const { data: newData, error: newError } = await supabase.rpc(
         'log_exercise_completion',
         {
-          p_workout_log_id: workoutLogId,
-          p_exercise_id: exerciseId,
-          p_sets_completed: setsCompleted,
-          p_reps_completed: repsCompleted || null,
-          p_weight_used: weightUsed || null,
-          p_notes: notes || null
+          workout_log_id_param: workoutLogId,
+          exercise_id_param: exerciseId,
+          sets_completed_param: setsCompleted,
+          reps_completed_param: repsCompleted || null,
+          weight_used_param: weightUsed || null,
+          notes_param: notes || null
         }
       );
       

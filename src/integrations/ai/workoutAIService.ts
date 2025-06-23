@@ -3,6 +3,7 @@ import { UserProfile } from "@/models/models";
 import { WorkoutDay, WorkoutExercise, WorkoutPlan } from "@/components/workout/types";
 import { getAIConfig } from "@/integrations/supabase/aiConfig";
 import { createOpenAIClient } from "./openAIClient";
+import { getMockWorkoutData } from "./mockWorkoutData";
 
 /**
  * Response format for AI-generated workout plans
@@ -60,19 +61,24 @@ export const generateAIWorkoutPlan = async (userProfile: UserProfile): Promise<W
     console.log("========== AI WORKOUT PLAN GENERATION STARTED ==========");
     console.log(`Generating workout plan for user: ${userProfile.id}`);
     console.log(`Fitness goal: ${userProfile.fitness_goal}`);
-    
-    // Get AI configuration
+      // Get AI configuration
     const aiConfig = await getAIConfig('openai');
     
     // Validate AI configuration
-    if (!aiConfig || !aiConfig.api_key || !aiConfig.is_enabled) {
-      console.error("AI service not properly configured. Cannot generate AI workout plan.");
+    const hasValidApiKey = aiConfig && aiConfig.api_key && aiConfig.api_key.trim().length > 0;
+    const isEnabled = aiConfig && aiConfig.is_enabled !== false; // Default to true if undefined
+    
+    if (!aiConfig || !hasValidApiKey || !isEnabled) {
+      console.log("AI service not properly configured. Falling back to mock workout plan.");
       console.log("AI Config Status:", {
         configExists: !!aiConfig,
-        apiKeyExists: !!(aiConfig && aiConfig.api_key),
-        isEnabled: !!(aiConfig && aiConfig.is_enabled)
+        apiKeyExists: hasValidApiKey,
+        apiKeyLength: aiConfig?.api_key?.length || 0,
+        isEnabled: isEnabled
       });
-      throw new Error("AI service not configured or disabled");
+      
+      // Fall back to mock workout plan
+      return await generateMockWorkoutPlan(userProfile);
     }
     
     console.log("✓ AI service properly configured with valid API key");
@@ -228,11 +234,8 @@ async function saveAIWorkoutPlan(
       ai_generated: true
     };
     
-    console.log("✓ Workout plan prepared:", processedPlan.title);
-
-    // Store in database
-    console.log("Inserting AI workout plan into database...");
-    const { data: insertedPlan, error } = await supabase
+    console.log("✓ Workout plan prepared:", processedPlan.title);    // Store in database
+    console.log("Inserting AI workout plan into database...");    const { data: insertedPlan, error } = await supabase
       .from('workout_plans')
       .insert({
         title: processedPlan.title,
@@ -515,6 +518,33 @@ export async function regenerateWorkoutPlan(
     console.error("Error regenerating workout plan:", error);
     return false;
   }
+}
+
+/**
+ * Generate a mock workout plan when AI is not available
+ */
+async function generateMockWorkoutPlan(userProfile: UserProfile): Promise<WorkoutPlan> {
+  console.log("Generating mock workout plan for user:", userProfile.id);
+  
+  // Get mock workout data
+  const mockData = getMockWorkoutData(userProfile.fitness_goal || 'general-fitness');
+  
+  // Convert mock data to AIWorkoutResponse format for processing
+  const aiResponse: AIWorkoutResponse = {
+    title: mockData.title,
+    description: mockData.description,
+    weekly_structure: mockData.weekly_structure,
+    exercises: mockData.exercises.map(exercise => ({
+      exercise_id: exercise.exercise_id,
+      sets: exercise.sets,
+      reps: exercise.reps,
+      rest_time: exercise.rest_time
+    }))
+  };
+  
+  // Save the mock workout plan to database using the same function as AI
+  console.log("Saving mock workout plan to database...");
+  return await saveAIWorkoutPlan(aiResponse, userProfile);
 }
 
 /**

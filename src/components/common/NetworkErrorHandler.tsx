@@ -7,7 +7,7 @@ interface NetworkErrorHandlerProps {
   children: React.ReactNode;
 }
 
-const NetworkErrorHandler: React.FC<NetworkErrorHandlerProps> = ({ children }) => {
+function NetworkErrorHandler({ children }: NetworkErrorHandlerProps) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [hasChunkError, setHasChunkError] = useState(false);
   const [isDashboardError, setIsDashboardError] = useState(false);
@@ -153,4 +153,4 @@ const NetworkErrorHandler: React.FC<NetworkErrorHandlerProps> = ({ children }) =
   return <>{children}</>;
 };
 
-export default NetworkErrorHandler; 
+export default NetworkErrorHandler;

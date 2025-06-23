@@ -69,18 +69,13 @@ const SignupForm = () => {
 
     setIsLoading(true);
 
-    try {
-      const { data, error } = await supabase.auth.signUp({
+    try {      const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
             // Default user data that will be passed to the handle_new_user trigger
-            age: 30,
-            sex: 'other',
-            height: 170,
-            weight: 70,
-            fitness_goal: 'general-fitness',
+            full_name: formData.email.split('@')[0], // Use email prefix as default name
           }
         }
       });

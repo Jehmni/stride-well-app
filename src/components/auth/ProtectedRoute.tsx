@@ -30,9 +30,8 @@ const ProtectedRoute = ({
   if (requiresAuth && !user) {
     return <Navigate to="/login" state={{ from: location.pathname }} />;
   }
-  
-  // If user is authenticated but not onboarded and the route requires onboarding
-  if (user && !profile && requiresOnboarding) {
+    // If user is authenticated but not onboarded and the route requires onboarding
+  if (user && requiresOnboarding && (!profile || !profile.fitness_goals || profile.fitness_goals.length === 0)) {
     return <Navigate to="/onboarding" />;
   }
   

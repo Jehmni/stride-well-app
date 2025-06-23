@@ -36,8 +36,7 @@ const LoginForm = () => {
       
       // Refresh the profile data
       await refreshProfile();
-      
-      // Check if user has completed onboarding
+        // Check if user has completed onboarding
       const { data: profile } = await supabase
         .from("user_profiles")
         .select("*")
@@ -45,7 +44,7 @@ const LoginForm = () => {
 
       toast.success("Successfully signed in!");
       
-      if (!profile || !profile.fitness_goal) {
+      if (!profile || !profile.fitness_goals || profile.fitness_goals.length === 0) {
         navigate("/onboarding");
       } else {
         navigate(from);

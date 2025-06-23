@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,171 +7,443 @@ import {
   Users, 
   Calendar, 
   CheckCircle2, 
-  ArrowRight 
+  ArrowRight,
+  Plus,
+  Target,
+  Medal,
+  TrendingUp
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-
-// Define challenge types
-interface Challenge {
-  id: string;
-  title: string;
-  description: string;
-  type: 'steps' | 'workouts' | 'weight' | 'distance';
-  goal: number;
-  progress: number;
-  participants: number;
-  endDate: Date;
-  completed: boolean;
-}
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+import {
+  Challenge,
+  getUserChallenges,
+  joinChallenge,
+  leaveChallenge,
+  updateChallengeProgress,
+  getChallengeLeaderboard
+} from "@/services/challengeService";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Challenges: React.FC = () => {
-  // Mock challenges data
-  const [challenges] = useState<Challenge[]>([
-    {
-      id: '1',
-      title: '10K Steps Daily',
-      description: 'Complete 10,000 steps every day for 30 days',
-      type: 'steps',
-      goal: 300000,
-      progress: 156000,
-      participants: 128,
-      endDate: new Date('2024-06-15'),
-      completed: false
-    },
-    {
-      id: '2',
-      title: 'Weight Loss Challenge',
-      description: 'Lose 5% of your body weight in 8 weeks',
-      type: 'weight',
-      goal: 5,
-      progress: 2.5,
-      participants: 87,
-      endDate: new Date('2024-07-01'),
-      completed: false
-    },
-    {
-      id: '3',
-      title: '20 Workouts Challenge',
-      description: 'Complete 20 workouts in a month',
-      type: 'workouts',
-      goal: 20,
-      progress: 20,
-      participants: 194,
-      endDate: new Date('2024-05-01'),
-      completed: true
-    },
-    {
-      id: '4',
-      title: '100 Mile Club',
-      description: 'Run or walk 100 miles in total',
-      type: 'distance',
-      goal: 100,
-      progress: 42,
-      participants: 56,
-      endDate: new Date('2024-08-30'),
-      completed: false
-    }
-  ]);
+  const { user } = useAuth();
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [progressValue, setProgressValue] = useState<string>("");
 
-  const getChallengeIcon = (type: Challenge['type']) => {
+  // Form state for creating challenges
+  const [newChallenge, setNewChallenge] = useState({
+    title: "",
+    description: "",
+    challenge_type: "workouts" as Challenge['challenge_type'],
+    goal_value: 0,
+    goal_unit: "workouts",
+    duration_days: 30,
+    difficulty_level: "beginner" as Challenge['difficulty_level'],
+    reward_description: ""
+  });
+
+  useEffect(() => {
+    if (user) {
+      fetchChallenges();
+    }
+  }, [user]);
+
+  const fetchChallenges = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      const challengesData = await getUserChallenges(user.id);
+      setChallenges(challengesData);
+    } catch (error) {
+      console.error('Error fetching challenges:', error);
+      toast.error('Failed to load challenges');
+    } finally {
+      setLoading(false);
+    }  };
+
+  const handleJoinChallenge = async (challengeId: string) => {
+    if (!user) {
+      toast.error('Please log in to join challenges');
+      return;
+    }
+
+    try {
+      const success = await joinChallenge(challengeId, user.id);
+      if (success) {
+        toast.success('Successfully joined the challenge!');
+        await fetchChallenges();
+      } else {
+        toast.error('Failed to join challenge');
+      }
+    } catch (error) {
+      console.error('Error joining challenge:', error);
+      toast.error('Failed to join challenge');
+    }
+  };
+
+  const handleLeaveChallenge = async (challengeId: string) => {
+    if (!user) return;
+
+    try {
+      const success = await leaveChallenge(challengeId, user.id);
+      if (success) {
+        toast.success('Left the challenge');
+        await fetchChallenges();
+      } else {
+        toast.error('Failed to leave challenge');
+      }
+    } catch (error) {
+      console.error('Error leaving challenge:', error);
+      toast.error('Failed to leave challenge');
+    }
+  };
+
+  const handleUpdateProgress = async () => {
+    if (!selectedChallenge || !user || !progressValue) return;
+
+    try {
+      const progress = parseFloat(progressValue);
+      const success = await updateChallengeProgress(
+        selectedChallenge.id,
+        user.id,
+        progress
+      );
+
+      if (success) {
+        toast.success('Progress updated successfully!');
+        setProgressValue("");
+        setSelectedChallenge(null);
+        await fetchChallenges();
+      } else {
+        toast.error('Failed to update progress');
+      }
+    } catch (error) {
+      console.error('Error updating progress:', error);
+      toast.error('Failed to update progress');
+    }
+  };
+
+  const formatEndDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = date.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return 'Ended';
+    if (diffDays === 0) return 'Ends today';
+    if (diffDays === 1) return 'Ends tomorrow';
+    return `${diffDays} days left`;
+  };
+
+  const getProgressPercentage = (current: number, goal: number) => {
+    return Math.min((current / goal) * 100, 100);
+  };
+
+  const getTypeIcon = (type: Challenge['challenge_type']) => {
     switch (type) {
-      case 'steps':
-        return <Users className="h-5 w-5" />;
-      case 'weight':
-        return <Trophy className="h-5 w-5" />;
-      case 'workouts':
-        return <CheckCircle2 className="h-5 w-5" />;
-      case 'distance':
-        return <ArrowRight className="h-5 w-5" />;
+      case 'steps': return '👟';
+      case 'workouts': return '💪';
+      case 'weight': return '⚖️';
+      case 'distance': return '🏃';
+      case 'duration': return '⏱️';
+      default: return '🎯';
     }
   };
-  
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-  
-  const formatProgress = (challenge: Challenge) => {
-    switch (challenge.type) {
-      case 'steps':
-        return `${challenge.progress.toLocaleString()} / ${challenge.goal.toLocaleString()} steps`;
-      case 'weight':
-        return `${challenge.progress}% / ${challenge.goal}%`;
-      case 'workouts':
-        return `${challenge.progress} / ${challenge.goal} workouts`;
-      case 'distance':
-        return `${challenge.progress} / ${challenge.goal} miles`;
+  const getDifficultyColor = (level?: string) => {
+    switch (level) {
+      case 'beginner': return 'bg-green-100 text-green-800';
+      case 'intermediate': return 'bg-yellow-100 text-yellow-800';
+      case 'advanced': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
-  
-  const getProgressPercentage = (challenge: Challenge) => {
-    return (challenge.progress / challenge.goal) * 100;
-  };
+  // Use real challenges data from database
+  const displayChallenges = challenges;
 
   return (
     <DashboardLayout title="Fitness Challenges">
-      <div className="mb-6">
-        <p className="text-gray-600 dark:text-gray-400">
-          Join challenges to stay motivated and compete with friends. Complete challenges to earn badges and rewards.
-        </p>
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <p className="text-gray-600 dark:text-gray-400">
+              Join challenges to stay motivated and compete with friends.
+            </p>
+          </div>
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Challenge
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {challenges.map(challenge => (
-          <Card key={challenge.id} className={challenge.completed ? "border-green-500" : ""}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="flex items-center">
-                    <span className="mr-2 inline-flex items-center justify-center p-2 bg-primary/10 rounded-full">
-                      {getChallengeIcon(challenge.type)}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader>
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-3 bg-gray-200 rounded w-full"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-2 bg-gray-200 rounded w-full mb-4"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {displayChallenges.map((challenge) => (
+            <Card key={challenge.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-2xl">{getTypeIcon(challenge.challenge_type)}</span>
+                    <div>
+                      <CardTitle className="text-lg">{challenge.title}</CardTitle>
+                      {challenge.difficulty_level && (
+                        <Badge className={`text-xs ${getDifficultyColor(challenge.difficulty_level)}`}>
+                          {challenge.difficulty_level}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  {challenge.completed && (
+                    <CheckCircle2 className="h-6 w-6 text-green-500" />
+                  )}
+                </div>
+                <CardDescription className="text-sm">
+                  {challenge.description}
+                </CardDescription>
+              </CardHeader>
+              
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Progress</span>
+                    <span>
+                      {challenge.current_progress || 0} / {challenge.goal_value} {challenge.goal_unit}
                     </span>
-                    {challenge.title}
-                  </CardTitle>
-                  <CardDescription className="mt-2">{challenge.description}</CardDescription>
+                  </div>
+                  <Progress 
+                    value={getProgressPercentage(challenge.current_progress || 0, challenge.goal_value)} 
+                    className="h-2"
+                  />
+                  <div className="text-xs text-gray-500">
+                    {Math.round(getProgressPercentage(challenge.current_progress || 0, challenge.goal_value))}% complete
+                  </div>
                 </div>
-                {challenge.completed && (
-                  <Badge className="bg-green-500">Completed</Badge>
+                
+                <div className="flex items-center justify-between text-sm text-gray-500">
+                  <div className="flex items-center space-x-1">
+                    <Users size={16} />
+                    <span>{challenge.total_participants || 0} participants</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Calendar size={16} />
+                    <span>{formatEndDate(challenge.end_date)}</span>
+                  </div>
+                </div>
+
+                {challenge.user_rank && (
+                  <div className="flex items-center space-x-1 text-sm">
+                    <Medal className="h-4 w-4 text-yellow-500" />
+                    <span>Rank #{challenge.user_rank}</span>
+                  </div>
                 )}
+              </CardContent>
+              
+              <CardFooter className="flex space-x-2">
+                {challenge.current_progress !== undefined ? (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setSelectedChallenge(challenge)}
+                    >
+                      <TrendingUp className="h-4 w-4 mr-1" />
+                      Update Progress
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => handleLeaveChallenge(challenge.id)}
+                    >
+                      Leave
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    className="w-full" 
+                    onClick={() => handleJoinChallenge(challenge.id)}
+                    disabled={challenge.completed}
+                  >
+                    {challenge.completed ? 'Ended' : 'Join Challenge'}
+                    <ArrowRight size={16} className="ml-2" />
+                  </Button>
+                )}
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Update Progress Dialog */}
+      <Dialog open={!!selectedChallenge} onOpenChange={() => setSelectedChallenge(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Progress</DialogTitle>
+            <DialogDescription>
+              Update your progress for "{selectedChallenge?.title}"
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="progress">Current Progress ({selectedChallenge?.goal_unit})</Label>
+              <Input
+                id="progress"
+                type="number"
+                placeholder={`Enter your progress in ${selectedChallenge?.goal_unit}`}
+                value={progressValue}
+                onChange={(e) => setProgressValue(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedChallenge(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateProgress}>
+              Update Progress
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Challenge Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Challenge</DialogTitle>
+            <DialogDescription>
+              Create a custom challenge for yourself and others to join.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Challenge Title</Label>
+              <Input
+                id="title"
+                placeholder="e.g., 30-Day Plank Challenge"
+                value={newChallenge.title}
+                onChange={(e) => setNewChallenge({...newChallenge, title: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                placeholder="Describe your challenge..."
+                value={newChallenge.description}
+                onChange={(e) => setNewChallenge({...newChallenge, description: e.target.value})}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="type">Type</Label>
+                <Select
+                  value={newChallenge.challenge_type}
+                  onValueChange={(value: Challenge['challenge_type']) => 
+                    setNewChallenge({...newChallenge, challenge_type: value})
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="workouts">Workouts</SelectItem>
+                    <SelectItem value="steps">Steps</SelectItem>
+                    <SelectItem value="distance">Distance</SelectItem>
+                    <SelectItem value="duration">Duration</SelectItem>
+                    <SelectItem value="weight">Weight</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">{formatProgress(challenge)}</span>
-                  <span className="text-sm text-gray-500">
-                    {Math.round(getProgressPercentage(challenge))}%
-                  </span>
-                </div>
-                <Progress value={getProgressPercentage(challenge)} className={challenge.completed ? "bg-green-100" : ""} />
-                <div className="flex justify-between text-sm text-gray-500">
-                  <div className="flex items-center">
-                    <Users className="h-4 w-4 mr-1" />
-                    <span>{challenge.participants} participants</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-1" />
-                    <span>Ends {formatDate(challenge.endDate)}</span>
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="difficulty">Difficulty</Label>
+                <Select
+                  value={newChallenge.difficulty_level}
+                  onValueChange={(value: Challenge['difficulty_level']) => 
+                    setNewChallenge({...newChallenge, difficulty_level: value})
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="beginner">Beginner</SelectItem>
+                    <SelectItem value="intermediate">Intermediate</SelectItem>
+                    <SelectItem value="advanced">Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                variant="outline" 
-                className="w-full"
-                disabled={challenge.completed}
-              >
-                {challenge.completed ? "Completed" : "View Details"}
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="goal">Goal Value</Label>
+                <Input
+                  id="goal"
+                  type="number"
+                  placeholder="e.g., 20"
+                  value={newChallenge.goal_value || ''}
+                  onChange={(e) => setNewChallenge({...newChallenge, goal_value: parseInt(e.target.value) || 0})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="duration">Duration (days)</Label>
+                <Input
+                  id="duration"
+                  type="number"
+                  placeholder="e.g., 30"
+                  value={newChallenge.duration_days}
+                  onChange={(e) => setNewChallenge({...newChallenge, duration_days: parseInt(e.target.value) || 30})}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              // Handle challenge creation
+              toast.success('Challenge creation feature coming soon!');
+              setShowCreateDialog(false);
+            }}>
+              Create Challenge
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

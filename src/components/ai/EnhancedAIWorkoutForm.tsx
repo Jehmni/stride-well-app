@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { getAIConfig } from "@/integrations/supabase/aiConfig";
+import { clearExistingAIPlans } from "@/services/workoutService";
 import { useNavigate } from "react-router-dom";
 
 interface FormData {
@@ -159,9 +160,11 @@ const EnhancedAIWorkoutForm: React.FC = () => {
       return;
     }
 
-    setIsLoading(true);
-
-    try {
+    setIsLoading(true);    try {
+      // 0. Clear existing AI plans to ensure fresh generation
+      console.log("Clearing existing AI workout plans...");
+      await clearExistingAIPlans(user.id);
+      
       // 1. Get OpenAI configuration
       const aiConfig = await getAIConfig("openai");
       if (!aiConfig || !aiConfig.api_key || !aiConfig.is_enabled) {
@@ -224,10 +227,8 @@ const EnhancedAIWorkoutForm: React.FC = () => {
 
       if (error) {
         throw error;
-      }
-
-      toast.success("AI workout generated successfully!");
-      navigate(`/workout-plan/${savedWorkout.id}`);
+      }      toast.success("AI workout generated successfully!");
+      navigate(`/ai-workouts/${savedWorkout.id}`);
     } catch (error) {
       console.error("Error generating AI workout:", error);
       toast.error("Failed to generate and save workout plan");

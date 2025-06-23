@@ -46,15 +46,13 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({ onViewAllProgress
           setExerciseCounts([]);
           setMuscleGroups([]);
           return;
-        }
-
-        if (data) {
-          // Process exercise counts
+        }        if (data) {
+          // Process exercise counts with proper NaN handling
           const exercises = data.map(ex => ({
-            exercise_id: ex.exercise_id,
-            name: ex.name,
-            muscle_group: ex.muscle_group,
-            count: Number(ex.count)
+            exercise_id: ex.exercise_id || `fallback-${Math.random()}`,
+            name: ex.name || 'Unknown Exercise',
+            muscle_group: ex.muscle_group || 'Unknown',
+            count: isNaN(Number(ex.count)) ? 0 : Number(ex.count)
           }));
           
           setExerciseCounts(exercises);
@@ -64,19 +62,22 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({ onViewAllProgress
           let totalCount = 0;
           
           exercises.forEach(ex => {
-            const group = ex.muscle_group;
-            groupCounts[group] = (groupCounts[group] || 0) + ex.count;
-            totalCount += ex.count;
+            const group = ex.muscle_group || 'Unknown';
+            const validCount = isNaN(ex.count) ? 0 : ex.count;
+            groupCounts[group] = (groupCounts[group] || 0) + validCount;
+            totalCount += validCount;
           });
           
           const muscleGroupData = Object.entries(groupCounts).map(([name, count]) => ({
-            name,
-            count,
-            percentage: totalCount > 0 ? Math.round((count / totalCount) * 100) : 0
+            name: name || 'Unknown',
+            count: isNaN(count) ? 0 : count,
+            percentage: totalCount > 0 && !isNaN(count) && !isNaN(totalCount) 
+              ? Math.round((count / totalCount) * 100) 
+              : 0
           }));
           
           // Sort by count descending
-          muscleGroupData.sort((a, b) => b.count - a.count);
+          muscleGroupData.sort((a, b) => (b.count || 0) - (a.count || 0));
           
           setMuscleGroups(muscleGroupData);
         }
@@ -108,37 +109,40 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({ onViewAllProgress
             <p className="text-sm mt-2">Complete workouts to see your exercise statistics here.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-sm font-medium text-gray-500">Muscle Group Distribution</h4>
-              <ul className="mt-2 space-y-2">
-                {muscleGroups.map((group) => (
-                  <li key={group.name} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div>
-                      <h5 className="font-medium">{group.name}</h5>
-                    </div>
-                    <div className="flex items-center">
-                      <span className="text-lg font-semibold">{group.percentage}%</span>
-                    </div>
-                  </li>
-                ))}
+          <div className="space-y-4">            <div>
+              <h4 className="text-sm font-medium text-gray-500">Muscle Group Distribution</h4>              <ul className="mt-2 space-y-2">
+                {muscleGroups.map((group, index) => {
+                  const uniqueKey = group.name || `muscle-group-${index}-${group.count || 0}`;
+                  return (
+                    <li key={uniqueKey} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div>
+                        <h5 className="font-medium">{group.name || 'Unknown'}</h5>
+                      </div>
+                      <div className="flex items-center">
+                        <span className="text-lg font-semibold">{isNaN(group.percentage) ? 0 : group.percentage}%</span>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
-            </div>
-            <div>
+            </div>            <div>
               <h4 className="text-sm font-medium text-gray-500">Most Frequent Exercises</h4>
               <ul className="mt-2 space-y-2">
-                {exerciseCounts.slice(0, 5).map((exercise) => (
-                  <li key={exercise.exercise_id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div>
-                      <h5 className="font-medium">{exercise.name}</h5>
-                      <p className="text-sm text-gray-500">{exercise.muscle_group}</p>
-                    </div>
-                    <div className="flex items-center">
-                      <span className="text-lg font-semibold">{exercise.count}</span>
-                      <span className="ml-1 text-sm text-gray-500">times</span>
-                    </div>
-                  </li>
-                ))}
+                {exerciseCounts.slice(0, 5).map((exercise, index) => {
+                  const uniqueKey = exercise.exercise_id || `exercise-${index}-${exercise.name || 'unknown'}`;
+                  return (
+                    <li key={uniqueKey} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div>
+                        <h5 className="font-medium">{exercise.name || 'Unknown Exercise'}</h5>
+                        <p className="text-sm text-gray-500">{exercise.muscle_group || 'Unknown'}</p>
+                      </div>
+                      <div className="flex items-center">
+                        <span className="text-lg font-semibold">{isNaN(exercise.count) ? 0 : exercise.count}</span>
+                        <span className="ml-1 text-sm text-gray-500">times</span>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </div>

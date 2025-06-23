@@ -279,16 +279,7 @@ ${health_conditions?.length ? `- Health Considerations: ${health_conditions.join
  */
 const saveWorkoutPlan = async (workoutPlan: AIWorkoutResponse, userProfile: EnhancedUserProfile): Promise<string | null> => {
   try {
-    // Check if we need to update the workout_plans table structure
-    const { error: checkError } = await supabase
-      .from('workout_plans')
-      .select('target_muscle_groups')
-      .limit(1);
-    
-    // If target_muscle_groups column doesn't exist, we'll exclude the new fields
-    const hasExtendedFields = !checkError;
-    
-    const plan: WorkoutPlan = {
+    const plan = {
       title: workoutPlan.title,
       description: workoutPlan.description,
       fitness_goal: userProfile.fitness_goal || workoutPlan.fitness_goal,
@@ -297,13 +288,6 @@ const saveWorkoutPlan = async (workoutPlan: AIWorkoutResponse, userProfile: Enha
       ai_generated: true,
       user_id: userProfile.id
     };
-    
-    // Only add extended fields if the database supports them
-    if (hasExtendedFields) {
-      plan.target_muscle_groups = workoutPlan.target_muscle_groups;
-      plan.estimated_calories = workoutPlan.estimated_calories;
-      plan.difficulty_level = workoutPlan.difficulty_level;
-    }
 
     const { data, error } = await supabase
       .from('workout_plans')
@@ -373,8 +357,7 @@ export const getEnhancedAIWorkoutPlans = async (userId: string) => {
       
       if (!rpcError && rpcData) {
         plansData = rpcData;
-      } else {
-        // Fallback to direct query if RPC fails
+      } else {        // Fallback to direct query if RPC fails
         console.warn('Falling back to direct query for AI workout plans');
         const { data, error } = await supabase
           .from('workout_plans')
@@ -383,9 +366,6 @@ export const getEnhancedAIWorkoutPlans = async (userId: string) => {
             title,
             description,
             fitness_goal,
-            target_muscle_groups,
-            estimated_calories,
-            difficulty_level,
             created_at,
             weekly_structure,
             exercises

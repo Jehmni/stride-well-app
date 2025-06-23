@@ -10,7 +10,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Supabase client setup
-const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://japrzutwtqotzyudnizh.supabase.co";
+const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://ruxnobvwdzyenucyimus.supabase.co";
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_KEY;
 
 if (!supabaseKey) {

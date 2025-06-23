@@ -14,7 +14,6 @@ import { register as registerServiceWorker } from "./services/serviceWorkerRegis
 import { syncAllWorkouts } from "./services/offlineStorageService";
 import { supabase } from "@/integrations/supabase/client";
 import { preloadModule } from "@/utils/modulePreload";
-import NetworkErrorHandler from "./components/common/NetworkErrorHandler";
 
 // Import Index directly to avoid lazy loading issues
 import Index from "./pages/Index";
@@ -155,9 +154,8 @@ function App() {
   }, []);
   
   return (
-  <QueryClientProvider client={queryClient}>
-    <NetworkErrorHandler>
-      <AuthProvider>
+    <QueryClientProvider client={queryClient}>
+        <AuthProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -320,9 +318,8 @@ function App() {
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
-    </NetworkErrorHandler>
-  </QueryClientProvider>
-);
+    </QueryClientProvider>
+  );
 }
 
 export default App;

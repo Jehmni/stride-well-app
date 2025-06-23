@@ -55,13 +55,12 @@ export const useWorkoutStats = (userId: string | undefined): WorkoutStats => {
         const todayStr = today.toISOString();
         const currentWeekStartStr = currentWeekStart.toISOString();
         const previousWeekStartStr = previousWeekStart.toISOString();
-        const previousWeekEndStr = previousWeekEnd.toISOString();
-
-        // Total completed workouts
+        const previousWeekEndStr = previousWeekEnd.toISOString();        // Total completed workouts (using end_time as completion indicator)
         const { count: totalCount, error: totalError } = await supabase
           .from('workout_logs')
           .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId);
+          .eq('user_id', userId)
+          .not('end_time', 'is', null);
 
         if (totalError) throw totalError;
 
@@ -70,7 +69,8 @@ export const useWorkoutStats = (userId: string | undefined): WorkoutStats => {
           .from('workout_logs')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
-          .gte('completed_at', currentWeekStartStr);
+          .not('end_time', 'is', null)
+          .gte('date', currentWeekStartStr);
 
         if (weeklyError) throw weeklyError;
 
@@ -79,8 +79,9 @@ export const useWorkoutStats = (userId: string | undefined): WorkoutStats => {
           .from('workout_logs')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
-          .gte('completed_at', previousWeekStartStr)
-          .lte('completed_at', previousWeekEndStr);
+          .not('end_time', 'is', null)
+          .gte('date', previousWeekStartStr)
+          .lte('date', previousWeekEndStr);
 
         if (prevWeekError) throw prevWeekError;
 
