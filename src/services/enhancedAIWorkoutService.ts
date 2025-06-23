@@ -376,14 +376,13 @@ export const getEnhancedAIWorkoutPlans = async (userId?: string) => {
     } catch (e) {
       console.error('Error reading from cache:', e);
     }
-  }
-  // Get from database if online
+  }  // Get from database if online
   if (navigator.onLine) {
     try {
       console.log('Fetching AI workout plans from database...');
         // Try to use the RPC function first (now it exists!)
       const { data: rpcData, error: rpcError } = await supabase
-        .rpc('get_ai_workout_plans');
+        .rpc('get_ai_workout_plans', { p_user_id: userId });
       
       let plansData;
       

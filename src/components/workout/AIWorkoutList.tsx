@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Brain, Calendar, Clock, CheckCircle, ChevronRight, AlertCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AIWorkoutPlanResponse, GetAIWorkoutPlansParams } from '@/types/rpc';
+import { AIWorkoutPlanResponse } from '@/types/rpc';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
@@ -29,16 +29,11 @@ export const AIWorkoutList: React.FC<AIWorkoutListProps> = ({ userId }) => {
   const fetchAIWorkoutPlans = async () => {
     try {
       setIsLoading(true);
-      setError(null);
-
-      try {
+      setError(null);      try {
         // Try to use the optimized RPC function first
-        const params: GetAIWorkoutPlansParams = {
-          user_id_param: userId,
-          limit_param: 10
-        };
-
-        const { data, error } = await supabase.rpc('get_ai_workout_plans', params);
+        const { data, error } = await supabase.rpc('get_ai_workout_plans', {
+          p_user_id: userId
+        });
 
         if (error) {
           throw error;

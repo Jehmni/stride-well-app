@@ -25,10 +25,14 @@ async function testCompleteAIWorkflow() {
     
     if (rpcError) {
       console.error('❌ RPC function error:', rpcError);
+      throw new Error(`RPC function test failed: ${rpcError.message}`);
     } else {
       console.log('✅ RPC function working');
-    }
-    
+      // Validate response structure
+      if (!Array.isArray(rpcTest)) {
+        throw new Error('RPC should return an array');
+      }
+    }    
     // Test 2: Check workout_logs table structure
     console.log('2. Testing workout_logs table access...');
     const { data: logsTest, error: logsError } = await supabase

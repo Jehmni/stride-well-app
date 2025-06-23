@@ -1,16 +1,27 @@
 // Direct implementation of RPC functions with proper exports
 import { createClient } from '@supabase/supabase-js';
-import { 
-  ExerciseProgressHistoryParams, 
-  TopExercisesParams, 
-  UserExerciseCountsParams, 
-  LogExerciseCompletionParams,
-  SyncWorkoutProgressParams,
-  LinkAIWorkoutToLogParams,
-  CompleteWorkoutParams,
-  LogWorkoutWithExercisesParams
-} from '@/types/rpc';
+// Temporarily using any types to avoid import issues
+// import { 
+//   ExerciseProgressHistoryParams, 
+//   TopExercisesParams, 
+//   UserExerciseCountsParams, 
+//   LogExerciseCompletionParams,
+//   SyncWorkoutProgressParams,
+//   LinkAIWorkoutToLogParams,
+//   CompleteWorkoutParams,
+//   LogWorkoutWithExercisesParams
+// } from '@/types/rpc';
 import { supabase } from './client';
+
+// Temporary type definitions to avoid import issues
+type ExerciseProgressHistoryParams = { user_id_param: string; exercise_id_param: string; limit_param: number };
+type TopExercisesParams = { user_id_param: string; limit_param: number };
+type UserExerciseCountsParams = { user_id_param: string };
+type LogExerciseCompletionParams = { workout_log_id_param: string; exercise_id_param: string; sets_completed_param: number; reps_completed_param: number | null; weight_used_param: number | null; notes_param: string | null };
+type SyncWorkoutProgressParams = { user_id_param: string; workout_id_param: string; completed_exercises_param: string[] };
+type LinkAIWorkoutToLogParams = { workout_plan_id_param: string; workout_log_id_param: string };
+type CompleteWorkoutParams = { workout_id_param: string; user_id_param: string; duration_param?: number; calories_param?: number; notes_param?: string; is_ai_workout_param?: boolean; ai_workout_plan_id_param?: string };
+type LogWorkoutWithExercisesParams = { workout_id_param: string; user_id_param: string; duration_param: number; calories_param: number; exercise_data_param: any[]; is_ai_workout_param?: boolean; ai_workout_plan_id_param?: string };
 
 // Get exercise progress history
 export const getExerciseProgressHistoryRPC = async (params: ExerciseProgressHistoryParams) => {
@@ -123,12 +134,15 @@ export const linkAIWorkoutToLogRPC = async (
       console.error('Invalid parameters for link_ai_workout_to_log:', params);
       throw new Error('Missing required parameters for linking AI workout to log');
     }
-    
-    try {
+      try {
       // Try using the RPC function first
-      // @ts-ignore - RPC function parameters are correct, types need updating
-      const { data, error } = await supabase.rpc('link_ai_workout_to_log', params);
+      // Map parameters to match RPC function signature
+      const rpcParams = {
+        p_workout_log_id: params.workout_log_id_param,
+        p_ai_workout_plan_id: params.workout_plan_id_param
+      };
       
+      const { data, error } = await supabase.rpc('link_ai_workout_to_log', rpcParams);      
       if (error) {
         throw error;
       }
