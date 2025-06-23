@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Force Chrome Cache Clear</title>
+    <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="pragma" content="no-cache">
+    <meta http-equiv="expires" content="0">
+</head>
+<body>
+    <h1>Clearing Chrome Cache...</h1>
+    <p>This page will automatically redirect and clear cache.</p>
+    <script>
+        // Clear all possible caches
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                registrations.forEach(registration => registration.unregister());
+            });
+        }
+        
+        if ('caches' in window) {
+            caches.keys().then(names => {
+                names.forEach(name => caches.delete(name));
+            });
+        }
+        
+        // Clear storage
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Add cache-busting parameter
+        const timestamp = Date.now();
+        setTimeout(() => {
+            window.location.href = `/?v=${timestamp}&cache-bust=${Math.random()}`;
+        }, 1000);
+    </script>
+</body>
+</html>

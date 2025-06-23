@@ -220,8 +220,7 @@ export function AIWorkoutList() {
                           <Dumbbell className="h-4 w-4" />
                           Exercises
                         </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
+                      </AccordionTrigger>                      <AccordionContent>
                         {plan.exercises?.map((dayExercises: any) => (
                           <div key={dayExercises.day} className="mb-4">
                             <h4 className="font-medium capitalize mb-2">
@@ -239,24 +238,34 @@ export function AIWorkoutList() {
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {dayExercises.exercises.map(
+                                  {dayExercises.exercises?.map(
                                     (exercise: any, index: number) => (
                                       <TableRow key={index}>
                                         <TableCell className="font-medium">
-                                          {exercise.name}
+                                          {exercise.name || 'Unknown Exercise'}
                                         </TableCell>
-                                        <TableCell>{exercise.muscle_group}</TableCell>
-                                        <TableCell>{exercise.sets}</TableCell>
-                                        <TableCell>{exercise.reps}</TableCell>
-                                        <TableCell>{exercise.rest_time}s</TableCell>
+                                        <TableCell>{exercise.muscle_group || 'N/A'}</TableCell>
+                                        <TableCell>{exercise.sets || 0}</TableCell>
+                                        <TableCell>{exercise.reps || 0}</TableCell>
+                                        <TableCell>{exercise.rest_time ? `${exercise.rest_time}s` : 'N/A'}</TableCell>
                                       </TableRow>
                                     )
+                                  ) || (
+                                    <TableRow>
+                                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                                        No exercises available for this day
+                                      </TableCell>
+                                    </TableRow>
                                   )}
                                 </TableBody>
                               </Table>
                             </div>
                           </div>
-                        ))}
+                        )) || (
+                          <div className="text-center text-muted-foreground py-4">
+                            No exercise data available
+                          </div>
+                        )}
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>

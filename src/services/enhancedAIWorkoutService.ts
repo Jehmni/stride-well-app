@@ -375,20 +375,23 @@ export const getEnhancedAIWorkoutPlans = async (userId: string) => {
   } catch (e) {
     console.error('Error reading from cache:', e);
   }
-  
   // Get from database if online
   if (navigator.onLine) {
     try {
-      // Try to use the RPC function first
+      console.log('Fetching AI workout plans from database...');
+      
+      // Try to use the RPC function first (now it exists!)
       const { data: rpcData, error: rpcError } = await supabase
         .rpc('get_ai_workout_plans', { p_user_id: userId });
       
       let plansData;
       
       if (!rpcError && rpcData) {
+        console.log(`Found ${rpcData.length} AI workout plans via RPC`);
         plansData = rpcData;
-      } else {        // Fallback to direct query if RPC fails
-        console.warn('Falling back to direct query for AI workout plans');
+      } else {
+        // Fallback to direct query if RPC fails
+        console.warn('Falling back to direct query for AI workout plans:', rpcError);
         const { data, error } = await supabase
           .from('workout_plans')
           .select(`
@@ -409,17 +412,27 @@ export const getEnhancedAIWorkoutPlans = async (userId: string) => {
           return [];
         }
         
+        console.log(`Found ${data.length} AI workout plans via direct query`);
+        
         // Get completion counts for each plan
         plansData = await Promise.all(data.map(async (plan) => {
-          const { count, error: countError } = await supabase
-            .from('workout_logs')
-            .select('id', { count: 'exact', head: true })
-            .eq('ai_workout_plan_id', plan.id);
-          
-          return {
-            ...plan,
-            times_completed: countError ? 0 : (count || 0)
-          };
+          try {
+            const { count, error: countError } = await supabase
+              .from('workout_logs')
+              .select('*', { count: 'exact', head: true })
+              .eq('ai_workout_plan_id', plan.id);
+            
+            return {
+              ...plan,
+              times_completed: countError ? 0 : (count || 0)
+            };
+          } catch (err) {
+            console.warn('Error in completion count query for plan', plan.id, ':', err);
+            return {
+              ...plan,
+              times_completed: 0
+            };
+          }
         }));
       }
       
