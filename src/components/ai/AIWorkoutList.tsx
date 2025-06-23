@@ -221,11 +221,8 @@ export function AIWorkoutList() {
                           Exercises
                         </div>
                       </AccordionTrigger>                      <AccordionContent>
-                        {plan.exercises?.map((dayExercises: any) => (
-                          <div key={dayExercises.day} className="mb-4">
-                            <h4 className="font-medium capitalize mb-2">
-                              {dayExercises.day}
-                            </h4>
+                        {Array.isArray(plan.exercises) && plan.exercises.length > 0 ? (
+                          <div className="mb-4">
                             <div className="rounded-md border">
                               <Table>
                                 <TableHeader>
@@ -234,34 +231,24 @@ export function AIWorkoutList() {
                                     <TableHead>Muscle Group</TableHead>
                                     <TableHead>Sets</TableHead>
                                     <TableHead>Reps</TableHead>
-                                    <TableHead>Rest</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {dayExercises.exercises?.map(
-                                    (exercise: any, index: number) => (
-                                      <TableRow key={index}>
-                                        <TableCell className="font-medium">
-                                          {exercise.name || 'Unknown Exercise'}
-                                        </TableCell>
-                                        <TableCell>{exercise.muscle_group || 'N/A'}</TableCell>
-                                        <TableCell>{exercise.sets || 0}</TableCell>
-                                        <TableCell>{exercise.reps || 0}</TableCell>
-                                        <TableCell>{exercise.rest_time ? `${exercise.rest_time}s` : 'N/A'}</TableCell>
-                                      </TableRow>
-                                    )
-                                  ) || (
-                                    <TableRow>
-                                      <TableCell colSpan={5} className="text-center text-muted-foreground">
-                                        No exercises available for this day
+                                  {plan.exercises.map((exercise: any, index: number) => (
+                                    <TableRow key={`${plan.id}-exercise-${index}`}>
+                                      <TableCell className="font-medium">
+                                        {exercise.name || 'Unknown Exercise'}
                                       </TableCell>
+                                      <TableCell>{exercise.muscle || exercise.muscle_group || 'N/A'}</TableCell>
+                                      <TableCell>{exercise.sets || 0}</TableCell>
+                                      <TableCell>{exercise.reps || 0}</TableCell>
                                     </TableRow>
-                                  )}
+                                  ))}
                                 </TableBody>
                               </Table>
                             </div>
                           </div>
-                        )) || (
+                        ) : (
                           <div className="text-center text-muted-foreground py-4">
                             No exercise data available
                           </div>
