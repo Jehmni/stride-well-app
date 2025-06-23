@@ -39,10 +39,17 @@ CREATE TABLE IF NOT EXISTS public.ai_configurations (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Add example configuration
+-- Add unique constraint on service_name for proper upserts
+ALTER TABLE public.ai_configurations 
+ADD CONSTRAINT IF NOT EXISTS unique_service_name UNIQUE (service_name);
+
+-- Add example configuration with proper upsert
 INSERT INTO public.ai_configurations (service_name, api_endpoint, model_name, is_enabled)
 VALUES ('openai', 'https://api.openai.com/v1/chat/completions', 'gpt-4o', FALSE)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (service_name) DO UPDATE SET
+  api_endpoint = EXCLUDED.api_endpoint,
+  model_name = EXCLUDED.model_name,
+  updated_at = NOW();
 
 -- Only administrators can access AI configurations
 ALTER TABLE public.ai_configurations ENABLE ROW LEVEL SECURITY;
