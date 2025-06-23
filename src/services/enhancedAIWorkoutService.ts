@@ -357,40 +357,40 @@ const saveWorkoutPlan = async (workoutPlan: AIWorkoutResponse, userProfile: Enha
  * @param userId The user ID
  * @returns Array of workout plans with completion counts
  */
-export const getEnhancedAIWorkoutPlans = async (userId: string) => {
-  // Try to get from cache first
-  try {
-    const cachedPlansJson = localStorage.getItem(`ai_workout_plans_${userId}`);
-    const cachedTime = localStorage.getItem(`ai_workout_plans_${userId}_timestamp`);
-    
-    // If cache is less than 5 minutes old, use it
-    if (cachedPlansJson && cachedTime) {
-      const cachedTimeMs = parseInt(cachedTime, 10);
-      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+export const getEnhancedAIWorkoutPlans = async (userId?: string) => {
+  // Try to get from cache first (only if userId is provided)
+  if (userId) {
+    try {
+      const cachedPlansJson = localStorage.getItem(`ai_workout_plans_${userId}`);
+      const cachedTime = localStorage.getItem(`ai_workout_plans_${userId}_timestamp`);
       
-      if (cachedTimeMs > fiveMinutesAgo) {
-        return JSON.parse(cachedPlansJson);
+      // If cache is less than 5 minutes old, use it
+      if (cachedPlansJson && cachedTime) {
+        const cachedTimeMs = parseInt(cachedTime, 10);
+        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+        
+        if (cachedTimeMs > fiveMinutesAgo) {
+          return JSON.parse(cachedPlansJson);
+        }
       }
+    } catch (e) {
+      console.error('Error reading from cache:', e);
     }
-  } catch (e) {
-    console.error('Error reading from cache:', e);
   }
   // Get from database if online
   if (navigator.onLine) {
     try {
       console.log('Fetching AI workout plans from database...');
-      
-      // Try to use the RPC function first (now it exists!)
+        // Try to use the RPC function first (now it exists!)
       const { data: rpcData, error: rpcError } = await supabase
-        .rpc('get_ai_workout_plans', { p_user_id: userId });
+        .rpc('get_ai_workout_plans');
       
       let plansData;
       
       if (!rpcError && rpcData) {
         console.log(`Found ${rpcData.length} AI workout plans via RPC`);
         plansData = rpcData;
-      } else {
-        // Fallback to direct query if RPC fails
+      } else {        // Fallback to direct query if RPC fails
         console.warn('Falling back to direct query for AI workout plans:', rpcError);
         const { data, error } = await supabase
           .from('workout_plans')
@@ -403,7 +403,6 @@ export const getEnhancedAIWorkoutPlans = async (userId: string) => {
             weekly_structure,
             exercises
           `)
-          .eq('user_id', userId)
           .eq('ai_generated', true)
           .order('created_at', { ascending: false });
         
@@ -435,13 +434,14 @@ export const getEnhancedAIWorkoutPlans = async (userId: string) => {
           }
         }));
       }
-      
-      // Cache the results
-      try {
-        localStorage.setItem(`ai_workout_plans_${userId}`, JSON.stringify(plansData));
-        localStorage.setItem(`ai_workout_plans_${userId}_timestamp`, Date.now().toString());
-      } catch (e) {
-        console.error('Error caching workout plans:', e);
+        // Cache the results if userId is provided
+      if (userId) {
+        try {
+          localStorage.setItem(`ai_workout_plans_${userId}`, JSON.stringify(plansData));
+          localStorage.setItem(`ai_workout_plans_${userId}_timestamp`, Date.now().toString());
+        } catch (e) {
+          console.error('Error caching workout plans:', e);
+        }
       }
       
       return plansData;
@@ -449,34 +449,38 @@ export const getEnhancedAIWorkoutPlans = async (userId: string) => {
       console.error('Error in getEnhancedAIWorkoutPlans:', error);
     }
   }
-  
-  // If offline, get from local storage
-  try {
-    // Find all workout plans stored in localStorage
-    const workoutPlans = [];
-    
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith('workout_plan_')) {
-        try {
-          const plan = JSON.parse(localStorage.getItem(key) || '');
-          
-          // Check if this plan belongs to the user
-          if (plan?.user_id === userId && plan?.ai_generated) {
-            workoutPlans.push({
-              ...plan,
-              times_completed: 0 // We don't know how many times it was completed offline
-            });
+    // If offline, get from local storage (only if userId is provided)
+  if (userId) {
+    try {
+      // Find all workout plans stored in localStorage
+      const workoutPlans = [];
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('workout_plan_')) {
+          try {
+            const plan = JSON.parse(localStorage.getItem(key) || '');
+            
+            // Check if this plan belongs to the user
+            if (plan?.user_id === userId && plan?.ai_generated) {
+              workoutPlans.push({
+                ...plan,
+                times_completed: 0 // We don't know how many times it was completed offline
+              });
+            }
+          } catch (e) {
+            console.error('Error parsing localStorage workout plan:', e);
           }
-        } catch (e) {
-          console.error('Error parsing localStorage workout plan:', e);
         }
       }
+      
+      return workoutPlans;
+    } catch (error) {
+      console.error('Error getting offline workout plans:', error);
+      return [];
     }
-    
-    return workoutPlans;
-  } catch (error) {
-    console.error('Error getting offline workout plans:', error);
-    return [];
   }
-}; 
+  
+  // If no userId and offline, return empty array
+  return [];
+};

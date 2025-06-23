@@ -40,11 +40,11 @@ export function AIWorkoutList() {
   const { user, profile } = useAuth();
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
   const navigate = useNavigate();
-
   const { data: workoutPlans, isLoading, refetch } = useQuery({
-    queryKey: ["aiWorkoutPlans", user?.id],
-    queryFn: () => (user?.id ? getEnhancedAIWorkoutPlans(user.id) : Promise.resolve([])),
-    enabled: !!user?.id,
+    queryKey: ["aiWorkoutPlans"],
+    queryFn: () => getEnhancedAIWorkoutPlans(""),
+    // Enable the query even without a user since AI workouts are public
+    enabled: true,
     // Add stale-while-revalidate
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 60 * 60 * 1000, // 1 hour (was cacheTime in earlier versions)
