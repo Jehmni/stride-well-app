@@ -3,6 +3,9 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
+import { useLoadingState } from "@/hooks/common";
+import { showErrorToast, showSuccessToast } from "@/lib/utils-extended";
+import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@/lib/constants";
 
 // Define types for the auth context
 interface AuthContextType {
@@ -21,10 +24,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = React.useState<Session | null>(null);
   const [user, setUser] = React.useState<User | null>(null);
   const [profile, setProfile] = React.useState<Database['public']['Tables']['user_profiles']['Row'] | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const { isLoading, setLoading, setError } = useLoadingState(true);
 
-  // Fetch user profile data
-  const fetchProfile = async (userId: string) => {
+  // Fetch user profile data with error handling
+  const fetchProfile = React.useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -34,25 +37,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) {
         console.error("Error fetching user profile:", error);
+        setError(error.message);
         return null;
       }
 
       return data;
     } catch (error) {
       console.error("Unexpected error fetching user profile:", error);
+      showErrorToast(error, "Failed to fetch user profile");
       return null;
     }
-  };
+  }, [setError]);
 
   // Function to refresh the user profile data
-  const refreshProfile = async () => {
+  const refreshProfile = React.useCallback(async () => {
     if (!user?.id) return;
     
-    const profileData = await fetchProfile(user.id);
-    if (profileData) {
-      setProfile(profileData);
+    setLoading(true);
+    try {
+      const profileData = await fetchProfile(user.id);
+      if (profileData) {
+        setProfile(profileData);
+      }
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [user?.id, fetchProfile, setLoading]);
 
   // Handle auth state changes
   React.useEffect(() => {
@@ -68,11 +78,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setTimeout(async () => {
             const profileData = await fetchProfile(currentSession.user.id);
             setProfile(profileData);
-            setIsLoading(false);
+            setLoading(false);
           }, 0);
         } else if (event === 'SIGNED_OUT') {
           setProfile(null);
-          setIsLoading(false);
+          setLoading(false);
         }
       }
     );
@@ -87,23 +97,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const profileData = await fetchProfile(currentSession.user.id);
         setProfile(profileData);
       }
-      setIsLoading(false);
+      setLoading(false);
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchProfile, setLoading]);
 
-  const signOut = async () => {
+  const signOut = React.useCallback(async () => {
     try {
-      await supabase.auth.signOut();
-      toast.success("Successfully signed out");
+      setLoading(true);
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        showErrorToast(error, "Failed to sign out");
+      } else {
+        showSuccessToast("Successfully signed out");
+      }
     } catch (error) {
-      console.error("Error signing out:", error);
-      toast.error("Failed to sign out");
+      showErrorToast(error, "Failed to sign out");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [setLoading]);
 
   // Create the auth context value
   const contextValue: AuthContextType = {

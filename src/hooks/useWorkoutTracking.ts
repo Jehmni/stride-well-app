@@ -1,16 +1,80 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useLoadingState, useAsyncOperation } from '@/hooks/common';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
 import { logWorkoutWithExercisesRPC } from '@/integrations/supabase/functions';
 import { LogWorkoutWithExercisesParams, ExerciseLogData } from '@/types/rpc';
+import { 
+  STORAGE_KEYS, 
+  ERROR_MESSAGES, 
+  SUCCESS_MESSAGES, 
+  API_CONFIG 
+} from '@/lib/constants';
+import { 
+  handleApiError, 
+  formatDate, 
+  debounce
+} from '@/lib/utils-extended';
+import { ApiResponse } from '@/types';
 
-// Storage key for offline workouts
-const OFFLINE_WORKOUTS_KEY = 'offline_workouts';
-const SYNC_CONFLICTS_KEY = 'sync_conflicts';
+// Use centralized storage keys
+const OFFLINE_WORKOUTS_KEY = STORAGE_KEYS.OFFLINE_WORKOUTS;
+const SYNC_CONFLICTS_KEY = STORAGE_KEYS.SYNC_CONFLICTS;
 
-// Interface for workout data to be saved offline
+// Safe JSON operations with error handling
+const safeJsonParse = <T>(jsonString: string | null, fallback: T): T => {
+  if (!jsonString) return fallback;
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.error('Error parsing JSON:', error);
+    return fallback;
+  }
+};
+
+const safeJsonStringify = (data: any): string | null => {
+  try {
+    return JSON.stringify(data);
+  } catch (error) {
+    console.error('Error stringifying JSON:', error);
+    return null;
+  }
+};
+
+// Enhanced localStorage operations with error handling
+const getFromStorage = <T>(key: string, fallback: T): T => {
+  try {
+    const stored = localStorage.getItem(key);
+    return safeJsonParse(stored, fallback);
+  } catch (error) {
+    console.error(`Error reading from localStorage key "${key}":`, error);
+    return fallback;
+  }
+};
+
+const setToStorage = (key: string, data: any): boolean => {
+  try {
+    const jsonString = safeJsonStringify(data);
+    if (jsonString === null) return false;
+    localStorage.setItem(key, jsonString);
+    return true;
+  } catch (error) {
+    console.error(`Error writing to localStorage key "${key}":`, error);
+    return false;
+  }
+};
+
+// Enhanced interface definitions with better typing
+interface OfflineWorkoutExercise {
+  exercise_id: string;
+  sets_completed: number;
+  reps_completed: number;
+  weight_used: number | null;
+  notes?: string;
+}
+
 interface OfflineWorkout {
   id: string;
   workout_plan_id: string;
@@ -19,220 +83,451 @@ interface OfflineWorkout {
   calories_burned: number;
   notes?: string;
   rating?: number;
-  exercises: Array<{
-    exercise_id: string;
-    sets_completed: number;
-    reps_completed: number;
-    weight_used: number | null;
-    notes?: string;
-  }>;
+  exercises: OfflineWorkoutExercise[];
   title: string;
   description: string;
   synced: boolean;
   timestamp: string;
   syncAttempts: number;
   syncError?: string;
+  lastSyncAttempt?: string;
 }
 
-// Interface for sync conflicts
 interface SyncConflict {
   id: string;
   localWorkout: OfflineWorkout;
   serverWorkout: any;
   resolved: boolean;
   resolution?: 'local' | 'server' | 'merged';
+  timestamp: string;
+}
+
+interface WorkoutSyncResult {
+  success: boolean;
+  syncedCount: number;
+  failedCount: number;
+  conflicts: SyncConflict[];
+  errors: string[];
 }
 
 /**
- * Add a workout to the offline queue
+ * Add a workout to the offline queue with enhanced error handling
  */
-const addToOfflineQueue = (workout: OfflineWorkout): void => {
+const addToOfflineQueue = (workout: OfflineWorkout): ApiResponse<boolean> => {
   try {
     // Get current queue
-    const queueString = localStorage.getItem(OFFLINE_WORKOUTS_KEY);
-    const queue: OfflineWorkout[] = queueString ? JSON.parse(queueString) : [];
+    const queue = getFromStorage<OfflineWorkout[]>(OFFLINE_WORKOUTS_KEY, []);
     
-    // Add to queue with timestamp
-    const updatedWorkout = {
+    // Add to queue with timestamp and reset sync attempts
+    const updatedWorkout: OfflineWorkout = {
       ...workout,
       timestamp: workout.timestamp || new Date().toISOString(),
-      syncAttempts: workout.syncAttempts || 0
+      syncAttempts: 0,
+      syncError: undefined,
+      lastSyncAttempt: undefined
     };
     
     queue.push(updatedWorkout);
     
     // Save updated queue
-    localStorage.setItem(OFFLINE_WORKOUTS_KEY, JSON.stringify(queue));
+    const success = setToStorage(OFFLINE_WORKOUTS_KEY, queue);
+    
+    if (success) {
+      return {
+        success: true,
+        data: true,
+        message: 'Workout added to offline queue successfully'
+      };
+    } else {
+      return {
+        success: false,
+        error: {
+          code: 'STORAGE_ERROR',
+          message: ERROR_MESSAGES.WORKOUT_SAVE_FAILED,
+          timestamp: new Date().toISOString()
+        },
+        data: false
+      };
+    }
   } catch (error) {
     console.error('Error adding workout to offline queue:', error);
+    return {
+      success: false,
+      error: {
+        code: 'UNEXPECTED_ERROR',
+        message: handleApiError(error) || ERROR_MESSAGES.SERVER_ERROR,
+        details: error,
+        timestamp: new Date().toISOString()
+      },
+      data: false
+    };
   }
 };
 
 /**
- * Remove a workout from the offline queue
+ * Remove a workout from the offline queue with enhanced error handling
  */
-const removeFromOfflineQueue = (workoutId: string): void => {
+const removeFromOfflineQueue = (workoutId: string): ApiResponse<boolean> => {
   try {
+    if (!workoutId) {
+      return {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: ERROR_MESSAGES.VALIDATION.REQUIRED_FIELD('Workout ID'),
+          timestamp: new Date().toISOString()
+        },
+        data: false
+      };
+    }
+
     // Get current queue
-    const queueString = localStorage.getItem(OFFLINE_WORKOUTS_KEY);
-    if (!queueString) return;
-    
-    const queue: OfflineWorkout[] = JSON.parse(queueString);
+    const queue = getFromStorage<OfflineWorkout[]>(OFFLINE_WORKOUTS_KEY, []);
     
     // Remove from queue
     const updatedQueue = queue.filter(workout => workout.id !== workoutId);
     
+    // Check if anything was actually removed
+    const wasRemoved = queue.length !== updatedQueue.length;
+    
     // Save updated queue
-    localStorage.setItem(OFFLINE_WORKOUTS_KEY, JSON.stringify(updatedQueue));
+    const success = setToStorage(OFFLINE_WORKOUTS_KEY, updatedQueue);
+    
+    if (success) {
+      return {
+        success: true,
+        data: wasRemoved,
+        message: wasRemoved ? 'Workout removed from offline queue' : 'Workout not found in queue'
+      };
+    } else {
+      return {
+        success: false,
+        error: {
+          code: 'STORAGE_ERROR',
+          message: 'Failed to update offline queue',
+          timestamp: new Date().toISOString()
+        },
+        data: false
+      };
+    }
   } catch (error) {
     console.error('Error removing workout from offline queue:', error);
+    return {
+      success: false,
+      error: {
+        code: 'UNEXPECTED_ERROR',
+        message: handleApiError(error) || ERROR_MESSAGES.SERVER_ERROR,
+        details: error,
+        timestamp: new Date().toISOString()
+      },
+      data: false
+    };
   }
 };
 
 /**
- * Add a sync conflict to storage
+ * Add a sync conflict to storage with enhanced error handling
  */
-const addSyncConflict = (conflict: SyncConflict): void => {
+const addSyncConflict = (conflictData: Omit<SyncConflict, 'timestamp'>): ApiResponse<boolean> => {
   try {
     // Get current conflicts
-    const conflictsString = localStorage.getItem(SYNC_CONFLICTS_KEY);
-    const conflicts: SyncConflict[] = conflictsString ? JSON.parse(conflictsString) : [];
+    const conflicts = getFromStorage<SyncConflict[]>(SYNC_CONFLICTS_KEY, []);
     
-    // Add conflict
+    // Add conflict with timestamp
+    const conflict: SyncConflict = {
+      ...conflictData,
+      timestamp: new Date().toISOString()
+    };
+    
     conflicts.push(conflict);
     
     // Save updated conflicts
-    localStorage.setItem(SYNC_CONFLICTS_KEY, JSON.stringify(conflicts));
+    const success = setToStorage(SYNC_CONFLICTS_KEY, conflicts);
+    
+    if (success) {
+      return {
+        success: true,
+        data: true,
+        message: 'Sync conflict recorded successfully'
+      };
+    } else {
+      return {
+        success: false,
+        error: {
+          code: 'STORAGE_ERROR',
+          message: 'Failed to save sync conflict',
+          timestamp: new Date().toISOString()
+        },
+        data: false
+      };
+    }
   } catch (error) {
     console.error('Error adding sync conflict:', error);
+    return {
+      success: false,
+      error: {
+        code: 'UNEXPECTED_ERROR',
+        message: handleApiError(error) || ERROR_MESSAGES.SERVER_ERROR,
+        details: error,
+        timestamp: new Date().toISOString()
+      },
+      data: false
+    };
   }
 };
 
 /**
- * Sync all pending workouts from the offline queue
+ * Sync all pending workouts from the offline queue with enhanced error handling
  */
-const syncAllWorkouts = async (): Promise<number> => {
+const syncAllWorkouts = async (): Promise<WorkoutSyncResult> => {
+  const result: WorkoutSyncResult = {
+    success: false,
+    syncedCount: 0,
+    failedCount: 0,
+    conflicts: [],
+    errors: []
+  };
+
   try {
-    // Get current queue
-    const queueString = localStorage.getItem(OFFLINE_WORKOUTS_KEY);
-    if (!queueString) return 0;
-    
-    const queue: OfflineWorkout[] = JSON.parse(queueString);
+    // Get current queue with safe parsing
+    const queue = getFromStorage<OfflineWorkout[]>(OFFLINE_WORKOUTS_KEY, []);
     const pendingWorkouts = queue.filter(workout => !workout.synced);
     
-    if (pendingWorkouts.length === 0) return 0;
-    
-    let syncedCount = 0;
+    if (pendingWorkouts.length === 0) {
+      result.success = true;
+      return result;
+    }
+
     const updatedQueue = [...queue];
+    const maxSyncAttempts = API_CONFIG.MAX_RETRIES;
     
-    // Try to sync each pending workout
-    for (const workout of pendingWorkouts) {
-      try {
-        const index = updatedQueue.findIndex(w => w.id === workout.id);
+    // Process workouts in batches to avoid overwhelming the server
+    const batchSize = API_CONFIG.BATCH_SIZE || 10;
+    
+    for (let i = 0; i < pendingWorkouts.length; i += batchSize) {
+      const batch = pendingWorkouts.slice(i, i + batchSize);
+      
+      // Process batch with Promise.allSettled for better error handling
+      const batchResults = await Promise.allSettled(
+        batch.map(workout => syncSingleWorkout(workout, maxSyncAttempts))
+      );
+      
+      // Process results
+      batchResults.forEach((batchResult, batchIndex) => {
+        const workout = batch[batchIndex];
+        const queueIndex = updatedQueue.findIndex(w => w.id === workout.id);
         
-        // Skip if already synced or too many attempts (to prevent infinite loops)
-        if (workout.synced || workout.syncAttempts > 5) continue;
-        
-        // Check for potential conflicts first
-        let conflict = false;
-        let serverWorkout = null;
-        
-        if (workout.workout_plan_id && workout.timestamp) {
-          // Check if there's a server record for this workout in the same timeframe
-          const startTime = new Date(workout.timestamp);
-          startTime.setHours(startTime.getHours() - 1); // 1 hour before
+        if (batchResult.status === 'fulfilled') {
+          const syncResult = batchResult.value;
           
-          const endTime = new Date(workout.timestamp);
-          endTime.setHours(endTime.getHours() + 1); // 1 hour after
-          
-          const { data: existingLogs } = await supabase
-            .from('workout_logs')
-            .select('*')
-            .eq('user_id', workout.user_id)
-            .eq('workout_id', workout.workout_plan_id)
-            .gte('completed_at', startTime.toISOString())
-            .lte('completed_at', endTime.toISOString())
-            .limit(1);
-            
-          if (existingLogs && existingLogs.length > 0) {
-            conflict = true;
-            serverWorkout = existingLogs[0];
-            
-            // Add to conflicts for resolution
-            addSyncConflict({
-              id: uuidv4(),
-              localWorkout: workout,
-              serverWorkout,
-              resolved: false
-            });
-            
-            // Update workout in queue to mark conflict
-            if (index !== -1) {
-              updatedQueue[index] = {
-                ...workout,
-                syncAttempts: (workout.syncAttempts || 0) + 1,
-                syncError: 'Conflict detected with server record'
+          if (syncResult.success) {
+            result.syncedCount++;
+            if (queueIndex !== -1) {
+              updatedQueue[queueIndex] = { 
+                ...workout, 
+                synced: true,
+                syncError: undefined,
+                lastSyncAttempt: new Date().toISOString()
               };
             }
-            
-            continue; // Skip this workout for now
-          }
-        }
-        
-        // No conflict, try to sync
-        if (workout.user_id) {
-          const params: LogWorkoutWithExercisesParams = {
-            workout_id_param: workout.workout_plan_id,
-            user_id_param: workout.user_id,
-            duration_param: workout.duration || 0,
-            calories_param: workout.calories_burned || 0,
-            exercise_data_param: workout.exercises as ExerciseLogData[],
-            is_ai_workout_param: true,
-            ai_workout_plan_id_param: workout.workout_plan_id
-          };
-          
-          const result = await logWorkoutWithExercisesRPC(params);
-          
-          if (result) {
-            // Mark as synced in the queue
-            if (index !== -1) {
-              updatedQueue[index] = { ...workout, synced: true };
+          } else if (syncResult.hasConflict && syncResult.conflict) {
+            result.conflicts.push(syncResult.conflict);
+            if (queueIndex !== -1) {
+              updatedQueue[queueIndex] = {
+                ...workout,
+                syncAttempts: (workout.syncAttempts || 0) + 1,
+                syncError: 'Conflict detected with server record',
+                lastSyncAttempt: new Date().toISOString()
+              };
             }
-            
-            syncedCount++;
           } else {
-            // Update sync attempts
-            if (index !== -1) {
-              updatedQueue[index] = {
+            result.failedCount++;
+            result.errors.push(syncResult.error || 'Unknown sync error');
+            if (queueIndex !== -1) {
+              updatedQueue[queueIndex] = {
                 ...workout,
                 syncAttempts: (workout.syncAttempts || 0) + 1,
-                syncError: 'Failed to sync with server'
+                syncError: syncResult.error,
+                lastSyncAttempt: new Date().toISOString()
               };
             }
           }
+        } else {
+          result.failedCount++;
+          const errorMessage = batchResult.reason?.message || 'Sync operation failed';
+          result.errors.push(errorMessage);
+          
+          if (queueIndex !== -1) {
+            updatedQueue[queueIndex] = {
+              ...workout,
+              syncAttempts: (workout.syncAttempts || 0) + 1,
+              syncError: errorMessage,
+              lastSyncAttempt: new Date().toISOString()
+            };
+          }
         }
-      } catch (error) {
-        console.error(`Error syncing workout ${workout.id}:`, error);
-        
-        // Update sync attempts
-        const index = updatedQueue.findIndex(w => w.id === workout.id);
-        if (index !== -1) {
-          updatedQueue[index] = {
-            ...workout,
-            syncAttempts: (workout.syncAttempts || 0) + 1,
-            syncError: error instanceof Error ? error.message : 'Unknown error'
-          };
-        }
+      });
+      
+      // Add delay between batches to prevent rate limiting
+      if (i + batchSize < pendingWorkouts.length) {
+        await new Promise(resolve => setTimeout(resolve, API_CONFIG.RATE_LIMIT_DELAY || 1000));
       }
     }
     
     // Save updated queue
-    localStorage.setItem(OFFLINE_WORKOUTS_KEY, JSON.stringify(updatedQueue));
+    const saveSuccess = setToStorage(OFFLINE_WORKOUTS_KEY, updatedQueue);
+    if (!saveSuccess) {
+      result.errors.push('Failed to update offline queue after sync');
+    }
     
-    return syncedCount;
+    result.success = result.syncedCount > 0 || result.failedCount === 0;
+    return result;
+    
   } catch (error) {
-    console.error('Error syncing all workouts:', error);
-    return 0;
+    console.error('Error in syncAllWorkouts:', error);
+    result.errors.push(handleApiError(error) || ERROR_MESSAGES.SERVER_ERROR);
+    return result;
+  }
+};
+
+/**
+ * Sync a single workout with conflict detection
+ */
+interface SingleWorkoutSyncResult {
+  success: boolean;
+  hasConflict: boolean;
+  conflict?: SyncConflict;
+  error?: string;
+}
+
+const syncSingleWorkout = async (
+  workout: OfflineWorkout, 
+  maxSyncAttempts: number
+): Promise<SingleWorkoutSyncResult> => {
+  // Skip if already synced or too many attempts
+  if (workout.synced || (workout.syncAttempts || 0) >= maxSyncAttempts) {
+    return {
+      success: false,
+      hasConflict: false,
+      error: 'Max sync attempts exceeded'
+    };
+  }
+
+  try {
+    // Check for potential conflicts first
+    if (workout.workout_plan_id && workout.timestamp) {
+      const conflictResult = await checkForSyncConflict(workout);
+      if (conflictResult.hasConflict) {
+        return conflictResult;
+      }
+    }
+
+    // No conflict, attempt to sync
+    if (!workout.user_id) {
+      return {
+        success: false,
+        hasConflict: false,
+        error: 'Missing user ID'
+      };
+    }
+
+    const params: LogWorkoutWithExercisesParams = {
+      workout_id_param: workout.workout_plan_id,
+      user_id_param: workout.user_id,
+      duration_param: workout.duration || 0,
+      calories_param: workout.calories_burned || 0,
+      exercise_data_param: workout.exercises as ExerciseLogData[],
+      is_ai_workout_param: true,
+      ai_workout_plan_id_param: workout.workout_plan_id
+    };
+
+    const result = await logWorkoutWithExercisesRPC(params);
+
+    if (result) {
+      return {
+        success: true,
+        hasConflict: false
+      };
+    } else {
+      return {
+        success: false,
+        hasConflict: false,
+        error: 'Failed to sync with server'
+      };
+    }
+
+  } catch (error) {
+    console.error(`Error syncing workout ${workout.id}:`, error);
+    return {
+      success: false,
+      hasConflict: false,
+      error: error instanceof Error ? error.message : 'Unknown sync error'
+    };
+  }
+};
+
+/**
+ * Check for sync conflicts with server data
+ */
+const checkForSyncConflict = async (workout: OfflineWorkout): Promise<SingleWorkoutSyncResult> => {
+  try {
+    // Check if there's a server record for this workout in the same timeframe
+    const workoutTime = new Date(workout.timestamp);
+    const startTime = new Date(workoutTime.getTime() - 60 * 60 * 1000); // 1 hour before
+    const endTime = new Date(workoutTime.getTime() + 60 * 60 * 1000); // 1 hour after
+
+    const { data: existingLogs, error } = await supabase
+      .from('workout_logs')
+      .select('*')
+      .eq('user_id', workout.user_id)
+      .eq('workout_id', workout.workout_plan_id)
+      .gte('completed_at', startTime.toISOString())
+      .lte('completed_at', endTime.toISOString())
+      .limit(1);
+
+    if (error) {
+      throw error;
+    }
+
+    if (existingLogs && existingLogs.length > 0) {
+      const serverWorkout = existingLogs[0];
+      
+      // Create conflict record
+      const conflict: SyncConflict = {
+        id: uuidv4(),
+        localWorkout: workout,
+        serverWorkout,
+        resolved: false,
+        timestamp: new Date().toISOString()
+      };
+
+      // Save conflict
+      addSyncConflict({
+        id: conflict.id,
+        localWorkout: workout,
+        serverWorkout,
+        resolved: false
+      });
+
+      return {
+        success: false,
+        hasConflict: true,
+        conflict
+      };
+    }
+
+    return {
+      success: true,
+      hasConflict: false
+    };
+
+  } catch (error) {
+    console.error('Error checking for sync conflict:', error);
+    return {
+      success: false,
+      hasConflict: false,
+      error: error instanceof Error ? error.message : 'Failed to check for conflicts'
+    };
   }
 };
 
@@ -451,12 +746,19 @@ export const useWorkoutTracking = (): WorkoutTrackingHook => {
     
     setIsLoading(true);
     try {
-      const syncedCount = await syncAllWorkouts();
+      const syncResult = await syncAllWorkouts();
       
-      if (syncedCount > 0) {
-        toast.success(`Synced ${syncedCount} offline workout${syncedCount === 1 ? '' : 's'}`);
+      if (syncResult.syncedCount > 0) {
+        toast.success(`Synced ${syncResult.syncedCount} offline workout${syncResult.syncedCount === 1 ? '' : 's'}`);
+      } else if (syncResult.failedCount > 0) {
+        toast.error(`Failed to sync ${syncResult.failedCount} workout${syncResult.failedCount === 1 ? '' : 's'}`);
       } else {
         toast.info('No offline workouts to sync');
+      }
+      
+      // Show conflicts if any
+      if (syncResult.conflicts.length > 0) {
+        toast.warning(`${syncResult.conflicts.length} sync conflict${syncResult.conflicts.length === 1 ? '' : 's'} detected`);
       }
       
       // Update pending count
@@ -475,7 +777,7 @@ export const useWorkoutTracking = (): WorkoutTrackingHook => {
       const hasFailures = queue.some(workout => !workout.synced && (workout.syncAttempts || 0) > 0);
       setHasFailedSyncs(hasFailures);
       
-      return syncedCount;
+      return syncResult.syncedCount;
     } catch (error) {
       console.error('Error syncing workouts:', error);
       toast.error('Failed to sync workouts');

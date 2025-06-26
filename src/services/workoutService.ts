@@ -5,6 +5,79 @@ import { getExerciseProgressHistoryRPC, logExerciseCompletionRPC } from '@/integ
 import { generateAIWorkoutPlan } from '@/integrations/ai/workoutAIService';
 import { isValidUUID } from "@/lib/utils";
 import { v4 as uuidv4 } from 'uuid';
+import { 
+  APP_CONFIG, 
+  API_CONFIG, 
+  ERROR_MESSAGES, 
+  SUCCESS_MESSAGES,
+  STORAGE_KEYS
+} from "@/lib/constants";
+import { 
+  handleApiError, 
+  formatDate,
+  debounce,
+  validateEmail
+} from "@/lib/utils-extended";
+import { ApiResponse, ApiError } from "@/types";
+
+// Helper function to create API error objects
+const createApiError = (message: string, code?: string, details?: any): ApiError => ({
+  code: code || 'WORKOUT_SERVICE_ERROR',
+  message,
+  details,
+  timestamp: new Date().toISOString()
+});
+
+// Simple validation helper
+const validateRequired = (value: any): boolean => {
+  return value !== null && value !== undefined && value !== '';
+};
+
+// Simple network error check
+const isNetworkError = (error: any): boolean => {
+  return error?.name === 'NetworkError' || 
+         error?.code === 'NETWORK_ERROR' || 
+         error?.message?.includes('network') ||
+         error?.message?.includes('fetch');
+};
+
+// Simple retry operation helper
+const retryOperation = async <T>(
+  operation: () => Promise<T>,
+  options: { maxAttempts: number; delay: number; shouldRetry?: (error: any) => boolean }
+): Promise<T> => {
+  const { maxAttempts, delay, shouldRetry = () => true } = options;
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (attempt === maxAttempts || !shouldRetry(error)) {
+        throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, delay * attempt));
+    }
+  }
+  
+  throw new Error('Max retry attempts exceeded');
+};
+
+// Service-specific types for better type safety
+interface WorkoutPlanQuery {
+  userId: string;
+  fitnessGoal?: string;
+  aiGenerated?: boolean;
+  limit?: number;
+}
+
+interface SaveWorkoutPlanData {
+  plan: Omit<WorkoutPlan, "id">;
+  userId: string;
+  options?: {
+    overwrite?: boolean;
+    validate?: boolean;
+  };
+}
 
 /**
  * Generate a personalized workout plan based on user data and fitness goal
@@ -16,27 +89,52 @@ import { v4 as uuidv4 } from 'uuid';
 export const generatePersonalizedWorkoutPlan = async (
   userProfile: UserProfile,
   forceRegenerate = false
-): Promise<WorkoutPlan | null> => {  
+): Promise<WorkoutPlan | null> => {
+  // Validate input
+  if (!userProfile?.id) {
+    console.error(ERROR_MESSAGES.VALIDATION.REQUIRED_FIELD('User profile'));
+    return null;
+  }
+
   try {
     // First, check for existing plans in the database unless regeneration is forced
-    const existingPlan = await getExistingWorkoutPlan(userProfile, forceRegenerate);
-    if (existingPlan) {
-      console.log("Using existing workout plan from the database");
-      return existingPlan;
+    if (!forceRegenerate) {
+      const existingPlanResult = await getExistingWorkoutPlan({ 
+        userId: userProfile.id,
+        fitnessGoal: userProfile.fitness_goal 
+      });
+      
+      if (existingPlanResult.success && existingPlanResult.data) {
+        console.log("Using existing workout plan from the database");
+        return existingPlanResult.data;
+      }
     }
 
-    // Try AI-based generation first
+    // Try AI-based generation first with retry logic
     console.log("Attempting to generate AI workout plan");
-    const aiPlan = await generateAIWorkoutPlan(userProfile);
+    const aiPlan = await retryOperation(
+      () => generateAIWorkoutPlan(userProfile),
+      {
+        maxAttempts: API_CONFIG.MAX_RETRIES,
+        delay: API_CONFIG.RATE_LIMIT_DELAY,
+        shouldRetry: (error) => isNetworkError(error)
+      }
+    );
+
     if (aiPlan) {
       console.log("Successfully generated AI workout plan");
-      return aiPlan;
+      const saveResult = await saveWorkoutPlan({
+        plan: { ...aiPlan, ai_generated: true },
+        userId: userProfile.id
+      });
+      
+      return saveResult.success ? saveResult.data : aiPlan; // Return saved plan or original if save failed
     }
     
     console.log("AI generation failed, falling back to rule-based generation");
+    
     // Fallback to rule-based generation
-    console.log("AI generation unavailable, falling back to rule-based workout generation");
-    const plan = await generateRuleBasedWorkoutPlanInternal(
+    const ruleBasedPlan = await generateRuleBasedWorkoutPlanInternal(
       userProfile.fitness_goal,
       userProfile.age,
       userProfile.sex,
@@ -44,83 +142,144 @@ export const generatePersonalizedWorkoutPlan = async (
       userProfile.weight
     );
 
-    // Store the rule-based plan in the database
-    if (plan) {
-      return await saveWorkoutPlan(plan, userProfile.id);
+    if (!ruleBasedPlan) {
+      return null;
     }
 
-    return null;
+    // Store the rule-based plan in the database
+    const saveResult = await saveWorkoutPlan({
+      plan: { ...ruleBasedPlan, ai_generated: false },
+      userId: userProfile.id
+    });
+
+    return saveResult.success ? saveResult.data : { ...ruleBasedPlan, id: uuidv4() }; // Return saved plan or add temp ID
+
   } catch (error) {
+    const errorMessage = handleApiError(error);
     console.error("Error generating personalized workout plan:", error);
     return null;
   }
 };
 
 /**
- * Get existing workout plan from the database for a user
- * @param userProfile User profile to get workout plan for
- * @param forceRegenerate If true, will return null to force regeneration even if a plan exists
- * @returns Existing workout plan or null
+ * Get existing workout plan from the database for a user  
+ * @param query Query parameters for finding workout plan
+ * @returns API response with workout plan or null
  */
 const getExistingWorkoutPlan = async (
-  userProfile: UserProfile,
-  forceRegenerate = false
-): Promise<WorkoutPlan | null> => {
-  // If regeneration is forced, skip checking for existing plans
-  if (forceRegenerate) {
-    console.log("Force regenerate flag is set, will create a new plan");
-    return null;
-  }
-
+  query: WorkoutPlanQuery
+): Promise<ApiResponse<WorkoutPlan | null>> => {
   try {
-    // Check for existing AI workout plans
-    const { data, error } = await supabase
+    const { userId, fitnessGoal, aiGenerated = true, limit = 1 } = query;
+
+    if (!validateRequired(userId) || !isValidUUID(userId)) {
+      return {
+        success: false,
+        error: createApiError(ERROR_MESSAGES.VALIDATION.INVALID_UUID, 'VALIDATION_ERROR'),
+        data: null
+      };
+    }
+
+    let queryBuilder = supabase
       .from('workout_plans')
       .select('*')
-      .eq('user_id', userProfile.id)
-      .eq('ai_generated', true)
+      .eq('user_id', userId)
+      .eq('ai_generated', aiGenerated)
       .order('created_at', { ascending: false })
-      .limit(1);
+      .limit(limit);
+
+    if (fitnessGoal) {
+      queryBuilder = queryBuilder.eq('fitness_goal', fitnessGoal);
+    }
+
+    const { data, error } = await queryBuilder;
     
     if (error) {
       console.error("Error fetching existing workout plans:", error);
-      return null;
+      return {
+        success: false,
+        error: createApiError(
+          handleApiError(error) || ERROR_MESSAGES.API.DATABASE_ERROR,
+          'DATABASE_ERROR',
+          error
+        ),
+        data: null
+      };
     }
     
     if (data && data.length > 0) {
-      // Found an existing workout plan
       const existingPlan = data[0];
       
-      // Convert to proper format
-      return {
+      // Convert to proper format with proper typing
+      const workoutPlan: WorkoutPlan = {
         id: existingPlan.id,
         title: existingPlan.title,
         description: existingPlan.description,
         fitness_goal: existingPlan.fitness_goal,
-        weekly_structure: (existingPlan.weekly_structure || []) as WorkoutDay[],
-        exercises: (existingPlan.exercises || []) as WorkoutExercise[],
+        weekly_structure: (existingPlan.weekly_structure as unknown) as WorkoutDay[],
+        exercises: (existingPlan.exercises as unknown) as WorkoutExercise[],
         ai_generated: existingPlan.ai_generated
+      };
+
+      return {
+        success: true,
+        data: workoutPlan,
+        message: 'Existing workout plan found'
       };
     }
     
-    return null;
+    return {
+      success: true,
+      data: null,
+      message: 'No existing workout plan found'
+    };
+
   } catch (error) {
     console.error("Error in getExistingWorkoutPlan:", error);
-    return null;
+    return {
+      success: false,
+      error: createApiError(
+        handleApiError(error) || ERROR_MESSAGES.API.DATABASE_ERROR,
+        'UNKNOWN_ERROR',
+        error
+      ),
+      data: null
+    };
   }
 };
 
 /**
  * Save a workout plan to the database
- * @param plan Workout plan to save
- * @param userId User ID to associate with the plan
- * @returns Saved workout plan with ID
+ * @param data Workout plan data to save
+ * @returns API response with saved workout plan
  */
 async function saveWorkoutPlan(
-  plan: Omit<WorkoutPlan, "id">, 
-  userId: string
-): Promise<WorkoutPlan | null> {
-  try {    const { data: insertedPlan, error } = await supabase
+  data: SaveWorkoutPlanData
+): Promise<ApiResponse<WorkoutPlan>> {
+  const { plan, userId, options = {} } = data;
+  const { validate = true } = options;
+
+  try {
+    // Validate inputs if requested
+    if (validate) {
+      if (!validateRequired(userId) || !isValidUUID(userId)) {
+        return {
+          success: false,
+          error: createApiError(ERROR_MESSAGES.VALIDATION.INVALID_UUID, 'VALIDATION_ERROR'),
+          data: null
+        };
+      }
+
+      if (!plan.title || !plan.fitness_goal) {
+        return {
+          success: false,
+          error: createApiError(ERROR_MESSAGES.VALIDATION.REQUIRED_FIELD('Plan title and fitness goal'), 'VALIDATION_ERROR'),
+          data: null
+        };
+      }
+    }
+
+    const { data: insertedPlan, error } = await supabase
       .from('workout_plans')
       .insert({
         name: plan.title, // Use title as name since name is required
@@ -138,16 +297,39 @@ async function saveWorkoutPlan(
 
     if (error) {
       console.error("Error saving workout plan:", error);
-      return null;
+      return {
+        success: false,
+        error: createApiError(
+          handleApiError(error) || ERROR_MESSAGES.API.DATABASE_ERROR,
+          'DATABASE_ERROR',
+          error
+        ),
+        data: null
+      };
     }
 
-    return {
+    const savedPlan: WorkoutPlan = {
       ...plan,
       id: insertedPlan.id
     };
+
+    return {
+      success: true,
+      data: savedPlan,
+      message: SUCCESS_MESSAGES.WORKOUT_SAVED
+    };
+
   } catch (error) {
     console.error("Error saving workout plan:", error);
-    return null;
+    return {
+      success: false,
+      error: createApiError(
+        handleApiError(error) || ERROR_MESSAGES.API.DATABASE_ERROR,
+        'UNKNOWN_ERROR',
+        error
+      ),
+      data: null
+    };
   }
 }
 

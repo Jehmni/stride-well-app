@@ -2,11 +2,12 @@ import React, { Suspense, lazy, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LoadingSpinner from "./components/ui/LoadingSpinner";
+import ErrorBoundary, { withErrorBoundary } from "./components/common/ErrorBoundary";
 import { seedGroceryStores } from "./utils/seedStoreData";
 import { seedExerciseData } from "./utils/seedExerciseData";
 import { registerReminderServiceWorker } from "./services/notificationService";
@@ -14,16 +15,16 @@ import { register as registerServiceWorker } from "./services/serviceWorkerRegis
 import { syncAllWorkouts } from "./services/offlineStorageService";
 import { supabase } from "@/integrations/supabase/client";
 import { preloadModule } from "@/utils/modulePreload";
+import { ROUTES, API_CONFIG } from "@/lib/constants";
 
 // Import Index directly to avoid lazy loading issues
 import Index from "./pages/Index";
 // Import Dashboard directly but also with dynamic loading fallback
-// This approach ensures the component works in both development and production environments
 import DashboardComponent from "./pages/Dashboard";
 import DashboardFallback from "./components/dashboard/DashboardFallback";
 
 // Create a wrapped Dashboard component with error handling
-const Dashboard = () => {
+const Dashboard = withErrorBoundary(() => {
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
@@ -55,25 +56,31 @@ const Dashboard = () => {
 
   // Otherwise use the real Dashboard component
   return <DashboardComponent />;
-};
+}, {
+  level: 'page',
+  onError: (error, errorInfo) => {
+    console.error('Dashboard component error:', error, errorInfo);
+    sessionStorage.setItem('dashboard_load_error', 'true');
+  }
+});
 
-// Lazy load other page components with preloading
-const Login = preloadModule(() => import("./pages/Login"));
-const Signup = preloadModule(() => import("./pages/Signup"));
-const Onboarding = preloadModule(() => import("./pages/Onboarding"));
-const WorkoutPlan = preloadModule(() => import("./pages/WorkoutPlan"));
-const WorkoutSession = preloadModule(() => import("./pages/WorkoutSession"));
-const MealPlan = preloadModule(() => import("./pages/MealPlan"));
-const Progress = preloadModule(() => import("./pages/Progress"));
-const Profile = preloadModule(() => import("./pages/Profile"));
-const NotFound = preloadModule(() => import("./pages/NotFound"));
-const Friends = preloadModule(() => import("./pages/Friends"));
-const Challenges = preloadModule(() => import("./pages/Challenges"));
-const AIWorkoutsPage = preloadModule(() => import("./pages/ai/AIWorkoutsPage"));
-const AIWorkoutDetail = preloadModule(() => import("./pages/ai/AIWorkoutDetailPage"));
-const AIWorkoutGeneration = preloadModule(() => import("./pages/ai/AIWorkoutGenerationPage"));
-const CreateAIWorkout = preloadModule(() => import("./pages/CreateAIWorkout"));
-const Reminders = preloadModule(() => import("./pages/Reminders"));
+// Lazy load other page components with preloading and error boundaries
+const Login = withErrorBoundary(preloadModule(() => import("./pages/Login")), { level: 'page' });
+const Signup = withErrorBoundary(preloadModule(() => import("./pages/Signup")), { level: 'page' });
+const Onboarding = withErrorBoundary(preloadModule(() => import("./pages/Onboarding")), { level: 'page' });
+const WorkoutPlan = withErrorBoundary(preloadModule(() => import("./pages/WorkoutPlan")), { level: 'page' });
+const WorkoutSession = withErrorBoundary(preloadModule(() => import("./pages/WorkoutSession")), { level: 'page' });
+const MealPlan = withErrorBoundary(preloadModule(() => import("./pages/MealPlan")), { level: 'page' });
+const Progress = withErrorBoundary(preloadModule(() => import("./pages/Progress")), { level: 'page' });
+const Profile = withErrorBoundary(preloadModule(() => import("./pages/Profile")), { level: 'page' });
+const NotFound = withErrorBoundary(preloadModule(() => import("./pages/NotFound")), { level: 'page' });
+const Friends = withErrorBoundary(preloadModule(() => import("./pages/Friends")), { level: 'page' });
+const Challenges = withErrorBoundary(preloadModule(() => import("./pages/Challenges")), { level: 'page' });
+const AIWorkoutsPage = withErrorBoundary(preloadModule(() => import("./pages/ai/AIWorkoutsPage")), { level: 'page' });
+const AIWorkoutDetail = withErrorBoundary(preloadModule(() => import("./pages/ai/AIWorkoutDetailPage")), { level: 'page' });
+const AIWorkoutGeneration = withErrorBoundary(preloadModule(() => import("./pages/ai/AIWorkoutGenerationPage")), { level: 'page' });
+const CreateAIWorkout = withErrorBoundary(preloadModule(() => import("./pages/CreateAIWorkout")), { level: 'page' });
+const Reminders = withErrorBoundary(preloadModule(() => import("./pages/Reminders")), { level: 'page' });
 
 // Simple error boundary for catching chunk loading errors
 class ChunkErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
@@ -110,52 +117,133 @@ class ChunkErrorBoundary extends React.Component<{ children: React.ReactNode }, 
   }
 }
 
+// Enhanced QueryClient configuration with proper error handling
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 60, // 1 hour
-      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 60 * 60 * 1000, // 1 hour cache garbage collection
+      retry: (failureCount, error: any) => {
+        // Don't retry on auth errors
+        if (error?.status === 401 || error?.status === 403) {
+          return false;
+        }
+        // Retry up to 2 times for other errors
+        return failureCount < 2;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      refetchOnMount: true,
+    },
+    mutations: {
+      retry: (failureCount, error: any) => {
+        // Don't retry mutations on client errors
+        if (error?.status >= 400 && error?.status < 500) {
+          return false;
+        }
+        return failureCount < 1;
+      },
+      onError: (error: any) => {
+        console.error('Mutation error:', error);
+        // Could add global error handling here
+      },
     },
   },
+  queryCache: new QueryCache({
+    onError: (error: any) => {
+      console.error('Query cache error:', error);
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error: any) => {
+      console.error('Mutation cache error:', error);
+    },
+  }),
 });
 
-function App() {  
+function App() {
+  const [isInitialized, setIsInitialized] = React.useState(false);
+  const [initError, setInitError] = React.useState<string | null>(null);
+  
   React.useEffect(() => {
-    // Seed exercise data on app initialization (doesn't require auth)
-    seedExerciseData();
-    
-    // Register the notification and service worker
-    registerReminderServiceWorker();
-    registerServiceWorker();
-    
-    // Check authentication status using supabase directly
-    const checkAuthAndSeed = async () => {
-      const { data } = await supabase.auth.getSession();
-      
-      // Only seed grocery store data and sync workouts if authenticated
-      if (data.session?.user) {
-        // Seed store data (requires authentication)
-        seedGroceryStores();
+    const initializeApp = async () => {
+      try {
+        // Seed exercise data on app initialization (doesn't require auth)
+        seedExerciseData();
         
-        // Sync offline workouts on app startup if online
-        if (navigator.onLine) {
-          syncAllWorkouts().then(count => {
-            if (count > 0) {
-              console.log(`Synced ${count} workouts on app startup`);
+        // Register the notification and service worker
+        await Promise.all([
+          registerReminderServiceWorker(),
+          registerServiceWorker()
+        ]);
+        
+        // Check authentication status using supabase directly
+        const { data } = await supabase.auth.getSession();
+        
+        // Only seed grocery store data and sync workouts if authenticated
+        if (data.session?.user) {
+          // Seed store data (requires authentication)
+          seedGroceryStores();
+          
+          // Sync offline workouts on app startup if online
+          if (navigator.onLine) {
+            try {
+              const count = await syncAllWorkouts();
+              if (count > 0) {
+                console.log(`Synced ${count} workouts on app startup`);
+              }
+            } catch (syncError) {
+              console.warn('Failed to sync workouts on startup:', syncError);
+              // Don't fail app initialization for sync errors
             }
-          });
+          }
         }
+        
+        setIsInitialized(true);
+      } catch (error) {
+        console.error('App initialization failed:', error);
+        setInitError(error instanceof Error ? error.message : 'Failed to initialize app');
+        setIsInitialized(true); // Continue anyway
       }
     };
-    
-    checkAuthAndSeed();
+
+    initializeApp();
   }, []);
+
+  // Show loading during initialization
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100">
+        <div className="text-center">
+          <LoadingSpinner />
+          <p className="text-gray-600 mt-4">Initializing Stride Well...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show initialization error if critical
+  if (initError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-red-50">
+        <div className="text-center p-6 max-w-md">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Initialization Error</h1>
+          <p className="text-red-500 mb-4">{initError}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <QueryClientProvider client={queryClient}>
-        <AuthProvider>
+      <AuthProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -164,11 +252,11 @@ function App() {
               <Suspense fallback={<LoadingSpinner />}>
                 <Routes>
                   {/* Public Routes - Index is not lazy loaded */}
-                  <Route path="/" element={<Index />} />
+                  <Route path={ROUTES.HOME} element={<Index />} />
                   
                   {/* Other Public Routes */}
                   <Route 
-                    path="/login" 
+                    path={ROUTES.LOGIN} 
                     element={
                       <ProtectedRoute requiresAuth={false}>
                         <Login />
@@ -176,7 +264,7 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="/signup" 
+                    path={ROUTES.SIGNUP} 
                     element={
                       <ProtectedRoute requiresAuth={false}>
                         <Signup />
@@ -186,7 +274,7 @@ function App() {
 
                   {/* Protected Routes */}
                   <Route 
-                    path="/onboarding/*" 
+                    path={`${ROUTES.ONBOARDING}/*`} 
                     element={
                       <ProtectedRoute>
                         <Onboarding />
@@ -194,7 +282,7 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="/dashboard" 
+                    path={ROUTES.DASHBOARD} 
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <Dashboard />
@@ -202,7 +290,7 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="/create-ai-workout" 
+                    path={ROUTES.CREATE_AI_WORKOUT} 
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <CreateAIWorkout />
@@ -210,7 +298,7 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="/workouts" 
+                    path={ROUTES.WORKOUTS} 
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <WorkoutPlan />
@@ -218,7 +306,7 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="/workout-session/:workoutId" 
+                    path={`${ROUTES.WORKOUT_SESSION}/:workoutId`} 
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <WorkoutSession />
@@ -226,7 +314,7 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="/workouts/ai/:id" 
+                    path={`${ROUTES.WORKOUTS}/ai/:id`} 
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <AIWorkoutDetail />
@@ -234,7 +322,7 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="/ai-workouts" 
+                    path={ROUTES.AI_WORKOUTS} 
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <AIWorkoutsPage />
@@ -242,7 +330,7 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="/ai-workouts/generate" 
+                    path={ROUTES.AI_WORKOUT_GENERATION} 
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <AIWorkoutGeneration />
@@ -250,7 +338,7 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="/ai-workouts/:id" 
+                    path={`${ROUTES.AI_WORKOUTS}/:id`} 
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <AIWorkoutDetail />
@@ -258,7 +346,7 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="/meal-plan" 
+                    path={ROUTES.MEAL_PLAN} 
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <MealPlan />
@@ -266,7 +354,7 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="/progress" 
+                    path={ROUTES.PROGRESS} 
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <Progress />
@@ -274,27 +362,23 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="/profile" 
+                    path={ROUTES.PROFILE} 
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <Profile />
                       </ProtectedRoute>
                     } 
                   />
-                  
-                  {/* New reminders route */}
                   <Route 
-                    path="/reminders" 
+                    path={ROUTES.REMINDERS} 
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <Reminders />
                       </ProtectedRoute>
                     } 
                   />
-                  
-                  {/* New social routes */}
                   <Route 
-                    path="/friends/*" 
+                    path={`${ROUTES.FRIENDS}/*`} 
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <Friends />
@@ -302,7 +386,7 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="/challenges/*" 
+                    path={`${ROUTES.CHALLENGES}/*`} 
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <Challenges />

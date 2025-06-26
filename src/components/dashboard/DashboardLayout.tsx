@@ -1,5 +1,5 @@
-import React, { ReactNode, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { ReactNode, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   BarChart3,
   CalendarDays,
@@ -16,34 +16,78 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useToggle } from "@/hooks/common";
+import { ROUTES, APP_CONFIG } from "@/lib/constants";
+import { capitalizeFirst } from "@/lib/utils-extended";
 import SyncStatus from "@/components/SyncStatus";
+import ErrorBoundary from "@/components/common/ErrorBoundary";
 
 interface DashboardLayoutProps {
   children: ReactNode;
   title: string;
 }
 
+interface MenuItem {
+  icon: React.ReactNode;
+  label: string;
+  path: string;
+  description?: string;
+}
+
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { value: isMobileMenuOpen, toggle: toggleMobileMenu, setFalse: closeMobileMenu } = useToggle(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, signOut, profile } = useAuth();
 
-  const menuItems = [
-    { icon: <Home size={24} />, label: "Dashboard", path: "/dashboard" },
-    { icon: <CalendarDays size={24} />, label: "Workouts", path: "/workouts" },
-    { icon: <Brain size={24} />, label: "AI Workouts", path: "/ai-workouts" },
-    { icon: <Utensils size={24} />, label: "Meal Plan", path: "/meal-plan" },
-    { icon: <BarChart3 size={24} />, label: "Progress", path: "/progress" },
-    { icon: <Bell size={24} />, label: "Reminders", path: "/reminders" },
-    { icon: <User size={24} />, label: "Profile", path: "/profile" },
-  ];
+  // Memoize menu items to prevent unnecessary re-renders
+  const menuItems: MenuItem[] = useMemo(() => [
+    { 
+      icon: <Home size={24} />, 
+      label: "Dashboard", 
+      path: ROUTES.DASHBOARD,
+      description: "Overview and quick actions"
+    },
+    { 
+      icon: <CalendarDays size={24} />, 
+      label: "Workouts", 
+      path: ROUTES.WORKOUTS,
+      description: "Manage your workout routines"
+    },
+    { 
+      icon: <Brain size={24} />, 
+      label: "AI Workouts", 
+      path: ROUTES.AI_WORKOUTS,
+      description: "AI-generated workout plans"
+    },
+    { 
+      icon: <Utensils size={24} />, 
+      label: "Meal Plan", 
+      path: ROUTES.MEAL_PLAN,
+      description: "Nutrition and meal planning"
+    },
+    { 
+      icon: <BarChart3 size={24} />, 
+      label: "Progress", 
+      path: ROUTES.PROGRESS,
+      description: "Track your fitness journey"
+    },
+    { 
+      icon: <Bell size={24} />, 
+      label: "Reminders", 
+      path: ROUTES.REMINDERS,
+      description: "Manage notifications"
+    },
+    { 
+      icon: <User size={24} />, 
+      label: "Profile", 
+      path: ROUTES.PROFILE,
+      description: "Account settings and preferences"
+    },
+  ], []);
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate("/login");
-  };
-
-  const getUserInitials = (): string => {
+  // Memoize user initials calculation
+  const userInitials = useMemo((): string => {
     if (!user) return "?";
     
     if (profile?.first_name || profile?.last_name) {
@@ -53,118 +97,191 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
     }
     
     return user.email ? user.email[0].toUpperCase() : "?";
+  }, [user, profile]);
+
+  // Memoize user display name
+  const userDisplayName = useMemo((): string => {
+    if (profile?.first_name) {
+      return `${capitalizeFirst(profile.first_name)} ${profile?.last_name ? capitalizeFirst(profile.last_name) : ''}`.trim();
+    }
+    return user?.email || 'User';
+  }, [user, profile]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate(ROUTES.LOGIN);
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
+  const handleNavigation = (path: string) => {
+    navigate(path);
+    closeMobileMenu(); // Close mobile menu after navigation
+  };
+
+  const isActivePath = (path: string): boolean => {
+    return location.pathname === path;
+  };
+
+  // Memoize navigation item component to prevent re-renders
+  const NavigationItem = React.memo(({ item, onClick, isActive }: { 
+    item: MenuItem; 
+    onClick: () => void; 
+    isActive: boolean;
+  }) => (
+    <Button
+      variant="ghost"
+      className={`w-full justify-start py-6 transition-all duration-200 ${
+        isActive 
+          ? 'bg-primary/10 text-primary border-r-2 border-primary' 
+          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+      }`}
+      onClick={onClick}
+      title={item.description}
+    >
+      {item.icon}
+      <span className="ml-4">{item.label}</span>
+    </Button>
+  ));
+
+  NavigationItem.displayName = 'NavigationItem';
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Desktop Sidebar */}
-      <aside className="fixed inset-y-0 left-0 hidden w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 md:flex flex-col z-10">
-        <div className="h-16 flex items-center justify-between px-6 bg-fitness-primary">
-          <h2 className="text-2xl font-bold text-white">CorePilot</h2>
-          <div className="flex items-center gap-2">
-            <SyncStatus />
-            <Avatar className="h-8 w-8 bg-primary-foreground text-primary">
-              <AvatarFallback>{getUserInitials()}</AvatarFallback>
-            </Avatar>
+    <ErrorBoundary level="component">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        {/* Desktop Sidebar */}
+        <aside className="fixed inset-y-0 left-0 hidden w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 md:flex flex-col z-10">
+          {/* Header */}
+          <div className="h-16 flex items-center justify-between px-6 bg-fitness-primary">
+            <h2 className="text-2xl font-bold text-white">{APP_CONFIG.NAME}</h2>
+            <div className="flex items-center gap-2">
+              <SyncStatus />
+              <Avatar 
+                className="h-8 w-8 bg-primary-foreground text-primary cursor-pointer" 
+                title={userDisplayName}
+              >
+                <AvatarFallback>{userInitials}</AvatarFallback>
+              </Avatar>
+            </div>
           </div>
-        </div>
 
-        <nav className="flex-1 p-4 space-y-1">
-          {menuItems.map((item, index) => (
+          {/* Navigation */}
+          <nav className="flex-1 p-4 space-y-1" role="navigation" aria-label="Main navigation">
+            {menuItems.map((item) => (
+              <NavigationItem
+                key={item.path}
+                item={item}
+                onClick={() => handleNavigation(item.path)}
+                isActive={isActivePath(item.path)}
+              />
+            ))}
+          </nav>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
             <Button
-              key={index}
               variant="ghost"
-              className="w-full justify-start py-6 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-              onClick={() => navigate(item.path)}
+              className="w-full justify-start py-6 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              onClick={handleLogout}
             >
-              {item.icon}
-              <span className="ml-4">{item.label}</span>
+              <LogOut />
+              <span className="ml-4">Logout</span>
             </Button>
-          ))}
-        </nav>
+          </div>
+        </aside>
 
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-          <Button
-            variant="ghost"
-            className="w-full justify-start py-6 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-            onClick={handleLogout}
-          >
-            <LogOut />
-            <span className="ml-4">Logout</span>
-          </Button>
-        </div>
-      </aside>
-
-      {/* Mobile Header */}
-      <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
-        <div className="h-16 px-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold">CorePilot</h2>
-          <div className="flex items-center space-x-2">
-            <SyncStatus />
-            <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
-              <AvatarFallback>{getUserInitials()}</AvatarFallback>
-            </Avatar>
-            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-64 p-0">
-                <div className="h-16 flex items-center justify-between px-6 bg-fitness-primary">
-                  <h2 className="text-xl font-bold text-white">CorePilot</h2>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-white hover:bg-blue-600"
-                  >
-                    <X />
+        {/* Mobile Header */}
+        <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+          <div className="h-16 px-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Sheet open={isMobileMenuOpen} onOpenChange={toggleMobileMenu}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="md:hidden">
+                    <Menu className="h-6 w-6" />
+                    <span className="sr-only">Toggle menu</span>
                   </Button>
-                </div>
-                <nav className="p-4 space-y-1">
-                  {menuItems.map((item, index) => (
-                    <Button
-                      key={index}
-                      variant="ghost"
-                      className="w-full justify-start py-6 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={() => {
-                        navigate(item.path);
-                        setIsMobileMenuOpen(false);
-                      }}
-                    >
-                      {item.icon}
-                      <span className="ml-4">{item.label}</span>
-                    </Button>
-                  ))}
-                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start py-6 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={handleLogout}
-                    >
-                      <LogOut />
-                      <span className="ml-4">Logout</span>
-                    </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-64 p-0">
+                  <div className="flex flex-col h-full">
+                    {/* Mobile Header */}
+                    <div className="h-16 flex items-center justify-between px-6 bg-fitness-primary">
+                      <h2 className="text-xl font-bold text-white">{APP_CONFIG.NAME}</h2>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={closeMobileMenu}
+                        className="text-white hover:bg-white/20"
+                      >
+                        <X className="h-5 w-5" />
+                        <span className="sr-only">Close menu</span>
+                      </Button>
+                    </div>
+
+                    {/* Mobile Navigation */}
+                    <nav className="flex-1 p-4 space-y-1" role="navigation" aria-label="Mobile navigation">
+                      {menuItems.map((item) => (
+                        <NavigationItem
+                          key={item.path}
+                          item={item}
+                          onClick={() => handleNavigation(item.path)}
+                          isActive={isActivePath(item.path)}
+                        />
+                      ))}
+                    </nav>
+
+                    {/* Mobile Footer */}
+                    <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start py-6 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        onClick={handleLogout}
+                      >
+                        <LogOut />
+                        <span className="ml-4">Logout</span>
+                      </Button>
+                    </div>
                   </div>
-                </nav>
-              </SheetContent>
-            </Sheet>
+                </SheetContent>
+              </Sheet>
+              
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-white truncate">
+                {title}
+              </h1>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <SyncStatus />
+              <Avatar 
+                className="h-8 w-8 bg-primary-foreground text-primary cursor-pointer" 
+                title={userDisplayName}
+              >
+                <AvatarFallback>{userInitials}</AvatarFallback>
+              </Avatar>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <main className="md:ml-64 min-h-screen">
-        <div className="p-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            {title}
-          </h1>
-          {children}
-        </div>
-      </main>
-    </div>
+        {/* Main Content */}
+        <main className="md:ml-64 min-h-screen">
+          <div className="p-6">
+            {/* Desktop Page Title */}
+            <div className="hidden md:block mb-6">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                {title}
+              </h1>
+            </div>
+
+            {/* Page Content */}
+            <ErrorBoundary level="page">
+              {children}
+            </ErrorBoundary>
+          </div>
+        </main>
+      </div>
+    </ErrorBoundary>
   );
 };
 
-export default DashboardLayout;
+export default React.memo(DashboardLayout);
