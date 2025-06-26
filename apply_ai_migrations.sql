@@ -28,44 +28,55 @@ CREATE POLICY "Users can create their own workout plans"
   );
 
 -- Create configuration table for AI integrations
-CREATE TABLE IF NOT EXISTS public.ai_configurations (
+-- NOTE: API keys should NEVER be stored in the database
+-- Store only non-sensitive configuration data here
+CREATE TABLE IF NOT EXISTS public.ai_config (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   service_name TEXT NOT NULL,
-  api_key TEXT,
   api_endpoint TEXT,
   model_name TEXT,
   is_enabled BOOLEAN DEFAULT FALSE,
+  max_tokens INTEGER DEFAULT 1000,
+  temperature DECIMAL(3,2) DEFAULT 0.7,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Add unique constraint on service_name for proper upserts
-ALTER TABLE public.ai_configurations 
+ALTER TABLE public.ai_config 
 ADD CONSTRAINT IF NOT EXISTS unique_service_name UNIQUE (service_name);
 
--- Add example configuration with proper upsert
-INSERT INTO public.ai_configurations (service_name, api_endpoint, model_name, is_enabled)
-VALUES ('openai', 'https://api.openai.com/v1/chat/completions', 'gpt-4o', FALSE)
+-- Add OpenAI configuration (without API key)
+INSERT INTO public.ai_config (service_name, api_endpoint, model_name, is_enabled, max_tokens, temperature)
+VALUES ('openai', 'https://api.openai.com/v1/chat/completions', 'gpt-4o', TRUE, 1000, 0.7)
 ON CONFLICT (service_name) DO UPDATE SET
   api_endpoint = EXCLUDED.api_endpoint,
   model_name = EXCLUDED.model_name,
+  is_enabled = EXCLUDED.is_enabled,
+  max_tokens = EXCLUDED.max_tokens,
+  temperature = EXCLUDED.temperature,
   updated_at = NOW();
 
--- Only administrators can access AI configurations
-ALTER TABLE public.ai_configurations ENABLE ROW LEVEL SECURITY;
+-- Enable RLS for AI config (read-only for authenticated users)
+ALTER TABLE public.ai_config ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Only app backend can access AI configurations"
-  ON public.ai_configurations
-  USING (false);
+CREATE POLICY "Authenticated users can read AI config"
+  ON public.ai_config
+  FOR SELECT
+  USING ((select auth.role()) = 'authenticated');
 
-COMMENT ON TABLE public.ai_configurations IS 'Configuration for AI services used by the application';
+COMMENT ON TABLE public.ai_config IS 'Non-sensitive AI service configuration. API keys stored in environment variables.';
 COMMENT ON TABLE public.workout_plans IS 'Workout plans, including AI-generated plans for specific users';
 
--- Update the configuration with API key
-UPDATE public.ai_configurations 
-SET api_key='sk-cWEgrwCbMoJLSiyFff5hT8K5aJEtWoC6soQ_hzqhBQT3BlbkFJOtbsKTqLTfmxi0lWL5iwvKbeXO4zNz0wtg0mflQz4A', 
-    is_enabled=true
-WHERE service_name='openai';
+-- 🔐 SECURITY BEST PRACTICE: API keys are stored in environment variables
+-- Add this to your .env file:
+-- OPENAI_API_KEY=your_actual_api_key_here
+-- OPENAI_ORG_ID=your_org_id_here (optional)
 
--- Verify the configuration
-SELECT * FROM public.ai_configurations WHERE service_name = 'openai';
+-- Your app code should read the API key like this:
+-- const openaiKey = process.env.OPENAI_API_KEY;
+
+-- Verify the configuration (API key will be loaded from environment)
+SELECT service_name, api_endpoint, model_name, is_enabled, max_tokens, temperature 
+FROM public.ai_config 
+WHERE service_name = 'openai';
