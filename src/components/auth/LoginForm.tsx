@@ -44,7 +44,7 @@ const LoginForm = () => {
 
       toast.success("Successfully signed in!");
       
-      if (!profile || !profile.fitness_goals || profile.fitness_goals.length === 0) {
+      if (!profile || !profile.onboarding_completed) {
         navigate("/onboarding");
       } else {
         navigate(from);

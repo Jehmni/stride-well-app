@@ -313,7 +313,10 @@ const saveWorkoutPlan = async (workoutPlan: AIWorkoutResponse, userProfile: Enha
 
     const { data, error } = await supabase
       .from('workout_plans')
-      .insert(plan)
+      .insert({
+        ...plan,
+        name: plan.title // Add the required name field
+      })
       .select('id')
       .single();
 

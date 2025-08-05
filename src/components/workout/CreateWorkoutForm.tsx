@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { NewWorkoutFormData, UserWorkout } from "./types";
@@ -146,7 +146,7 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
           weight_kg: ex.weight_kg || null,
           comments: ex.comments || null,
           notes: ex.notes,
-          order_position: i
+          order_in_workout: i
         });
       }
     } catch (error: any) {
@@ -157,12 +157,12 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
 
   return (
     <Dialog open={showCreateWorkout} onOpenChange={setShowCreateWorkout}>
-      <DialogTrigger asChild>
-        <Button>
-          <PlusCircle className="h-4 w-4 mr-2" />
-          New Workout
-        </Button>
-      </DialogTrigger>
+                  <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg">
+                <Plus className="h-4 w-4 mr-2" />
+                New Workout
+              </Button>
+            </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create New Workout</DialogTitle>

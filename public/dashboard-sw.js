@@ -1,7 +1,7 @@
 // Dashboard-specific service worker
 // This service worker is focused on caching and serving the Dashboard component
 
-const DASHBOARD_CACHE = 'dashboard-cache-v1';
+const DASHBOARD_CACHE = 'dashboard-cache-v2';
 const DASHBOARD_FILES = [
   '/src/pages/Dashboard.tsx',
   '/src/components/dashboard/DashboardLayout.tsx',

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle, Award, RefreshCw, Clock, RotateCcw } from "lucide-react";
+import { CheckCircle, Award, RefreshCw, Clock, RotateCcw, ArrowUp } from "lucide-react";
 import { WorkoutExerciseDetail } from "./types";
 import ExerciseTracker from "./ExerciseTracker";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,6 +58,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'unsynced' | 'error'>('unsynced');
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
+  const [showScrollToTop, setShowScrollToTop] = useState<boolean>(false);
 
   useEffect(() => {
     if (!exercises.length) return;
@@ -91,10 +92,59 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
       syncWithRemoteProgress(Object.keys(completedExercises));
     }
   }, [exercises, workoutId, userId]);
+
+  // Show celebration toast when all exercises are completed
+  useEffect(() => {
+    const completedCount = Object.keys(completedExercises).length;
+    const totalCount = exercises.length;
+    
+    if (completedCount === totalCount && totalCount > 0) {
+      // Small delay to ensure the UI has updated
+      setTimeout(() => {
+        toast({
+          title: "🎉 All exercises completed!",
+          description: "Great job! You can now complete your workout.",
+          duration: 3000,
+        });
+      }, 500);
+    }
+  }, [completedExercises, exercises.length]);
+
+  // Handle scroll to show/hide scroll-to-top button
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      
+      // Show scroll-to-top button when user has scrolled down significantly
+      setShowScrollToTop(scrollY > windowHeight * 0.3);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   
+  // Helper function to validate UUID format
+  const isValidUUID = (uuid: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+  };
+
   // Sync local progress with remote progress in Supabase
   const syncWithRemoteProgress = async (localCompletedIds: string[]) => {
     if (!userId) return;
+    
+    // Skip database sync for invalid workout IDs (like "today-workout")
+    if (!isValidUUID(workoutId)) {
+      console.log(`Skipping database sync for invalid workout ID: ${workoutId}`);
+      setSyncStatus('synced');
+      return;
+    }
     
     try {
       setIsSyncing(true);
@@ -179,6 +229,13 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
   // Save local progress to remote database
   const syncToRemote = async (ids: string[]) => {
     if (!userId) return;
+    
+    // Skip database sync for invalid workout IDs (like "today-workout")
+    if (!isValidUUID(workoutId)) {
+      console.log(`Skipping remote sync for invalid workout ID: ${workoutId}`);
+      setSyncStatus('synced');
+      return;
+    }
     
     try {
       setIsSyncing(true);
@@ -337,11 +394,12 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
                 exercise_id: ex.exercise_id,
                 sets: ex.sets,
                 reps: typeof ex.reps === 'string' ? 10 : ex.reps, // Convert string reps to number
-                duration: ex.duration,
-                rest_time: ex.rest_time,
-                order_position: i,
-                notes: ex.notes
-              });
+                duration_seconds: ex.duration,
+                rest_seconds: ex.rest_time,
+                order_in_workout: i,
+                notes: ex.notes,
+                weight_kg: ex.weight_kg || null
+              } as any); // Temporary workaround for type mismatch
               
             if (exerciseError) {
               console.error("Error inserting workout exercise:", exerciseError);
@@ -516,47 +574,62 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-2">
-          <CheckCircle className="h-5 w-5 text-fitness-primary" />
-          <h3 className="text-lg font-medium">Workout Progress</h3>
-        </div>
-        
-        <div className="flex space-x-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowResetConfirm(true)}
-                  disabled={Object.keys(completedExercises).length === 0}
-                >
-                  <RotateCcw className="h-4 w-4 mr-1" />
-                  Reset All
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Reset all exercise progress</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+    <div className="space-y-4 pb-24"> {/* Add bottom padding for sticky button */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-3">
+              <div className={`h-3 w-3 rounded-full ${
+                Object.keys(completedExercises).length === exercises.length && exercises.length > 0
+                  ? 'bg-green-500' 
+                  : Object.keys(completedExercises).length > 0 
+                    ? 'bg-blue-500' 
+                    : 'bg-gray-300'
+              }`} />
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Workout Progress</h3>
+            </div>
+            
+            <div className="flex items-center space-x-4 text-sm">
+              <span className="text-gray-600 dark:text-gray-400">
+                {Object.keys(completedExercises).length} of {exercises.length} exercises completed
+              </span>
+              <div className="flex items-center space-x-2">
+                <div className="w-20 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    style={{ 
+                      width: `${exercises.length > 0 ? (Object.keys(completedExercises).length / exercises.length) * 100 : 0}%` 
+                    }}
+                  />
+                </div>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {exercises.length > 0 ? Math.round((Object.keys(completedExercises).length / exercises.length) * 100) : 0}%
+                </span>
+              </div>
+            </div>
+          </div>
           
-          <Button 
-            onClick={handleWorkoutComplete}
-            disabled={isSaving || Object.keys(completedExercises).length === 0}
-            size="sm"
-          >
-            {isSaving ? (
-              <>Processing...</>
-            ) : (
-              <>
-                <CheckCircle className="h-4 w-4 mr-1" />
-                Complete Workout
-              </>
-            )}
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowResetConfirm(true)}
+                    disabled={Object.keys(completedExercises).length === 0}
+                    className="hover:bg-red-50 hover:border-red-200 hover:text-red-600 dark:hover:bg-red-900/20"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Reset Progress
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Reset all exercise progress</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
       </div>
       
@@ -577,13 +650,7 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
         </AlertDialogContent>
       </AlertDialog>
       
-      <div className="mb-4">
-        <div className="flex justify-between text-sm mb-1">
-          <span>{Object.keys(completedExercises).length} of {exercises.length} exercises completed</span>
-          <span>{Math.round(progress)}%</span>
-        </div>
-        <Progress value={progress} className="h-2" />
-      </div>
+
       
       {userId && (
         <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
@@ -604,26 +671,152 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
         </div>
       )}
 
-      <div className="space-y-2">
-        <h3 className="text-lg font-medium flex items-center">
-          <CheckCircle className="mr-2 h-5 w-5 text-gray-400" />
-          Exercises to Complete
-        </h3>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
+            <div className="h-2 w-2 bg-blue-500 rounded-full mr-3"></div>
+            Workout Exercises
+          </h3>
+          {exercises.length > 0 && (
+            <div className="text-sm text-gray-500">
+              {exercises.length} exercise{exercises.length !== 1 ? 's' : ''} total
+            </div>
+          )}
+        </div>
         
         {exercises.length > 0 ? (
-          <div className="space-y-2">
-            {exercises.map((exercise) => (
-              <ExerciseTracker 
-                key={exercise.id}
-                exercise={exercise}
-                onComplete={handleExerciseComplete}
-                workoutId={workoutId}
-              />
+          <div className="grid gap-4">
+            {exercises.map((exercise, index) => (
+              <div key={exercise.id} className="relative">
+                <div className="absolute -left-4 top-6 w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-sm font-medium text-gray-600 dark:text-gray-400">
+                  {index + 1}
+                </div>
+                <ExerciseTracker 
+                  exercise={exercise}
+                  onComplete={handleExerciseComplete}
+                  workoutId={workoutId}
+                />
+              </div>
             ))}
           </div>
         ) : (
-          <p className="text-gray-500">No exercises added to this workout yet.</p>
+          <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+            <CheckCircle className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Exercises Available</h4>
+            <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+              This workout doesn't have any exercises yet. Add some exercises to get started with your training.
+            </p>
+          </div>
         )}
+      </div>
+      
+      {/* Sticky Complete Workout Button */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50 p-4 animate-in slide-in-from-bottom-2 duration-300">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className={`h-3 w-3 rounded-full ${
+                  Object.keys(completedExercises).length === exercises.length && exercises.length > 0
+                    ? 'bg-green-500' 
+                    : Object.keys(completedExercises).length > 0 
+                      ? 'bg-blue-500' 
+                      : 'bg-gray-300'
+                }`} />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {Object.keys(completedExercises).length} of {exercises.length} exercises completed
+                </span>
+              </div>
+              
+              <div className="hidden sm:flex items-center space-x-2">
+                <div className="w-20 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    style={{ 
+                      width: `${exercises.length > 0 ? (Object.keys(completedExercises).length / exercises.length) * 100 : 0}%` 
+                    }}
+                  />
+                </div>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {exercises.length > 0 ? Math.round((Object.keys(completedExercises).length / exercises.length) * 100) : 0}%
+                </span>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              {showScrollToTop && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={scrollToTop}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                        <span className="hidden sm:inline ml-2">Top</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Scroll to top</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowResetConfirm(true)}
+                      disabled={Object.keys(completedExercises).length === 0}
+                      className="hover:bg-red-50 hover:border-red-200 hover:text-red-600 dark:hover:bg-red-900/20"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      <span className="hidden sm:inline ml-2">Reset</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Reset all exercise progress</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              
+              <Button 
+                onClick={handleWorkoutComplete}
+                disabled={isSaving || Object.keys(completedExercises).length === 0}
+                size="lg"
+                className={`font-semibold transition-all duration-200 min-w-[160px] ${
+                  Object.keys(completedExercises).length === exercises.length && exercises.length > 0
+                    ? "bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl animate-pulse"
+                    : Object.keys(completedExercises).length > 0
+                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+              >
+                {isSaving ? (
+                  <>
+                    <div className="h-5 w-5 mr-2 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                    Processing...
+                  </>
+                ) : Object.keys(completedExercises).length === exercises.length && exercises.length > 0 ? (
+                  <>
+                    <CheckCircle className="h-5 w-5 mr-2" />
+                    Complete Workout
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-5 w-5 mr-2" />
+                    Complete {Object.keys(completedExercises).length > 0 ? 'Remaining' : 'All'} Exercises
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

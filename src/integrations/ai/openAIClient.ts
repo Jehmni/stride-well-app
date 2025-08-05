@@ -28,7 +28,7 @@ export class OpenAIClient {
     // Always use the standard OpenAI endpoint
     this.apiEndpoint = "https://api.openai.com/v1/chat/completions";
     this.apiKey = config.api_key || import.meta.env.VITE_OPENAI_API_KEY || '';
-    this.model = "gpt-3.5-turbo"; // Use reliable model
+    this.model = import.meta.env.VITE_OPENAI_MODEL || config.model_name || "gpt-4o"; // Use model from env or config
     
     console.log("OpenAI Client initialized:");
     console.log("- Endpoint:", this.apiEndpoint);

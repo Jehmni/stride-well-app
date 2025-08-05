@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import WorkoutPlanHeader from "@/components/workout/WorkoutPlanHeader";
 import WeeklyStructure from "@/components/workout/WeeklyStructure";
@@ -6,30 +6,48 @@ import KeyExercises from "@/components/workout/KeyExercises";
 import TodayWorkout from "@/components/workout/TodayWorkout";
 import CustomWorkoutList from "@/components/workout/CustomWorkoutList";
 import WorkoutDetails from "@/components/workout/WorkoutDetails";
+import CreateWorkoutForm from "@/components/workout/CreateWorkoutForm";
 import AIGeneratedNotice from "@/components/common/AIGeneratedNotice";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { TodayWorkoutProps, WorkoutDay, WorkoutExercise, UserWorkout, WorkoutExerciseDetail } from "@/components/workout/types";
-import { Activity, Calendar, RefreshCw, Bug, Brain } from "lucide-react";
+import { 
+  Activity, 
+  Calendar, 
+  RefreshCw, 
+  Brain, 
+  Play, 
+  Target, 
+  Clock, 
+  TrendingUp,
+  Plus,
+  Settings,
+  ChevronRight,
+  Sparkles
+} from "lucide-react";
 import { generatePersonalizedWorkoutPlan, fetchUserWorkouts } from "@/services/workoutService";
 import { regenerateWorkoutPlan } from "@/integrations/ai/workoutAIService";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { showError, showSuccess, showInfo, showAIWorkoutError, showAIWorkoutSuccess } from "@/utils/notifications";
 import { Progress } from "@/components/ui/progress";
-import AIWorkoutDebugger from "@/components/debug/AIWorkoutDebugger";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { WorkoutPlan } from "@/models/models";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 const WorkoutPlanPage: React.FC = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  
+  // State Management - Organized by concern
   const [isGeneratingAIPlan, setIsGeneratingAIPlan] = useState<boolean>(false);
   const [isAIGenerated, setIsAIGenerated] = useState<boolean>(false);
   const [regenerationProgress, setRegenerationProgress] = useState<number>(0);
   const [regenerationStatus, setRegenerationStatus] = useState<string>("");
   const [isRegenerating, setIsRegenerating] = useState<boolean>(false);
+  
   const [todayWorkout, setTodayWorkout] = useState<TodayWorkoutProps>({
     title: "Loading workout...",
     description: "Please wait",
@@ -38,6 +56,7 @@ const WorkoutPlanPage: React.FC = () => {
     date: "Today",
     image: ""
   });
+  
   const [userWorkouts, setUserWorkouts] = useState<UserWorkout[]>([]);
   const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null);
   const [weeklyStructure, setWeeklyStructure] = useState<WorkoutDay[]>([
@@ -49,6 +68,7 @@ const WorkoutPlanPage: React.FC = () => {
     { day: "Saturday", focus: "Active Recovery", duration: 30 },
     { day: "Sunday", focus: "Rest", duration: 0 }
   ]);
+  
   const [keyExercises, setKeyExercises] = useState<WorkoutExercise[]>([
     { name: "Squats", sets: 3, reps: "10-12", muscle: "Legs" },
     { name: "Bench Press", sets: 3, reps: "8-10", muscle: "Chest" },
@@ -56,137 +76,113 @@ const WorkoutPlanPage: React.FC = () => {
     { name: "Shoulder Press", sets: 3, reps: "8-10", muscle: "Shoulders" },
     { name: "Pull-ups", sets: 3, reps: "Max", muscle: "Back" }
   ]);
+
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExerciseDetail[]>([]);
   const [allExercises, setAllExercises] = useState<any[]>([]);
   const [isLoadingExercises, setIsLoadingExercises] = useState<boolean>(false);
 
+  // Computed values for better performance
+  const hasCustomWorkouts = useMemo(() => userWorkouts.length > 0, [userWorkouts]);
+  const selectedWorkoutObj = useMemo(() => 
+    selectedWorkout ? userWorkouts.find(w => w.id === selectedWorkout) : null, 
+    [selectedWorkout, userWorkouts]
+  );
+  const isTodayWorkoutAvailable = useMemo(() => 
+    todayWorkout.title !== "Loading workout..." && todayWorkout.exercises > 0, 
+    [todayWorkout]
+  );
+
+  // Data fetching effects
   useEffect(() => {
     if (profile) {
-      // Load personalized workout plan using the AI-driven service
-      const loadWorkoutPlan = async () => {
-        try {
-          setIsGeneratingAIPlan(true);
-          console.log("Generating personalized workout plan for user profile:", profile.id);
-          
-          // Fetch personalized workout plan from the service
-          const workoutPlan = await generatePersonalizedWorkoutPlan(profile);
-          
-          // Always set isGeneratingAIPlan to false once we have a response
-          setIsGeneratingAIPlan(false);
-          
-          if (workoutPlan) {
-            console.log("Received workout plan:", workoutPlan);
-            
-            // Check if the plan was AI-generated
-            setIsAIGenerated(workoutPlan.ai_generated === true);
-            
-            // Update weekly structure state
-            if (Array.isArray(workoutPlan.weekly_structure) && workoutPlan.weekly_structure.length > 0) {
-              setWeeklyStructure(workoutPlan.weekly_structure);
-            } else {
-              console.warn("Invalid weekly_structure format received:", workoutPlan.weekly_structure);
-            }
-            
-            // Update key exercises state
-            if (Array.isArray(workoutPlan.exercises) && workoutPlan.exercises.length > 0) {
-              setKeyExercises(workoutPlan.exercises);
-            } else {
-              console.warn("Invalid exercises format received:", workoutPlan.exercises);
-            }
-            
-            // Get today's day of the week (0-6, starting with Sunday)
-            const today = new Date().getDay();
-            // Adjust to match our weekly structure (starting with Monday)
-            const todayIndex = today === 0 ? 6 : today - 1;
-            
-            if (workoutPlan.weekly_structure && workoutPlan.weekly_structure[todayIndex]) {
-              const todaysWorkout = workoutPlan.weekly_structure[todayIndex];
-              // Get an image based on workout focus
-              const workoutImage = getWorkoutImage(todaysWorkout.focus);
-              
-              // Define today's workout based on the personalized plan
-              setTodayWorkout({
-                title: `${todaysWorkout.focus} Workout`,
-                description: `${workoutPlan.description || 'Personalized workout plan'} - Focused on ${todaysWorkout.focus.toLowerCase()}`,
-                duration: todaysWorkout.duration || 30,
-                exercises: Array.isArray(workoutPlan.exercises) ? Math.min(8, workoutPlan.exercises.length) : 0,
-                date: "Today",
-                image: workoutImage
-              });
-            } else {
-              console.warn("Could not find today's workout in weekly structure");
-              // Fallback workout if today's workout is missing
-              setTodayWorkout(
-                workoutByGoal[profile.fitness_goal as keyof typeof workoutByGoal] || workoutByGoal["general-fitness"]
-              );
-            }
-          } else {
-            console.warn("Failed to generate workout plan, falling back to default");
-            // Fallback workout if plan generation fails
-            setIsAIGenerated(false);
-            setTodayWorkout(
-              workoutByGoal[profile.fitness_goal as keyof typeof workoutByGoal] || workoutByGoal["general-fitness"]
-            );
-          }
-        } catch (error) {
-          console.error("Error loading workout plan:", error);
-          setIsGeneratingAIPlan(false);
-          toast.error("Error loading your workout plan. Using default workout instead.");
-          // Set fallback workout in case of error
-          setTodayWorkout(
-            workoutByGoal[profile.fitness_goal as keyof typeof workoutByGoal] || workoutByGoal["general-fitness"]
-          );
-        }
-      };
-
       loadWorkoutPlan();
-      
-      // Fetch user's custom workouts
-      if (user?.id) {
-        fetchUserWorkouts(user.id).then(workouts => {
-          setUserWorkouts(workouts);
-        }).catch(error => {
-          console.error("Error fetching workouts:", error);
-        });
-
-        // Fetch all exercises for the exercise form
-        fetchAllExercises();
-      }
+      fetchUserWorkoutsData();
     }
-  }, [profile, user?.id]);
+  }, [profile]);
 
-  // Fetch all exercises for the exercise form
-  const fetchAllExercises = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('exercises')
-        .select('*')
-        .order('name', { ascending: true });
-        
-      if (error) throw error;
-      
-      setAllExercises(data || []);
-    } catch (error) {
-      console.error("Error fetching exercises:", error);
-    }
-  };
-
-  // Fetch exercises for the selected workout
   useEffect(() => {
     if (selectedWorkout) {
       fetchWorkoutExercises(selectedWorkout);
       setActiveTab("exercises");
-    } else {
-      setWorkoutExercises([]);
-      setActiveTab("overview");
     }
   }, [selectedWorkout]);
+
+  useEffect(() => {
+    fetchAllExercises();
+  }, []);
+
+  // Optimized data loading functions
+      const loadWorkoutPlan = async () => {
+        try {
+          setIsGeneratingAIPlan(true);
+          const workoutPlan = await generatePersonalizedWorkoutPlan(profile);
+          setIsGeneratingAIPlan(false);
+          
+          if (workoutPlan) {
+            setIsAIGenerated(workoutPlan.ai_generated === true);
+            
+            if (Array.isArray(workoutPlan.weekly_structure) && workoutPlan.weekly_structure.length > 0) {
+              setWeeklyStructure(workoutPlan.weekly_structure);
+            }
+            
+            if (Array.isArray(workoutPlan.exercises) && workoutPlan.exercises.length > 0) {
+              setKeyExercises(workoutPlan.exercises);
+            }
+            
+        // Update today's workout
+            const today = new Date().getDay();
+        const adjustedToday = today === 0 ? 6 : today - 1;
+        const todayPlan = workoutPlan.weekly_structure?.[adjustedToday];
+        
+        if (todayPlan) {
+              setTodayWorkout({
+            title: todayPlan.focus || "Today's Workout",
+            description: `Focus on ${todayPlan.focus.toLowerCase()}`,
+            duration: todayPlan.duration || 45,
+            exercises: workoutPlan.exercises?.length || 0,
+                date: "Today",
+            image: getWorkoutImage(String(workoutPlan.title || "General Fitness Workout"))
+          });
+        }
+          }
+        } catch (error) {
+          console.error("Error loading workout plan:", error);
+          setIsGeneratingAIPlan(false);
+        }
+      };
+
+  const fetchUserWorkoutsData = async () => {
+    try {
+      if (user?.id) {
+        const workouts = await fetchUserWorkouts(user.id);
+        setUserWorkouts(workouts || []);
+      }
+    } catch (error) {
+      console.error("Error fetching user workouts:", error);
+    }
+  };
+
+  const fetchAllExercises = async () => {
+    try {
+      setIsLoadingExercises(true);
+      const { data, error } = await supabase
+        .from('exercises')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setAllExercises(data || []);
+    } catch (error) {
+      console.error("Error fetching exercises:", error);
+    } finally {
+      setIsLoadingExercises(false);
+    }
+  };
 
   const fetchWorkoutExercises = async (workoutId: string) => {
     try {
       setIsLoadingExercises(true);
-      
       const { data, error } = await supabase
         .from('workout_exercises')
         .select(`
@@ -194,11 +190,19 @@ const WorkoutPlanPage: React.FC = () => {
           exercise:exercises(*)
         `)
         .eq('workout_id', workoutId)
-        .order('order_position', { ascending: true });
-        
+        .order('order_in_workout', { ascending: true });
+      
       if (error) throw error;
       
-      setWorkoutExercises(data || []);
+      // Map the data to ensure proper type compatibility
+      const mappedExercises = (data || []).map((exercise: any) => ({
+        ...exercise,
+        order_in_workout: exercise.order_in_workout || exercise.order_position || 0,
+        duration: exercise.duration_seconds || exercise.duration,
+        rest_time: exercise.rest_seconds || exercise.rest_time
+      }));
+      
+      setWorkoutExercises(mappedExercises);
     } catch (error) {
       console.error("Error fetching workout exercises:", error);
     } finally {
@@ -209,13 +213,10 @@ const WorkoutPlanPage: React.FC = () => {
   const getWorkoutImage = (plan: WorkoutPlan | string | null) => {
     if (!plan) return "/placeholder.svg";
     
-    // Handle string parameter (for backward compatibility)
     if (typeof plan === 'string') {
-      // Default image for string input
       return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='300' viewBox='0 0 500 300'%3E%3Crect fill='%23444' width='500' height='300'/%3E%3Ctext fill='%23fff' font-family='sans-serif' font-size='30' x='50%25' y='50%25' text-anchor='middle'%3EWorkout Plan%3C/text%3E%3C/svg%3E";
     }
     
-    // Use general fitness images based on the type of workout
     if (plan.title.toLowerCase().includes('strength')) {
       return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='300' viewBox='0 0 500 300'%3E%3Crect fill='%23506' width='500' height='300'/%3E%3Ctext fill='%23fff' font-family='sans-serif' font-size='30' x='50%25' y='50%25' text-anchor='middle'%3EStrength Workout%3C/text%3E%3C/svg%3E";
     } else if (plan.title.toLowerCase().includes('cardio')) {
@@ -226,46 +227,10 @@ const WorkoutPlanPage: React.FC = () => {
       return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='300' viewBox='0 0 500 300'%3E%3Crect fill='%23905' width='500' height='300'/%3E%3Ctext fill='%23fff' font-family='sans-serif' font-size='30' x='50%25' y='50%25' text-anchor='middle'%3ECore Workout%3C/text%3E%3C/svg%3E";
     }
     
-    // Default image
     return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='300' viewBox='0 0 500 300'%3E%3Crect fill='%23444' width='500' height='300'/%3E%3Ctext fill='%23fff' font-family='sans-serif' font-size='30' x='50%25' y='50%25' text-anchor='middle'%3EWorkout Plan%3C/text%3E%3C/svg%3E";
   };
 
-  // Define workout by goal mapping
-  const workoutByGoal = {
-    "weight-loss": {
-      title: "High-Intensity Fat Burning",
-      description: "A high-intensity workout designed to maximize calorie burn",
-      duration: 45,
-      exercises: 8,
-      date: "Today",
-      image: "/assets/images/weight-loss.jpg"
-    },
-    "muscle-gain": {
-      title: "Strength & Hypertrophy",
-      description: "Focus on progressive overload to build muscle mass",
-      duration: 60,
-      exercises: 6,
-      date: "Today",
-      image: "/assets/images/muscle-gain.jpg"
-    },
-    "general-fitness": {
-      title: "Full Body Conditioning",
-      description: "Balanced workout to improve overall fitness and health",
-      duration: 40,
-      exercises: 7,
-      date: "Today",
-      image: "/assets/images/general-fitness.jpg"
-    },
-    "endurance": {
-      title: "Endurance Training",
-      description: "Boost your stamina and cardiovascular health",
-      duration: 50,
-      exercises: 5,
-      date: "Today",
-      image: "/assets/images/endurance.jpg"
-    }
-  };
-
+  // Event handlers
   const handleSelectWorkout = (workoutId: string) => {
     setSelectedWorkout(workoutId);
   };
@@ -279,7 +244,6 @@ const WorkoutPlanPage: React.FC = () => {
       
       if (error) throw error;
       
-      // Update state after successful deletion
       setUserWorkouts(userWorkouts.filter(workout => workout.id !== workoutId));
       if (selectedWorkout === workoutId) {
         setSelectedWorkout(null);
@@ -291,7 +255,6 @@ const WorkoutPlanPage: React.FC = () => {
 
   const handleWorkoutCreated = (workout: UserWorkout) => {
     setUserWorkouts([...userWorkouts, workout]);
-    // Automatically select the newly created workout
     setSelectedWorkout(workout.id);
   };
 
@@ -308,7 +271,6 @@ const WorkoutPlanPage: React.FC = () => {
       
       if (error) throw error;
       
-      // Update state after successful deletion
       setWorkoutExercises(workoutExercises.filter(ex => ex.id !== exerciseId));
     } catch (error) {
       console.error("Error removing exercise:", error);
@@ -319,68 +281,10 @@ const WorkoutPlanPage: React.FC = () => {
     navigate(`/workout-session/${workoutId}`);
   };
 
-  return (
-    <DashboardLayout title="Workout Plan">
-      {/* AI Workout Link Card */}
-      <Card className="mb-6 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2">
-            <Brain className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            AI-Powered Workouts
-          </CardTitle>
-          <CardDescription>
-            Generate and manage AI custom workouts for your specific needs
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button 
-            variant="default" 
-            className="bg-blue-600 hover:bg-blue-700"
-            onClick={() => navigate('/ai-workouts')}
-          >
-            <Brain className="w-4 h-4 mr-2" /> View AI Workouts
-          </Button>
-        </CardContent>
-      </Card>
-      
-      {/* AI Workout Generation Notice */}
-      {isGeneratingAIPlan && (
-        <div className="mb-4">
-          <h3 className="text-lg font-medium mb-2">Creating your AI workout plan</h3>
-          <AIGeneratedNotice />
-        </div>
-      )}
-      
-      {/* Regeneration Progress UI */}
-      {isRegenerating && (
-        <div className="mb-4">
-          <h3 className="text-lg font-medium mb-2">Regenerating Your Workout Plan</h3>
-          <div className="mb-2">
-            <p className="text-sm text-muted-foreground">{regenerationStatus}</p>
-            <Progress value={regenerationProgress} className="h-1 mt-1" />
-          </div>
-          <AIGeneratedNotice />
-        </div>
-      )}
-      
-      {/* AI Generated Notice with Regenerate Button */}
-      {!isGeneratingAIPlan && !isRegenerating && isAIGenerated && (
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-          <div>
-            <h3 className="text-lg font-medium mb-2">AI-Powered Workout Plan</h3>
-            <AIGeneratedNotice />
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center"
-            onClick={async () => {
-              if (profile && user?.id) {
-                // Prevent multiple regeneration attempts
-                if (isRegenerating) return;
-                
+  const handleRegeneratePlan = async () => {
+    if (profile && user?.id && !isRegenerating) {
                 setIsRegenerating(true);
-                toast.info("Regenerating your AI workout plan...");
+      showInfo("Regenerating your AI workout plan...");
                 
                 try {
                   const success = await regenerateWorkoutPlan(
@@ -392,114 +296,288 @@ const WorkoutPlanPage: React.FC = () => {
                   );
                   
                   if (success) {
-                    toast.success("Workout plan regenerated successfully!");
-                    // Reload the page to show the new plan
+          showAIWorkoutSuccess("Workout plan regenerated successfully!");
                     setTimeout(() => window.location.reload(), 1500);
                   } else {
-                    toast.error("Failed to regenerate workout plan. Please try again.");
+          showAIWorkoutError("Failed to regenerate workout plan. Please try again.");
                     setIsRegenerating(false);
                   }
                 } catch (error) {
                   console.error("Error regenerating workout plan:", error);
-                  toast.error("An error occurred while regenerating your workout plan");
+        showAIWorkoutError("An error occurred while regenerating your workout plan");
                   setIsRegenerating(false);
                 }
               }
-            }}
-            disabled={isRegenerating}
-          >
-            <RefreshCw className={`h-3 w-3 mr-2 ${isRegenerating ? 'animate-spin' : ''}`} />
-            {isRegenerating ? 'Regenerating...' : 'Regenerate Plan'}
+  };
+
+  return (
+    <DashboardLayout title="Workout Plan">
+      {/* Hero Section - Primary Action Area */}
+      <div className="mb-8">
+                        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-orange-500 rounded-xl p-6 text-white shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold mb-2">Ready to crush your goals?</h1>
+              <p className="text-blue-100">Your personalized workout plan is ready to go</p>
+            </div>
+            <div className="hidden md:flex items-center space-x-2">
+              <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                <Target className="w-3 h-3 mr-1" />
+                {profile?.fitness_goal || "General Fitness"}
+              </Badge>
+            </div>
+          </div>
+          
+                     {/* Primary Action Buttons */}
+           <div className="flex flex-col sm:flex-row gap-3">
+             {isTodayWorkoutAvailable && (
+                                       <Button 
+                          size="lg" 
+                          className="bg-gradient-to-r from-white to-orange-50 text-blue-600 hover:from-orange-50 hover:to-white font-semibold shadow-lg"
+                          onClick={() => navigate("/today-workout")}
+                        >
+                 <Play className="w-5 h-5 mr-2" />
+                 Start Today's Workout
           </Button>
-        </div>
-      )}
-      
-      {/* Quick link to progress tracking */}
-      <div className="mb-6 flex justify-between items-center">
-        <p className="text-gray-600 dark:text-gray-400">
-          Follow your personalized workout plan designed to help you reach your fitness goals.
-        </p>
+             )}
         <Button 
           variant="outline" 
-          className="flex items-center"
+               size="lg"
+               className="border-white/30 text-white hover:bg-gradient-to-r hover:from-white/20 hover:to-orange-500/20 bg-white/10 shadow-lg"
           onClick={() => navigate("/progress")}
         >
-          <Activity className="h-4 w-4 mr-2" />
+               <TrendingUp className="w-5 h-5 mr-2" />
           View Progress
         </Button>
+           </div>
+        </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          {selectedWorkout && <TabsTrigger value="exercises">Edit Exercises</TabsTrigger>}
-        </TabsList>
-        
-        <TabsContent value="overview">
-          <WorkoutPlanHeader
-            fitnessGoal={profile?.fitness_goal || "general-fitness"}
-          />
-          
-          <TodayWorkout 
-            todayWorkout={todayWorkout}
-            userId={user?.id}
-          />
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <WeeklyStructure weeklyStructure={weeklyStructure} />
-            <KeyExercises exercises={keyExercises} />
-          </div>
-
-          <CustomWorkoutList 
-            userId={user?.id} 
-            userWorkouts={userWorkouts}
-            selectedWorkout={selectedWorkout}
-            onSelectWorkout={handleSelectWorkout}
-            onDeleteWorkout={handleDeleteWorkout}
-            onWorkoutCreated={handleWorkoutCreated}
-          />
-        </TabsContent>
-        
-        {selectedWorkout && (
-          <TabsContent value="exercises">
-            <div className="mb-4 flex justify-between items-center">
-              <Button
-                variant="outline"
-                onClick={() => setActiveTab("overview")}
-              >
-                Back to Overview
-              </Button>
+      {/* AI Status Banner */}
+      {(isGeneratingAIPlan || isRegenerating || isAIGenerated) && (
+        <Card className="mb-6 border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
+                  <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <span className="font-medium text-blue-900 dark:text-blue-100">
+                    {isGeneratingAIPlan && "Creating your AI workout plan..."}
+                    {isRegenerating && "Regenerating your workout plan..."}
+                    {!isGeneratingAIPlan && !isRegenerating && isAIGenerated && "AI-Powered Workout Plan"}
+                  </span>
+                </div>
+                {isRegenerating && (
+                  <div className="flex items-center space-x-2">
+                    <Progress value={regenerationProgress} className="w-20 h-2" />
+                    <span className="text-sm text-blue-700 dark:text-blue-300">
+                      {regenerationProgress}%
+                    </span>
+                  </div>
+                )}
+              </div>
               
-              <Button
-                onClick={() => handleStartWorkout(selectedWorkout)}
-              >
-                Start Workout
-              </Button>
+              {!isGeneratingAIPlan && !isRegenerating && isAIGenerated && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRegeneratePlan}
+                  disabled={isRegenerating}
+                  className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isRegenerating ? 'animate-spin' : ''}`} />
+                  {isRegenerating ? 'Regenerating...' : 'Regenerate'}
+                </Button>
+              )}
             </div>
             
-            <WorkoutDetails
-              selectedWorkout={selectedWorkout}
-              userWorkouts={userWorkouts}
-              workoutExercises={workoutExercises}
-              exercises={allExercises}
-              onExerciseAdded={handleExerciseAdded}
-              onRemoveExercise={handleRemoveExercise}
-            />
+            {isRegenerating && regenerationStatus && (
+              <p className="text-sm text-blue-700 dark:text-blue-300 mt-2">
+                {regenerationStatus}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Main Content Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-3 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+          <TabsTrigger 
+            value="overview" 
+            className="flex items-center space-x-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
+          >
+            <Target className="w-4 h-4" />
+            <span className="hidden sm:inline">Overview</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="custom" 
+            className="flex items-center space-x-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
+          >
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">Custom</span>
+          </TabsTrigger>
+          {selectedWorkout && (
+            <TabsTrigger 
+              value="exercises" 
+              className="flex items-center space-x-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
+            >
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Edit</span>
+            </TabsTrigger>
+          )}
+        </TabsList>
+        
+        {/* Overview Tab - AI Workouts & Plan */}
+        <TabsContent value="overview" className="space-y-6">
+          {/* Today's Workout Card */}
+          <Card className="border-2 border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Play className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <span>Today's Workout</span>
+                <Badge variant="secondary" className="bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-200">
+                  Recommended
+                </Badge>
+              </CardTitle>
+              <CardDescription>
+                Your AI-generated workout for today
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+      <TodayWorkout 
+        todayWorkout={todayWorkout}
+        userId={user?.id}
+      />
+            </CardContent>
+          </Card>
+
+          {/* Weekly Plan & Key Exercises */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center space-x-2 text-xl">
+                  <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
+                    <Calendar className="w-5 h-5 text-white" />
+                  </div>
+                  <span>Weekly Plan</span>
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Your 7-day workout structure
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+        <WeeklyStructure weeklyStructure={weeklyStructure} />
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
+              <CardContent className="p-6">
+        <KeyExercises exercises={keyExercises} />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* AI Workouts Link */}
+          <Card className="bg-gradient-to-r from-blue-50 via-purple-50 to-orange-50 dark:from-blue-950 dark:via-purple-950 dark:to-orange-950 border-blue-200 dark:border-blue-800 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                    <Brain className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                      AI-Powered Workouts
+                    </h3>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Generate custom workouts tailored to your needs
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  variant="outline"
+                  onClick={() => navigate('/ai-workouts')}
+                  className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                >
+                  Explore
+                  <ChevronRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Custom Workouts Tab */}
+        <TabsContent value="custom" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">Custom Workouts</h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                Create and manage your own workout routines
+              </p>
+            </div>
+            <CreateWorkoutForm userId={user?.id} onWorkoutCreated={handleWorkoutCreated} />
+      </div>
+
+      <CustomWorkoutList 
+        userId={user?.id} 
+        userWorkouts={userWorkouts}
+        selectedWorkout={selectedWorkout}
+        onSelectWorkout={handleSelectWorkout}
+        onDeleteWorkout={handleDeleteWorkout}
+        onWorkoutCreated={handleWorkoutCreated}
+      />
+        </TabsContent>
+
+        {/* Edit Exercises Tab */}
+        {selectedWorkout && (
+          <TabsContent value="exercises" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Edit Workout</h2>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Customize exercises for {selectedWorkoutObj?.name}
+                </p>
+              </div>
+              <div className="flex space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setActiveTab("custom")}
+                >
+                  Back to Custom
+                </Button>
+                <Button
+                  onClick={() => handleStartWorkout(selectedWorkout)}
+                  className="bg-fitness-primary hover:bg-fitness-primary-dark"
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Start Workout
+                </Button>
+          </div>
+        </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Workout Details</CardTitle>
+                <CardDescription>
+                  Add, remove, or modify exercises in your workout
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <WorkoutDetails
+                  selectedWorkout={selectedWorkout}
+                  userWorkouts={userWorkouts}
+                  workoutExercises={workoutExercises}
+                  exercises={allExercises}
+                  onExerciseAdded={handleExerciseAdded}
+                  onRemoveExercise={handleRemoveExercise}
+                />
+              </CardContent>
+            </Card>
           </TabsContent>
         )}
       </Tabs>
-      
-      {/* Add AI Workout Debugger in development mode */}
-      {import.meta.env.DEV && (
-        <div className="mt-8 border-t pt-8">
-          <div className="flex items-center mb-4">
-            <Bug className="mr-2 h-5 w-5" />
-            <h2 className="text-xl font-semibold">AI Workout Plan Debugger</h2>
-          </div>
-          <p className="text-gray-500 mb-4">This debugger helps diagnose issues with AI workout plan generation.</p>
-          <AIWorkoutDebugger />
-        </div>
-      )}
     </DashboardLayout>
   );
 };

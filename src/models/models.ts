@@ -43,7 +43,7 @@ export interface WorkoutExercise {
   reps: number | null;
   duration: number | null;
   rest_time: number;
-  order_position: number;
+  order_in_workout: number;
   notes: string | null;
   created_at: string;
   updated_at: string;

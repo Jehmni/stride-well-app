@@ -108,11 +108,31 @@ const Progress: React.FC = () => {
         </div>
       </div>
       <Tabs defaultValue="workouts">
-        <TabsList className="mb-6">
-          <TabsTrigger value="workouts">Workout History</TabsTrigger>
-          <TabsTrigger value="exercises">Exercise Progress</TabsTrigger>
-          <TabsTrigger value="statistics">Statistics</TabsTrigger>
-          <TabsTrigger value="measurements">Measurements</TabsTrigger>
+        <TabsList className="mb-6 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+          <TabsTrigger 
+            value="workouts"
+            className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
+          >
+            Workout History
+          </TabsTrigger>
+          <TabsTrigger 
+            value="exercises"
+            className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
+          >
+            Exercise Progress
+          </TabsTrigger>
+          <TabsTrigger 
+            value="statistics"
+            className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
+          >
+            Statistics
+          </TabsTrigger>
+          <TabsTrigger 
+            value="measurements"
+            className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
+          >
+            Measurements
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="workouts">

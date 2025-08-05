@@ -31,14 +31,19 @@ const ProtectedRoute = ({
     return <Navigate to="/login" state={{ from: location.pathname }} />;
   }
     // If user is authenticated but not onboarded and the route requires onboarding
-  if (user && requiresOnboarding && (!profile || !profile.fitness_goals || profile.fitness_goals.length === 0)) {
+  if (user && requiresOnboarding && (!profile || !profile.onboarding_completed)) {
     return <Navigate to="/onboarding" />;
+  }
+  
+  // If user is authenticated and completed onboarding, prevent access to onboarding pages
+  if (user && profile && profile.onboarding_completed && location.pathname.startsWith('/onboarding')) {
+    return <Navigate to="/dashboard" />;
   }
   
   // If user is authenticated and trying to access auth pages
   if (user && !requiresAuth) {
     // Always redirect to dashboard after login if user is onboarded
-    if (profile) {
+    if (profile && profile.onboarding_completed) {
       return <Navigate to="/dashboard" />;
     } else {
       return <Navigate to="/onboarding" />;

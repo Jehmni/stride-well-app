@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, ArrowRight, Check, Play, RefreshCw } from "lucide-react";
+import { Calendar, ArrowRight, Check, Play, RefreshCw, Clock, Dumbbell, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import WorkoutCard from "@/components/dashboard/WorkoutCard";
+
 import { TodayWorkoutProps, WorkoutExerciseDetail } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import WorkoutProgress from "./WorkoutProgress";
-import DetailedWorkoutLog from "./DetailedWorkoutLog";
+
 import { getWorkoutPlanExercises } from "@/services/workoutPlanMapper";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
@@ -102,7 +102,7 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
                   duration: null,
                   rest_time: planEx.rest_time || 60,
                   notes: null,
-                  order_position: i
+                  order_in_workout: i
                 });
               } else {
                 // If no match found, create a temporary exercise
@@ -125,7 +125,7 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
                   duration: null,
                   rest_time: planEx.rest_time || 60,
                   notes: null,
-                  order_position: i
+                  order_in_workout: i
                 });
               }
             }
@@ -164,7 +164,7 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
             exercise:exercises(*)
           `)
           .eq('workout_id', workoutId)
-          .order('order_position', { ascending: true });
+          .order('order_in_workout', { ascending: true });
           
         if (error) throw error;
         
@@ -216,7 +216,7 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
             reps: 12,
             duration: null,
             rest_time: 60,
-            order_position: index,
+                              order_in_workout: index,
             notes: null,
             exercise: {
               ...ex,
@@ -266,7 +266,7 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
           reps: 12,
           duration: null,
           rest_time: 60,
-          order_position: index,
+                            order_in_workout: index,
           notes: null,
           exercise: {
             ...ex,
@@ -359,45 +359,46 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
       </h3>
       
       {!showTracking ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <WorkoutCard
-            title={todayWorkout.title}
-            description={todayWorkout.description}
-            duration={todayWorkout.duration}
-            exercises={todayWorkout.exercises}
-            date={todayWorkout.date}
-            image={todayWorkout.image}
-            onClick={handleStartWorkout}
-          />
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h4 className="text-lg font-medium mb-4">Ready to start?</h4>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Complete this workout to track your progress and stay on track with your fitness goals.
-            </p>          <div className="space-y-4">
-              <Button 
-                className="w-full"
-                onClick={handleStartWorkout}
-              >
-                Start Workout <Play className="ml-2 h-4 w-4" />
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold mb-2">{todayWorkout.title}</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              {todayWorkout.description}
+            </p>
+            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-6">
+              <div className="flex items-center">
+                <Clock className="w-4 h-4 mr-2" />
+                {todayWorkout.duration} mins
+              </div>
+              <div className="flex items-center">
+                <Dumbbell className="w-4 h-4 mr-2" />
+                {todayWorkout.exercises} exercises
+              </div>
+              <div className="flex items-center">
+                <Calendar className="w-4 h-4 mr-2" />
+                {todayWorkout.date}
+              </div>
+            </div>
+            
+            {/* Mobile-friendly button layout */}
+            <div className="flex flex-col sm:flex-row gap-3">
+                                  <Button 
+                      size="lg"
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold shadow-lg"
+                      onClick={handleStartWorkout}
+                    >
+                <Play className="w-5 h-5 mr-2" />
+                Start Workout
               </Button>
-              
               {userId && (
-                <div className="flex w-full gap-2">
-                  <Button 
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={() => navigate("/progress")}
-                  >
-                    View Progress
-                  </Button>
-                  <DetailedWorkoutLog 
-                    workoutId="today-workout" 
-                    workoutTitle={todayWorkout.title}
-                    exercises={todayExercises}
-                    onComplete={handleWorkoutCompleted}
-                  />
-                </div>
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  onClick={() => navigate("/progress")}
+                >
+                  <Activity className="w-4 h-4 mr-2" />
+                  View Progress
+                </Button>
               )}
             </div>
           </div>

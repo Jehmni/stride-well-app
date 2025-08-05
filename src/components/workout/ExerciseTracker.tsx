@@ -10,7 +10,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, Info } from "lucide-react";
+import { ChevronDown, ChevronUp, Info, CheckCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -119,61 +119,132 @@ const ExerciseTracker: React.FC<ExerciseTrackerProps> = ({ exercise, onComplete,
     : `${exercise.reps}`;
 
   return (
-    <Card className={`p-4 ${isCompleted ? 'border-green-500 bg-green-50 dark:bg-green-900/10' : ''}`}>
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center mb-2">
-            <h4 className="font-medium text-base mr-2">{exercise.exercise.name}</h4>
-            <Badge variant="outline">{exercise.exercise.muscle_group}</Badge>
+    <Card className={`transition-all duration-300 ${
+      isCompleted 
+        ? 'border-green-400 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 shadow-lg' 
+        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md'
+    }`}>
+      <div className="p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1">
+            <div className="flex items-center space-x-3 mb-2">
+              <div className={`h-3 w-3 rounded-full transition-colors ${
+                isCompleted ? 'bg-green-500' : progressPercentage > 0 ? 'bg-blue-500' : 'bg-gray-300'
+              }`} />
+              <h4 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{exercise.exercise.name}</h4>
+              {isCompleted && (
+                <Badge className="bg-green-600 text-white font-medium">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Done
+                </Badge>
+              )}
+            </div>
+            
+            <div className="ml-6 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4 text-sm">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    {exercise.sets} sets × {repsText} reps
+                  </span>
+                  {exercise.rest_time && (
+                    <span className="text-gray-600 dark:text-gray-400">
+                      {exercise.rest_time}s rest
+                    </span>
+                  )}
+                  {exercise.weight_kg && (
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">
+                      {exercise.weight_kg}kg
+                    </span>
+                  )}
+                </div>
+                <Badge variant="outline" className="text-xs">{exercise.exercise.muscle_group}</Badge>
+              </div>
+              
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Progress</span>
+                  <span className={`font-medium ${
+                    progressPercentage === 100 ? 'text-green-600' : 'text-gray-600 dark:text-gray-400'
+                  }`}>
+                    {setsCompleted}/{exercise.sets} sets ({progressPercentage}%)
+                  </span>
+                </div>
+                <Progress 
+                  value={progressPercentage} 
+                  className={`h-2 transition-all duration-300 ${
+                    progressPercentage === 100 ? '[&>div]:bg-green-500' : ''
+                  }`}
+                />
+              </div>
+              
+              <p className="text-gray-500 dark:text-gray-400 text-xs">
+                {isExpanded 
+                  ? 'Configure sets, reps, weight, and notes below' 
+                  : 'Click the arrow to expand for detailed tracking'
+                }
+              </p>
+            </div>
           </div>
-          <p className="text-gray-500 dark:text-gray-400 text-xs mb-1 italic">Click the chevron to expand for reps, weight, and notes</p>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
-            {exercise.sets} sets × {repsText} reps
-            {exercise.rest_time && ` • ${exercise.rest_time}s rest`}
-          </p>
           
-          <div className="flex items-center space-x-1 mb-2">
-            <span className="text-xs text-gray-500">{progressPercentage}%</span>
-            <Progress value={progressPercentage} className="h-1 flex-1" />
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="shrink-0 h-9 w-9 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                  aria-label={isExpanded ? "Hide details" : "Show details"}
+                >
+                  {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isExpanded ? "Hide details" : "Show details"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
-        
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="shrink-0"
-                aria-label={isExpanded ? "Hide details" : "Show details"}
-              >
-                {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{isExpanded ? "Hide details" : "Show details"}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
       </div>
       
-      {/* Sets checkboxes */}
-      <div className="flex flex-wrap gap-2 my-3">
-        {setProgress.map((completed, index) => (
-          <Checkbox
-            key={`${exercise.id}-set-${index}`}
-            id={`${exercise.id}-set-${index}`}
-            checked={completed}
-            onCheckedChange={() => handleSetComplete(index)}
-            className={completed ? "data-[state=checked]:bg-green-500 data-[state=checked]:text-white" : ""}
-            disabled={isCompleted}
-          />
-        ))}
+      {/* Sets tracking */}
+      <div className="px-4 pb-3">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Sets Progress</Label>
+            <span className="text-xs text-gray-500">Tap to mark complete</span>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {setProgress.map((completed, index) => (
+              <Button
+                key={`${exercise.id}-set-${index}`}
+                variant={completed ? "default" : "outline"}
+                size="sm"
+                className={`h-10 text-sm font-medium transition-all duration-200 ${
+                  completed 
+                    ? "bg-green-600 hover:bg-green-700 text-white border-green-600" 
+                    : "border-2 border-dashed border-gray-300 hover:border-gray-400 text-gray-600"
+                }`}
+                onClick={() => handleSetComplete(index)}
+                disabled={isCompleted}
+              >
+                {completed ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Set {index + 1}
+                  </>
+                ) : (
+                  `Set ${index + 1}`
+                )}
+              </Button>
+            ))}
+          </div>
+        </div>
       </div>
       
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-        <CollapsibleContent className="space-y-4 mt-3 pt-3 border-t">
+        <CollapsibleContent className="px-4 pb-4">
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor={`reps-${exercise.id}`} className="text-xs">Reps per Set</Label>
@@ -222,14 +293,28 @@ const ExerciseTracker: React.FC<ExerciseTrackerProps> = ({ exercise, onComplete,
           {!isCompleted && (
             <Button 
               onClick={handleExerciseComplete}
-              variant="outline"
+              variant={progressPercentage === 100 ? "default" : "secondary"}
               size="sm"
-              className="w-full"
+              className={`w-full font-medium transition-all duration-200 ${
+                progressPercentage === 100 
+                  ? "bg-green-600 hover:bg-green-700 text-white shadow-md" 
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+              }`}
               disabled={progressPercentage < 100}
             >
-              Mark Complete
+              {progressPercentage === 100 ? (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Mark Complete
+                </>
+              ) : (
+                <>
+                  Complete {progressPercentage}% of sets first
+                </>
+              )}
             </Button>
           )}
+          </div>
         </CollapsibleContent>
       </Collapsible>
     </Card>

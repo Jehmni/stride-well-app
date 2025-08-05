@@ -116,11 +116,12 @@ const FitnessGoalsForm: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // Update user profile in database
+      // Update user profile in database and mark onboarding as completed
       const { error } = await supabase
         .from('user_profiles')
         .update({
           fitness_goal: selectedGoal,
+          onboarding_completed: true, // Mark onboarding as completed in database
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);

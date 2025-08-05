@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LoadingSpinner from "./components/ui/LoadingSpinner";
 import ErrorBoundary, { withErrorBoundary } from "./components/common/ErrorBoundary";
@@ -244,10 +245,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+        <NotificationProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
             <ChunkErrorBoundary>
               <Suspense fallback={<LoadingSpinner />}>
                 <Routes>
@@ -276,7 +278,7 @@ function App() {
                   <Route 
                     path={`${ROUTES.ONBOARDING}/*`} 
                     element={
-                      <ProtectedRoute>
+                      <ProtectedRoute requiresOnboarding={false}>
                         <Onboarding />
                       </ProtectedRoute>
                     } 
@@ -401,6 +403,7 @@ function App() {
             </ChunkErrorBoundary>
           </BrowserRouter>
         </TooltipProvider>
+      </NotificationProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

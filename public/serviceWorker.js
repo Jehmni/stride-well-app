@@ -1,5 +1,5 @@
 // Service Worker for CorePilot - Gym & Fitness Trainer
-const CACHE_NAME = 'corepilot-v1';
+const CACHE_NAME = 'corepilot-v2';
 
 // Assets to cache on install
 const STATIC_ASSETS = [

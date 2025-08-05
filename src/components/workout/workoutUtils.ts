@@ -16,7 +16,7 @@ export const fetchWorkoutExercises = async (workoutId: string): Promise<WorkoutE
         exercise:exercises(*)
       `)
       .eq('workout_id', workoutId)
-      .order('order_position', { ascending: true });
+      .order('order_in_workout', { ascending: true });
 
     if (error) throw error;
 
@@ -73,7 +73,7 @@ export const reorderExercise = async (
       .from('workout_exercises')
       .select('*')
       .eq('workout_id', workoutId)
-      .order('order_position', { ascending: true });
+      .order('order_in_workout', { ascending: true });
       
     if (fetchError) throw fetchError;
     
@@ -99,14 +99,14 @@ export const reorderExercise = async (
     
     const { error: updateError } = await supabase
       .from('workout_exercises')
-      .update({ order_position: targetExercise.order_position })
+      .update({ order_in_workout: targetExercise.order_in_workout })
       .eq('id', currentExercise.id);
       
     if (updateError) throw updateError;
     
     const { error: updateError2 } = await supabase
       .from('workout_exercises')
-      .update({ order_position: currentExercise.order_position })
+      .update({ order_in_workout: currentExercise.order_in_workout })
       .eq('id', targetExercise.id);
       
     if (updateError2) throw updateError2;

@@ -10,7 +10,18 @@ import { toast } from "sonner";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Database } from "@/integrations/supabase/types";
 
-type BodyMeasurement = Database['public']['Tables']['body_measurements']['Row'];
+// Define the type based on what the database actually returns
+type BodyMeasurement = {
+  id: string;
+  user_id: string;
+  recorded_at: string; // Keep as recorded_at since that's what DB returns
+  chest: number | null;
+  waist: number | null;
+  hips: number | null;
+  arms: number | null;
+  thighs: number | null;
+  created_at: string;
+};
 
 const MeasurementsTracker: React.FC = () => {
   const { user } = useAuth();
@@ -34,9 +45,9 @@ const MeasurementsTracker: React.FC = () => {
 
   const fetchMeasurements = async () => {
     if (!user) return;
+    setIsLoading(true);
 
     try {
-      setIsLoading(true);
       const { data, error } = await supabase
         .from("body_measurements")
         .select("*")

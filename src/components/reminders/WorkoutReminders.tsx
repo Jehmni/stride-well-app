@@ -288,7 +288,7 @@ const WorkoutReminders: React.FC = () => {
                   <SelectValue placeholder="Select a workout plan" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No specific workout</SelectItem>
+                  <SelectItem value="none">No specific workout</SelectItem>
                   {workoutPlans.map(plan => (
                     <SelectItem key={plan.id} value={plan.id}>
                       {plan.title}

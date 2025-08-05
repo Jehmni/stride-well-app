@@ -133,16 +133,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
   }) => (
     <Button
       variant="ghost"
-      className={`w-full justify-start py-6 transition-all duration-200 ${
+      className={`w-full justify-start py-6 transition-all duration-200 group ${
         isActive 
-          ? 'bg-primary/10 text-primary border-r-2 border-primary' 
-          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+          ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-600 dark:text-blue-400 border-r-2 border-blue-500 shadow-lg' 
+          : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-orange-50 hover:to-blue-50 dark:hover:from-orange-950/30 dark:hover:to-blue-950/30 hover:text-orange-700 dark:hover:text-orange-300 hover:shadow-md hover:border-r-2 hover:border-orange-300'
       }`}
       onClick={onClick}
       title={item.description}
     >
-      {item.icon}
-      <span className="ml-4">{item.label}</span>
+      <div className={`transition-all duration-200 group-hover:scale-110 group-hover:rotate-3 ${
+        isActive ? 'scale-110' : ''
+      }`}>
+        {item.icon}
+      </div>
+      <span className="ml-4 font-medium">{item.label}</span>
     </Button>
   ));
 
@@ -153,8 +157,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Desktop Sidebar */}
         <aside className="fixed inset-y-0 left-0 hidden w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 md:flex flex-col z-10">
-          {/* Header */}
-          <div className="h-16 flex items-center justify-between px-6 bg-fitness-primary">
+                     {/* Header */}
+           <div className="h-16 flex items-center justify-between px-6 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700">
             <h2 className="text-2xl font-bold text-white">{APP_CONFIG.NAME}</h2>
             <div className="flex items-center gap-2">
               <SyncStatus />
@@ -183,7 +187,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
           <div className="p-4 border-t border-gray-200 dark:border-gray-700">
             <Button
               variant="ghost"
-              className="w-full justify-start py-6 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="w-full justify-start py-6 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-red-50 hover:to-orange-50 dark:hover:from-red-950/30 dark:hover:to-orange-950/30 hover:text-red-600 dark:hover:text-red-400 hover:shadow-md transition-all duration-200"
               onClick={handleLogout}
             >
               <LogOut />
@@ -205,18 +209,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-64 p-0">
                   <div className="flex flex-col h-full">
-                    {/* Mobile Header */}
-                    <div className="h-16 flex items-center justify-between px-6 bg-fitness-primary">
+                                         {/* Mobile Header */}
+                     <div className="h-16 flex items-center justify-between px-6 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700">
                       <h2 className="text-xl font-bold text-white">{APP_CONFIG.NAME}</h2>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={closeMobileMenu}
-                        className="text-white hover:bg-white/20"
-                      >
-                        <X className="h-5 w-5" />
-                        <span className="sr-only">Close menu</span>
-                      </Button>
                     </div>
 
                     {/* Mobile Navigation */}
@@ -231,17 +226,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
                       ))}
                     </nav>
 
-                    {/* Mobile Footer */}
-                    <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start py-6 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        onClick={handleLogout}
-                      >
-                        <LogOut />
-                        <span className="ml-4">Logout</span>
-                      </Button>
-                    </div>
+                                         {/* Mobile Footer */}
+                     <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                       <Button
+                         variant="ghost"
+                         className="w-full justify-start py-6 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-red-50 hover:to-orange-50 dark:hover:from-red-950/30 dark:hover:to-orange-950/30 hover:text-red-600 dark:hover:text-red-400 hover:shadow-md transition-all duration-200"
+                         onClick={handleLogout}
+                       >
+                         <LogOut />
+                         <span className="ml-4">Logout</span>
+                       </Button>
+                     </div>
                   </div>
                 </SheetContent>
               </Sheet>

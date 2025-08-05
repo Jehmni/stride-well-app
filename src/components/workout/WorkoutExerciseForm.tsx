@@ -36,8 +36,8 @@ const WorkoutExerciseForm: React.FC<WorkoutExerciseFormProps> = ({
     
     try {
       // Get the next order position
-      const nextPosition = workoutExercises.length > 0 
-        ? Math.max(...workoutExercises.map(ex => ex.order_position)) + 1 
+          const nextPosition = workoutExercises.length > 0 
+        ? Math.max(...workoutExercises.map(ex => ex.order_in_workout)) + 1
         : 0;
       
       const { data, error } = await supabase
@@ -49,7 +49,7 @@ const WorkoutExerciseForm: React.FC<WorkoutExerciseFormProps> = ({
           reps: newExerciseForm.reps,
           duration: newExerciseForm.duration,
           rest_time: newExerciseForm.restTime,
-          order_position: nextPosition,
+          order_in_workout: nextPosition,
           notes: newExerciseForm.notes || null
         })
         .select(`

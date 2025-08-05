@@ -1,14 +1,22 @@
 
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Link, Navigate } from "react-router-dom";
 import { CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import HeroSection from "@/components/home/HeroSection";
 import FeatureCard from "@/components/home/FeatureCard";
 import TestimonialCard from "@/components/home/TestimonialCard";
 import StepIndicator from "@/components/home/StepIndicator";
+import { useAuth } from "@/hooks/useAuth";
 
 const Index: React.FC = () => {
+  const { user, profile, isLoading } = useAuth();
+
+  // Redirect authenticated users to dashboard
+  if (!isLoading && user && profile && profile.onboarding_completed) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   // Features data
   const features = [
     {

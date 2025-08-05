@@ -46,7 +46,7 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({ onViewAllProgress
           setExerciseCounts([]);
           setMuscleGroups([]);
           return;
-        }        if (data) {
+        }        if (data && Array.isArray(data)) {
           // Process exercise counts with proper NaN handling
           const exercises = data.map(ex => ({
             exercise_id: ex.exercise_id || `fallback-${Math.random()}`,

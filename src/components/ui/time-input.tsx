@@ -8,12 +8,13 @@ export interface TimeInputProps
 }
 
 const TimeInput = forwardRef<HTMLInputElement, TimeInputProps>(
-  ({ className, defaultTime = "08:00", ...props }, ref) => {
+  ({ className, defaultTime = "08:00", value, ...props }, ref) => {
     return (
       <Input
         type="time"
         ref={ref}
-        defaultValue={defaultTime}
+        defaultValue={value ? undefined : defaultTime}
+        value={value}
         className={cn("w-full", className)}
         {...props}
       />

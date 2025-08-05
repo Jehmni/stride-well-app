@@ -9,6 +9,7 @@ import {
   Plus,
   Search,
   ShoppingBag,
+  Target,
   Utensils
 } from "lucide-react";
 import { format } from "date-fns";
@@ -29,7 +30,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import NearbyStores from "@/components/meal/NearbyStores";
+import NutritionLogger from "@/components/nutrition/NutritionLogger";
+import NutritionTargetsModal from "@/components/nutrition/NutritionTargetsModal";
 import { useAuth } from "@/hooks/useAuth";
+import { useNutrition } from "@/hooks/useNutrition";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { getRecommendedItems } from "@/services/storeService";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,11 +55,15 @@ interface MealPlan {
   id: string;
   name: string;
   description?: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  day_of_week?: number;
+  daily_calorie_target: number;
+  daily_protein_target: number;
+  daily_carbs_target: number;
+  daily_fat_target: number;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 interface GroceryItem {
@@ -69,6 +77,7 @@ const MealPlan: React.FC = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { latitude, longitude, loading: locationLoading } = useGeolocation();
+  const [nutritionSummary] = useNutrition(profile?.id);
   
   const [activeTab, setActiveTab] = useState("meal-plans");
   const [isLoading, setIsLoading] = useState(true);
@@ -87,11 +96,12 @@ const MealPlan: React.FC = () => {
     protein: "150",
     carbs: "200",
     fat: "70",
-    dayOfWeek: ""
+    dayOfWeek: "any"
   });
   
   // New meal dialog state
   const [showAddMeal, setShowAddMeal] = useState(false);
+  const [showNutritionTargets, setShowNutritionTargets] = useState(false);
   const [newMeal, setNewMeal] = useState({
     name: "",
     description: "",
@@ -119,7 +129,7 @@ const MealPlan: React.FC = () => {
           .from('meal_plans')
           .select('*')
           .eq('user_id', profile.id)
-          .order('day_of_week', { ascending: true });
+          .order('created_at', { ascending: true });
           
         if (planError) throw planError;
         setMealPlans(planData || []);
@@ -192,11 +202,12 @@ const MealPlan: React.FC = () => {
             user_id: profile.id,
             name: newPlan.name,
             description: newPlan.description || null,
-            calories: parseInt(newPlan.calories),
-            protein: parseFloat(newPlan.protein),
-            carbs: parseFloat(newPlan.carbs),
-            fat: parseFloat(newPlan.fat),
-            day_of_week: newPlan.dayOfWeek ? parseInt(newPlan.dayOfWeek) : null
+            daily_calorie_target: parseInt(newPlan.calories),
+            daily_protein_target: parseFloat(newPlan.protein),
+            daily_carbs_target: parseFloat(newPlan.carbs),
+            daily_fat_target: parseFloat(newPlan.fat),
+            start_date: new Date().toISOString().split('T')[0],
+            end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
           }
         ])
         .select();
@@ -397,42 +408,94 @@ const MealPlan: React.FC = () => {
 
   return (
     <DashboardLayout title="Meal Planning">
+      {/* Hero Section */}
       <div className="mb-8">
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
+        <div className="bg-gradient-to-r from-blue-50 via-purple-50 to-orange-50 dark:from-blue-950 dark:via-purple-950 dark:to-orange-950 rounded-lg p-6 border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                Smart Meal Planning
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
           Plan your meals, track nutrients, and find ingredients at nearby stores.
         </p>
+            </div>
+            <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+              <span>🎯 Set targets</span>
+              <span>•</span>
+              <span>📊 Track macros</span>
+              <span>•</span>
+              <span>🛒 Find stores</span>
+            </div>
+          </div>
+        </div>
         
         <Tabs 
           value={activeTab} 
           onValueChange={setActiveTab} 
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="meal-plans">Meal Plans</TabsTrigger>
-            <TabsTrigger value="groceries">Grocery List</TabsTrigger>
-            <TabsTrigger value="stores">Nearby Stores</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg shadow-sm">
+            <TabsTrigger 
+              value="meal-plans"
+              className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
+            >
+              <Calendar className="h-4 w-4 mr-2" />
+              Meal Plans
+            </TabsTrigger>
+            <TabsTrigger 
+              value="nutrition"
+              className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
+            >
+              <Target className="h-4 w-4 mr-2" />
+              Nutrition
+            </TabsTrigger>
+            <TabsTrigger 
+              value="groceries"
+              className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
+            >
+              <ShoppingBag className="h-4 w-4 mr-2" />
+              Grocery List
+            </TabsTrigger>
+            <TabsTrigger 
+              value="stores"
+              className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
+            >
+              <Map className="h-4 w-4 mr-2" />
+              Nearby Stores
+            </TabsTrigger>
           </TabsList>
           
           {/* Meal Plans Tab */}
           <TabsContent value="meal-plans">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold flex items-center">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-semibold flex items-center text-gray-900 dark:text-white">
                 <Calendar className="mr-2 h-5 w-5" />
                 Your Meal Plans
           </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  {mealPlans.length === 0 
+                    ? "Create your first meal plan to start tracking nutrition"
+                    : `${mealPlans.length} plan${mealPlans.length !== 1 ? 's' : ''} created`}
+                </p>
+              </div>
               <div className="flex items-center space-x-2">
+                {mealPlans.length > 0 && (
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={() => setShowSearch(!showSearch)}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
                   <Search className="h-4 w-4" />
                 </Button>
+                )}
                 <Dialog open={showAddPlan} onOpenChange={setShowAddPlan}>
                   <DialogTrigger asChild>
-                    <Button>
+                    <Button className="bg-fitness-primary hover:bg-fitness-primary/90 shadow-sm">
                       <Plus className="h-4 w-4 mr-2" />
-                      New Plan
+                      {mealPlans.length === 0 ? 'Create First Plan' : 'New Plan'}
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
@@ -471,7 +534,7 @@ const MealPlan: React.FC = () => {
                             <SelectValue placeholder="Select a day" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Any day</SelectItem>
+                            <SelectItem value="any">Any day</SelectItem>
                             <SelectItem value="0">Monday</SelectItem>
                             <SelectItem value="1">Tuesday</SelectItem>
                             <SelectItem value="2">Wednesday</SelectItem>
@@ -546,35 +609,50 @@ const MealPlan: React.FC = () => {
             )}
             
             <div className="grid grid-cols-12 gap-6">
-              {/* Meal Plan Sidebar */}
-              <div className="col-span-12 lg:col-span-3">
+              {/* Main Content Area */}
                 {mealPlans.length === 0 ? (
-                  <div className="text-center py-10 bg-white dark:bg-gray-800 rounded-lg shadow">
-                    <Calendar className="h-12 w-12 mx-auto text-gray-400" />
-                    <h3 className="mt-4 text-lg font-medium">No Meal Plans</h3>
-                    <p className="mt-2 text-gray-500 max-w-xs mx-auto">
-                      Create your first meal plan to start tracking your nutrition.
+              // Empty State - No Meal Plans
+              <div className="col-span-12">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-12 text-center">
+                  <div className="max-w-md mx-auto">
+                    <div className="relative">
+                      <Calendar className="h-16 w-16 mx-auto text-gray-400 mb-6" />
+                      <div className="absolute -top-2 -right-2 bg-fitness-primary text-white rounded-full p-2">
+                        <Plus className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                      Start Your Meal Planning Journey
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
+                      Create your first meal plan to track nutrition, manage macros, and achieve your fitness goals with personalized meal recommendations.
                     </p>
-                    <Button 
-                      className="mt-4" 
-                      onClick={() => setShowAddPlan(true)}
-                    >
-                      Create Your First Plan
-                    </Button>
+                    <div className="space-y-4">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        🎯 Set calorie targets • 📊 Track macros • 🍽️ Plan meals
+                      </div>
+                    </div>
+                  </div>
+                </div>
             </div>
                 ) : (
+              // Meal Plans Layout
+              <div className="col-span-12 lg:col-span-3">
                   <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-                    <div className="p-4 border-b">
-                      <h4 className="font-medium">Your Meal Plans</h4>
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                    <h4 className="font-semibold text-gray-900 dark:text-white">Your Meal Plans</h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      {mealPlans.length} plan{mealPlans.length !== 1 ? 's' : ''}
+                    </p>
                     </div>
-                    <div className="p-2">
+                  <div className="p-2 max-h-96 overflow-y-auto">
                       {mealPlans.map((plan) => (
                         <div
                           key={plan.id}
-                          className={`p-3 rounded-md mb-1 cursor-pointer ${
+                        className={`p-3 rounded-lg mb-2 cursor-pointer transition-all duration-200 ${
                             selectedPlan === plan.id
-                              ? 'bg-fitness-primary bg-opacity-10 text-fitness-primary'
-                              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                            ? 'bg-fitness-primary bg-opacity-10 border border-fitness-primary text-fitness-primary'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-700 border border-transparent'
                           }`}
                           onClick={() => {
                             setSelectedPlan(plan.id);
@@ -582,33 +660,39 @@ const MealPlan: React.FC = () => {
                           }}
                         >
                           <div className="flex justify-between items-start">
-                            <div>
-                              <div className="font-medium">{plan.name}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900 dark:text-white truncate">
+                              {plan.name}
+                            </div>
                               {plan.description && (
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
                                   {plan.description}
                                 </div>
                               )}
-                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                {getDayName(plan.day_of_week)} · {plan.calories} kcal
+                            <div className="flex items-center mt-2 text-xs text-gray-500 dark:text-gray-400">
+                              <Target className="h-3 w-3 mr-1" />
+                              <span>{plan.daily_calorie_target} kcal target</span>
                               </div>
                             </div>
                             <button
-                              className="text-red-500 hover:text-red-600 text-sm"
+                            className="text-red-500 hover:text-red-600 text-sm ml-2 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 deleteMealPlan(plan.id);
                               }}
+                            title="Delete plan"
                             >
-                              Delete
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
                             </button>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                )}
               </div>
+            )}
               
               {/* Meal Details */}
               <div className="col-span-12 lg:col-span-9">
@@ -618,19 +702,22 @@ const MealPlan: React.FC = () => {
                       <div className="p-6">
                         <div className="flex justify-between items-start mb-4">
                           <div>
-                            <h3 className="text-xl font-semibold">{currentPlan?.name}</h3>
+                            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                              {currentPlan?.name}
+                            </h3>
                             {currentPlan?.description && (
                               <p className="text-gray-600 dark:text-gray-400 mt-1">
                                 {currentPlan.description}
                               </p>
                             )}
-                            <p className="text-sm text-gray-500 mt-2">
-                              {getDayName(currentPlan?.day_of_week)}
-                            </p>
+                            <div className="flex items-center mt-2 text-sm text-gray-500 dark:text-gray-400">
+                              <Target className="h-4 w-4 mr-1" />
+                              <span>{currentPlan?.daily_calorie_target} kcal target</span>
+                            </div>
                           </div>
                           <Dialog open={showAddMeal} onOpenChange={setShowAddMeal}>
                             <DialogTrigger asChild>
-                              <Button>
+                              <Button className="bg-fitness-primary hover:bg-fitness-primary/90">
                                 <Plus className="h-4 w-4 mr-2" />
                                 Add Meal
                               </Button>
@@ -746,7 +833,7 @@ const MealPlan: React.FC = () => {
                             <div className="text-sm text-gray-500 dark:text-gray-400">Calories</div>
                             <div className="font-semibold text-xl">{totalCalories} kcal</div>
                             <div className="text-xs text-gray-400 dark:text-gray-500">
-                              of {currentPlan?.calories} kcal target
+                              of {currentPlan?.daily_calorie_target} kcal target
                             </div>
                           </div>
                           <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-md">
@@ -855,24 +942,101 @@ const MealPlan: React.FC = () => {
                     </div>
                   </>
                 ) : (
+                  <div className="col-span-12 lg:col-span-9">
                   <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-10 text-center">
                     <Utensils className="h-12 w-12 mx-auto text-gray-400" />
-                    <h3 className="mt-4 text-lg font-medium">No Meal Plan Selected</h3>
+                      <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
+                        {mealPlans.length > 0 ? "No Meal Plan Selected" : "Ready to Start Planning?"}
+                      </h3>
                     <p className="mt-2 text-gray-500 max-w-md mx-auto">
                       {mealPlans.length > 0 
                         ? "Select a meal plan from the sidebar to view and manage meals."
-                        : "Create your first meal plan to get started with your nutrition planning."}
-                    </p>
-                    {mealPlans.length === 0 && (
-                      <Button 
-                        className="mt-4" 
-                        onClick={() => setShowAddPlan(true)}
-                      >
-                        Create Your First Plan
-                      </Button>
-                    )}
+                          : "Click 'Create First Plan' in the header to get started with your nutrition planning."}
+                      </p>
+                    </div>
                   </div>
                 )}
+              </div>
+            </div>
+          </TabsContent>
+          
+          {/* Nutrition Tab */}
+          <TabsContent value="nutrition">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold flex items-center">
+                  <Utensils className="mr-2 h-5 w-5" />
+                  Nutrition Tracking
+                </h3>
+                      <Button 
+                  variant="outline"
+                  onClick={() => setShowNutritionTargets(true)}
+                  className="flex items-center gap-2"
+                      >
+                  <Target className="h-4 w-4" />
+                  View Targets
+                      </Button>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div>
+                  <h4 className="text-md font-medium mb-4">Log Your Meals</h4>
+                  <NutritionLogger onLogComplete={() => {
+                    // The useNutrition hook will automatically refresh when new data is logged
+                    console.log('Nutrition logged successfully');
+                  }} />
+                </div>
+                
+                <div>
+                  <h4 className="text-md font-medium mb-4">Nutrition Overview</h4>
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      Track your daily nutrition intake and see how it compares to your targets.
+                    </p>
+                    {nutritionSummary.isLoading ? (
+                      <div className="text-center py-4">
+                        <p className="text-sm text-gray-500">Loading nutrition data...</p>
+                      </div>
+                    ) : nutritionSummary.target ? (
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Daily Target Calories:</span>
+                          <span className="font-medium">{nutritionSummary.target.calories}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Daily Target Protein:</span>
+                          <span className="font-medium">{nutritionSummary.target.protein}g</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Daily Target Carbs:</span>
+                          <span className="font-medium">{nutritionSummary.target.carbs}g</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Daily Target Fat:</span>
+                          <span className="font-medium">{nutritionSummary.target.fat}g</span>
+                        </div>
+                        
+                        {/* Progress indicators */}
+                        <div className="mt-4 space-y-2">
+                          <div className="flex justify-between text-xs">
+                            <span>Calories: {nutritionSummary.current.calories} / {nutritionSummary.target.calories}</span>
+                            <span>{nutritionSummary.percentage.calories}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                              style={{ width: `${Math.min(100, nutritionSummary.percentage.calories)}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-sm text-gray-500">No nutrition targets set. Update your profile to set targets.</p>
+                  </div>
+                )}
+                  </div>
+                </div>
               </div>
             </div>
           </TabsContent>
@@ -980,6 +1144,16 @@ const MealPlan: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Nutrition Targets Modal */}
+      <NutritionTargetsModal
+        isOpen={showNutritionTargets}
+        onClose={() => setShowNutritionTargets(false)}
+        onTargetsUpdated={() => {
+          // Refresh nutrition data if needed
+          console.log('Nutrition targets updated');
+        }}
+      />
     </DashboardLayout>
   );
 };

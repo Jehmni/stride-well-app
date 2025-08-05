@@ -38,10 +38,12 @@ export interface WorkoutExerciseDetail {
   exercise_id: string;
   sets: number;
   reps: number | string | null;
-  duration: number | null;
-  rest_time: number;
-  order_position: number;
+  duration: number | null; // Maps to duration_seconds in DB
+  rest_time: number; // Maps to rest_seconds in DB
+  order_in_workout: number;
   notes: string | null;
+  weight_kg?: number | null;
+  comments?: string | null;
   exercise: Exercise;
 }
 

@@ -49,7 +49,7 @@ const WorkoutSession: React.FC = () => {
           exercise:exercises(*)
         `)
         .eq('workout_id', workoutId)
-        .order('order_position', { ascending: true });
+                  .order('order_in_workout', { ascending: true });
       
       if (exercisesError) throw exercisesError;
       
@@ -72,7 +72,7 @@ const WorkoutSession: React.FC = () => {
             reps: 10,
             duration: null,
             rest_time: 60,
-            order_position: index,
+            order_in_workout: index,
             notes: null,
             exercise: ex
           }));
@@ -80,7 +80,14 @@ const WorkoutSession: React.FC = () => {
           setExercises(tempExercises);
         }
       } else {
-        setExercises(exercisesData);
+        // Map the data to ensure proper type compatibility
+        const mappedExercises = exercisesData.map((exercise: any) => ({
+          ...exercise,
+          order_in_workout: exercise.order_in_workout || 0,
+          duration: exercise.duration_seconds || exercise.duration,
+          rest_time: exercise.rest_seconds || exercise.rest_time
+        }));
+        setExercises(mappedExercises);
       }
     } catch (error) {
       console.error("Error fetching workout details:", error);
@@ -104,71 +111,110 @@ const WorkoutSession: React.FC = () => {
 
   return (
     <DashboardLayout title="Workout Session">
-      <div className="mb-6">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => navigate(-1)}
-          className="mb-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Workouts
-        </Button>
-        
-        {isLoading ? (
-          <>
-            <Skeleton className="h-8 w-64 mb-2" />
-            <Skeleton className="h-4 w-48 mb-4" />
-          </>
-        ) : (
-          <>
-            <h1 className="text-2xl font-bold flex items-center">
-              <Dumbbell className="mr-2 h-6 w-6" />
-              {workout?.name || "Custom Workout"}
-            </h1>
-            {workout?.description && (
-              <p className="text-gray-600 dark:text-gray-400 mt-1 mb-2">
-                {workout.description}
-              </p>
-            )}
-            {workout?.day_of_week !== undefined && (
-              <div className="flex items-center text-sm text-gray-500 mb-4">
-                <Calendar className="h-4 w-4 mr-2" />
-                Scheduled for: {getDayName(workout.day_of_week)}
+      <div className="max-w-4xl mx-auto pb-24"> {/* Add bottom padding for sticky button */}
+        {/* Header Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate(-1)}
+              className="hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Workouts
+            </Button>
+            
+            {!isLoading && workout && (
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span>Active Session</span>
               </div>
             )}
-          </>
+          </div>
+          
+          {isLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-8 w-64" />
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center space-x-3">
+                <div className="h-12 w-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                  <Dumbbell className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                    {workout?.name || "Custom Workout"}
+                  </h1>
+                  {workout?.description && (
+                    <p className="text-gray-600 dark:text-gray-400 mt-1">
+                      {workout.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              {workout?.day_of_week !== undefined && (
+                <div className="flex items-center text-sm text-gray-500 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  <span>Scheduled for: <span className="font-medium">{getDayName(workout.day_of_week)}</span></span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        
+        {/* Content Section */}
+        {isLoading ? (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-12">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-4">
+                <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Loading workout...</h3>
+              <p className="text-gray-500 dark:text-gray-400">Please wait while we prepare your workout session</p>
+            </div>
+          </div>
+        ) : exercises.length > 0 ? (
+          <WorkoutProgress 
+            exercises={exercises}
+            workoutId={workoutId as string}
+            userId={user?.id}
+            onWorkoutCompleted={handleWorkoutCompleted}
+          />
+        ) : (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-12">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
+                <Dumbbell className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">No Exercises Found</h3>
+              <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-6">
+                This workout doesn't have any exercises yet. Add some exercises to get started with your training session.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button 
+                  variant="default"
+                  onClick={() => navigate("/workout-plan")}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Return to Workout Plan
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => navigate("/dashboard")}
+                >
+                  Go to Dashboard
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
-      
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin h-8 w-8 border-4 border-fitness-primary border-t-transparent rounded-full"></div>
-          <span className="ml-2">Loading workout...</span>
-        </div>
-      ) : exercises.length > 0 ? (
-        <WorkoutProgress 
-          exercises={exercises}
-          workoutId={workoutId as string}
-          userId={user?.id}
-          onWorkoutCompleted={handleWorkoutCompleted}
-        />
-      ) : (
-        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
-          <Dumbbell className="h-12 w-12 mx-auto text-gray-400" />
-          <h3 className="mt-4 text-lg font-medium">No Exercises Found</h3>
-          <p className="mt-2 text-gray-500 max-w-sm mx-auto">
-            This workout doesn't have any exercises yet. Add some exercises to get started.
-          </p>
-          <Button 
-            className="mt-4" 
-            variant="default"
-            onClick={() => navigate("/workout-plan")}
-          >
-            Return to Workout Plan
-          </Button>
-        </div>
-      )}
     </DashboardLayout>
   );
 };
