@@ -116,6 +116,25 @@ export const getNearbyStores = async (
     // Calculate distance and convert to Store type
     let stores: Store[] = dbStores.map(store => {
       const storeCoords = store.coordinates as { latitude: number, longitude: number };
+      
+      // Add null check for coordinates
+      if (!storeCoords || typeof storeCoords.latitude !== 'number' || typeof storeCoords.longitude !== 'number') {
+        console.warn(`Store ${store.id} has invalid coordinates:`, storeCoords);
+        // Return a store with default coordinates and max distance
+        return {
+          id: store.id,
+          name: store.name,
+          address: store.address,
+          distance: 999999, // Very far away
+          coordinates: { latitude: 0, longitude: 0 },
+          items: store.items,
+          phone: store.phone,
+          hours: store.hours as { open: string, close: string } || undefined,
+          rating: store.rating,
+          image_url: store.image_url
+        };
+      }
+      
       const distance = calculateDistance(
         latitude, 
         longitude, 
