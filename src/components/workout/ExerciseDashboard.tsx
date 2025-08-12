@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +19,7 @@ const ExerciseDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
   const [selectedExerciseName, setSelectedExerciseName] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("progress");
 
   useEffect(() => {
     const loadExerciseData = async () => {
@@ -76,6 +78,8 @@ const ExerciseDashboard = () => {
     if (selectedExercise) {
       setSelectedExerciseName(selectedExercise.name);
     }
+    // Switch to progress tab when "View Progress" is clicked
+    setActiveTab("progress");
   };
 
   if (loading) {
@@ -112,7 +116,7 @@ const ExerciseDashboard = () => {
 
   return (
     <div className="space-y-4">
-      <Tabs defaultValue="progress" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="progress">Progress Charts</TabsTrigger>
           <TabsTrigger value="summary">Exercise Summary</TabsTrigger>
@@ -121,7 +125,28 @@ const ExerciseDashboard = () => {
         <TabsContent value="progress" className="space-y-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Exercise Progress</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-lg">Exercise Progress</CardTitle>
+                <Select 
+                  value={selectedExerciseId || ''} 
+                  onValueChange={(value) => {
+                    setSelectedExerciseId(value);
+                    const exercise = exerciseData.find(ex => ex.exercise_id === value);
+                    setSelectedExerciseName(exercise?.name || null);
+                  }}
+                >
+                  <SelectTrigger className="w-64">
+                    <SelectValue placeholder="Select an exercise" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {exerciseData.map((exercise) => (
+                      <SelectItem key={exercise.exercise_id} value={exercise.exercise_id}>
+                        {exercise.name} ({exercise.count} times)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent>
               {selectedExerciseId && (
@@ -136,10 +161,7 @@ const ExerciseDashboard = () => {
         
         <TabsContent value="summary">
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Most Used Exercises</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               <KeyExercises 
                 exerciseData={exerciseData} 
                 onExerciseSelect={handleExerciseSelect} 

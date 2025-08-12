@@ -43,8 +43,11 @@ const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
         const data = await getExerciseProgressHistory(user.id, exerciseId, 20);
         
         // Transform data for the chart
-        const formattedData = data.map((log: any) => ({
-          date: format(parseISO(log.completed_at), 'MMM dd'),
+        const formattedData = data.map((log: any, index: number) => ({
+          date: data.length > 10 ? 
+            format(parseISO(log.completed_at), 'MM/dd') : 
+            format(parseISO(log.completed_at), 'MMM dd'),
+          fullDate: format(parseISO(log.completed_at), 'MMM dd, yyyy'),
           weight: log.weight_used || 0,
           reps: log.reps_completed || 0,
           sets: log.sets_completed || 0,
@@ -69,17 +72,25 @@ const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
   
   // Calculate improvements
   const calculateImprovement = (metric: 'weight' | 'reps') => {
-    if (progressData.length < 2) return { value: 0, percentage: 0 };
+    if (progressData.length < 2) return { value: 0, percentage: 0, hasData: false };
     
     const first = progressData[0][metric];
     const last = progressData[progressData.length - 1][metric];
     
-    if (first === 0) return { value: last, percentage: 100 }; // Avoid division by zero
+    // If no meaningful data (both are 0 or same), don't show improvement
+    if (first === 0 && last === 0) return { value: 0, percentage: 0, hasData: false };
+    if (first === last) return { value: 0, percentage: 0, hasData: true };
     
     const improvement = last - first;
+    
+    // If starting from 0, show as new best instead of percentage
+    if (first === 0) {
+      return { value: last, percentage: 0, hasData: true, isNewBest: true };
+    }
+    
     const percentage = Math.round((improvement / first) * 100);
     
-    return { value: improvement, percentage };
+    return { value: improvement, percentage, hasData: true };
   };
   
   const weightImprovement = calculateImprovement('weight');
@@ -93,7 +104,9 @@ const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
             <Skeleton className="h-6 w-1/2" />
             <Skeleton className="h-5 w-16" />
           </CardTitle>
-          <CardDescription><Skeleton className="h-4 w-full" /></CardDescription>
+          <div className="text-sm text-muted-foreground">
+            <Skeleton className="h-4 w-full" />
+          </div>
         </CardHeader>
         <CardContent>
           <Skeleton className="h-[200px] w-full" />
@@ -127,17 +140,27 @@ const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
             <CardDescription>Your progress over time</CardDescription>
           </div>
           {activeMetric === 'weight' ? (
-            <div>
-              <Badge variant={weightImprovement.percentage > 0 ? "default" : "outline"} className="ml-auto">
-                {weightImprovement.percentage > 0 ? '+' : ''}{weightImprovement.value}kg ({weightImprovement.percentage}%)
-              </Badge>
-            </div>
+            weightImprovement.hasData ? (
+              <div>
+                <Badge variant={weightImprovement.value > 0 ? "default" : weightImprovement.value < 0 ? "destructive" : "outline"} className="ml-auto">
+                  {weightImprovement.isNewBest ? 
+                    `${weightImprovement.value}kg best` : 
+                    `${weightImprovement.value > 0 ? '+' : ''}${weightImprovement.value}kg (${weightImprovement.percentage}%)`
+                  }
+                </Badge>
+              </div>
+            ) : null
           ) : (
-            <div>
-              <Badge variant={repsImprovement.percentage > 0 ? "default" : "outline"} className="ml-auto">
-                {repsImprovement.percentage > 0 ? '+' : ''}{repsImprovement.value} reps ({repsImprovement.percentage}%)
-              </Badge>
-            </div>
+            repsImprovement.hasData ? (
+              <div>
+                <Badge variant={repsImprovement.value > 0 ? "default" : repsImprovement.value < 0 ? "destructive" : "outline"} className="ml-auto">
+                  {repsImprovement.isNewBest ? 
+                    `${repsImprovement.value} reps best` : 
+                    `${repsImprovement.value > 0 ? '+' : ''}${repsImprovement.value} reps (${repsImprovement.percentage}%)`
+                  }
+                </Badge>
+              </div>
+            ) : null
           )}
         </div>
       </CardHeader>
@@ -157,7 +180,11 @@ const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
                 <YAxis unit="kg" />
                 <Tooltip
                   formatter={(value: any) => [`${value}kg`, 'Weight']}
-                  labelFormatter={(label) => `Date: ${label}`}
+                  labelFormatter={(label) => {
+                    // Find the data point to get full date
+                    const dataPoint = progressData.find(d => d.date === label);
+                    return dataPoint ? `Date: ${dataPoint.fullDate}` : `Date: ${label}`;
+                  }}
                 />
                 <Legend />
                 <Line
@@ -181,7 +208,11 @@ const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
                 <YAxis />
                 <Tooltip
                   formatter={(value: any, name: any) => [value, name === "reps" ? "Reps" : "Sets"]}
-                  labelFormatter={(label) => `Date: ${label}`}
+                  labelFormatter={(label) => {
+                    // Find the data point to get full date
+                    const dataPoint = progressData.find(d => d.date === label);
+                    return dataPoint ? `Date: ${dataPoint.fullDate}` : `Date: ${label}`;
+                  }}
                 />
                 <Legend />
                 <Line

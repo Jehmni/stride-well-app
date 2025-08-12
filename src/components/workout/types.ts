@@ -107,6 +107,7 @@ export interface WorkoutStatistics {
 
 export interface ChartDataPoint {
   date: string;
+  fullDate?: string;
   weight: number;
   reps: number;
   sets: number;

@@ -652,8 +652,11 @@ export type Database = {
           hips: number | null
           arms: number | null
           thighs: number | null
-          recorded_at: string
+          weight: number | null
+          body_fat_percentage: number | null
+          measured_at: string
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -663,8 +666,11 @@ export type Database = {
           hips?: number | null
           arms?: number | null
           thighs?: number | null
-          recorded_at?: string
+          weight?: number | null
+          body_fat_percentage?: number | null
+          measured_at?: string
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -674,8 +680,11 @@ export type Database = {
           hips?: number | null
           arms?: number | null
           thighs?: number | null
-          recorded_at?: string
+          weight?: number | null
+          body_fat_percentage?: number | null
+          measured_at?: string
           created_at?: string
+          updated_at?: string
         }
         Relationships: [
           {

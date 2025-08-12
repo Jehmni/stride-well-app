@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Save, Activity, Ruler } from "lucide-react";
+import { Plus, Activity, Ruler } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,35 +7,41 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Database } from "@/integrations/supabase/types";
+import { Label } from "@/components/ui/label";
 
-// Define the type based on what the database actually returns
-type BodyMeasurement = {
-  id: string;
-  user_id: string;
-  recorded_at: string; // Keep as recorded_at since that's what DB returns
+// Use the correct type from the database types
+type BodyMeasurement = Database["public"]["Tables"]["body_measurements"]["Row"];
+
+// Type for chart data
+type ChartData = {
+  date: string;
   chest: number | null;
   waist: number | null;
   hips: number | null;
   arms: number | null;
   thighs: number | null;
-  created_at: string;
+  weight: number | null;
+  bodyFat: number | null;
 };
 
 const MeasurementsTracker: React.FC = () => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
-  const [newMeasurement, setNewMeasurement] = useState({
+  const [measurementData, setMeasurementData] = useState({
     chest: "",
     waist: "",
     hips: "",
     arms: "",
-    thighs: ""
+    thighs: "",
+    weight: "",
+    bodyFat: ""
   });
-  const [selectedMetric, setSelectedMetric] = useState<keyof BodyMeasurement>("waist");
+  const [selectedMetric, setSelectedMetric] = useState<keyof ChartData>("waist");
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -52,7 +58,7 @@ const MeasurementsTracker: React.FC = () => {
         .from("body_measurements")
         .select("*")
         .eq("user_id", user.id)
-        .order("recorded_at", { ascending: false });
+        .order("measured_at", { ascending: false });
 
       if (error) throw error;
       setMeasurements(data || []);
@@ -66,8 +72,8 @@ const MeasurementsTracker: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setNewMeasurement({
-      ...newMeasurement,
+    setMeasurementData({
+      ...measurementData,
       [name]: value
     });
   };
@@ -77,53 +83,69 @@ const MeasurementsTracker: React.FC = () => {
     if (!user) return;
 
     try {
-      // Convert empty strings to null and other values to numbers
-      const measurementData = Object.entries(newMeasurement).reduce(
-        (acc, [key, value]) => ({
-          ...acc,
-          [key]: value === "" ? null : parseFloat(value)
-        }),
-        {}
-      );
+      setIsSubmitting(true);
+      
+      // Convert string values to numbers, handling empty strings
+      const measurementDataToInsert = {
+        chest: measurementData.chest ? parseFloat(measurementData.chest) : null,
+        waist: measurementData.waist ? parseFloat(measurementData.waist) : null,
+        hips: measurementData.hips ? parseFloat(measurementData.hips) : null,
+        arms: measurementData.arms ? parseFloat(measurementData.arms) : null,
+        thighs: measurementData.thighs ? parseFloat(measurementData.thighs) : null,
+        weight: measurementData.weight ? parseFloat(measurementData.weight) : null,
+        body_fat_percentage: measurementData.bodyFat ? parseFloat(measurementData.bodyFat) : null
+      };
 
       const { data, error } = await supabase
         .from("body_measurements")
         .insert({
           user_id: user.id,
-          ...measurementData,
-          recorded_at: new Date().toISOString()
+          ...measurementDataToInsert,
+          measured_at: new Date().toISOString()
         })
         .select();
 
       if (error) throw error;
 
-      toast.success("Measurements saved successfully!");
-      setNewMeasurement({
+      // Reset form
+      setMeasurementData({
         chest: "",
         waist: "",
         hips: "",
         arms: "",
-        thighs: ""
+        thighs: "",
+        weight: "",
+        bodyFat: ""
       });
+
+      // Close form and show success message
       setShowAddForm(false);
+      toast.success("Measurements saved successfully!");
+
+      // Refresh measurements
       fetchMeasurements();
     } catch (error) {
-      console.error("Error saving measurements:", error);
-      toast.error("Failed to save measurements");
+      console.error("Error adding measurement:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const prepareChartData = () => {
+  const getChartData = (): ChartData[] => {
+    if (!measurements.length) return [];
+    
     // Sort by date (ascending) for the chart
     return [...measurements]
-      .sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime())
+      .sort((a, b) => new Date(a.measured_at).getTime() - new Date(b.measured_at).getTime())
       .map(m => ({
-        date: format(parseISO(m.recorded_at), "MMM d"),
+        date: format(parseISO(m.measured_at), "MMM d"),
         chest: m.chest,
         waist: m.waist,
         hips: m.hips,
         arms: m.arms,
         thighs: m.thighs,
+        weight: m.weight,
+        bodyFat: m.body_fat_percentage
       }));
   };
 
@@ -133,7 +155,7 @@ const MeasurementsTracker: React.FC = () => {
   };
 
   const mostRecent = getMostRecentMeasurements();
-  const chartData = prepareChartData();
+  const chartData = getChartData();
 
   if (isLoading) {
     return (
@@ -167,79 +189,116 @@ const MeasurementsTracker: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="chest" className="text-sm font-medium">
+                  <Label htmlFor="chest" className="text-sm font-medium">
                     Chest (cm)
-                  </label>
+                  </Label>
                   <Input
                     id="chest"
                     name="chest"
                     type="number"
                     step="0.1"
                     placeholder="e.g., 100.5"
-                    value={newMeasurement.chest}
+                    value={measurementData.chest}
                     onChange={handleInputChange}
                   />
                 </div>
                 <div>
-                  <label htmlFor="waist" className="text-sm font-medium">
+                  <Label htmlFor="waist" className="text-sm font-medium">
                     Waist (cm)
-                  </label>
+                  </Label>
                   <Input
                     id="waist"
                     name="waist"
                     type="number"
                     step="0.1"
                     placeholder="e.g., 80.5"
-                    value={newMeasurement.waist}
+                    value={measurementData.waist}
                     onChange={handleInputChange}
                   />
                 </div>
                 <div>
-                  <label htmlFor="hips" className="text-sm font-medium">
+                  <Label htmlFor="hips" className="text-sm font-medium">
                     Hips (cm)
-                  </label>
+                  </Label>
                   <Input
                     id="hips"
                     name="hips"
                     type="number"
                     step="0.1"
                     placeholder="e.g., 95.0"
-                    value={newMeasurement.hips}
+                    value={measurementData.hips}
                     onChange={handleInputChange}
                   />
                 </div>
                 <div>
-                  <label htmlFor="arms" className="text-sm font-medium">
+                  <Label htmlFor="arms" className="text-sm font-medium">
                     Arms (cm)
-                  </label>
+                  </Label>
                   <Input
                     id="arms"
                     name="arms"
                     type="number"
                     step="0.1"
                     placeholder="e.g., 35.5"
-                    value={newMeasurement.arms}
+                    value={measurementData.arms}
                     onChange={handleInputChange}
                   />
                 </div>
                 <div>
-                  <label htmlFor="thighs" className="text-sm font-medium">
+                  <Label htmlFor="thighs" className="text-sm font-medium">
                     Thighs (cm)
-                  </label>
+                  </Label>
                   <Input
                     id="thighs"
                     name="thighs"
                     type="number"
                     step="0.1"
                     placeholder="e.g., 55.0"
-                    value={newMeasurement.thighs}
+                    value={measurementData.thighs}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="weight" className="text-sm font-medium">
+                    Weight (kg)
+                  </Label>
+                  <Input
+                    id="weight"
+                    name="weight"
+                    type="number"
+                    step="0.1"
+                    placeholder="e.g., 70.5"
+                    value={measurementData.weight}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bodyFat" className="text-sm font-medium">
+                    Body Fat %
+                  </Label>
+                  <Input
+                    id="bodyFat"
+                    name="bodyFat"
+                    type="number"
+                    step="0.1"
+                    placeholder="e.g., 15.0"
+                    value={measurementData.bodyFat}
                     onChange={handleInputChange}
                   />
                 </div>
                 <div className="col-span-2">
-                  <Button type="submit" className="w-full">
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Measurements
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? "Saving..." : "Save Measurements"}
+                  </Button>
+                </div>
+                <div className="col-span-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => setShowAddForm(false)}
+                  >
+                    Cancel
                   </Button>
                 </div>
               </div>
@@ -335,24 +394,37 @@ const MeasurementsTracker: React.FC = () => {
                   >
                     Thighs
                   </Button>
+                  <Button 
+                    variant={selectedMetric === "weight" ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => setSelectedMetric("weight")}
+                  >
+                    Weight
+                  </Button>
+                  <Button 
+                    variant={selectedMetric === "bodyFat" ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => setSelectedMetric("bodyFat")}
+                  >
+                    Body Fat %
+                  </Button>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" />
                     <YAxis />
                     <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey={selectedMetric}
-                      stroke="#8884d8"
-                      activeDot={{ r: 8 }}
+                    <Line 
+                      type="monotone" 
+                      dataKey={selectedMetric} 
+                      stroke="#8884d8" 
                       strokeWidth={2}
+                      dot={{ fill: "#8884d8", strokeWidth: 2, r: 4 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -369,26 +441,30 @@ const MeasurementsTracker: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b">
-                      <th className="py-3 px-4 text-left">Date</th>
-                      <th className="py-3 px-4 text-right">Chest (cm)</th>
-                      <th className="py-3 px-4 text-right">Waist (cm)</th>
-                      <th className="py-3 px-4 text-right">Hips (cm)</th>
-                      <th className="py-3 px-4 text-right">Arms (cm)</th>
-                      <th className="py-3 px-4 text-right">Thighs (cm)</th>
+                    <tr className="border-b bg-muted/50">
+                      <th className="py-3 px-4 text-left font-medium">Date</th>
+                      <th className="py-3 px-4 text-right font-medium">Chest</th>
+                      <th className="py-3 px-4 text-right font-medium">Waist</th>
+                      <th className="py-3 px-4 text-right font-medium">Hips</th>
+                      <th className="py-3 px-4 text-right font-medium">Arms</th>
+                      <th className="py-3 px-4 text-right font-medium">Thighs</th>
+                      <th className="py-3 px-4 text-right font-medium">Weight</th>
+                      <th className="py-3 px-4 text-right font-medium">Body Fat %</th>
                     </tr>
                   </thead>
                   <tbody>
                     {measurements.map((measurement) => (
                       <tr key={measurement.id} className="border-b">
                         <td className="py-3 px-4">
-                          {format(parseISO(measurement.recorded_at), "MMM d, yyyy")}
+                          {format(parseISO(measurement.measured_at), "MMM d, yyyy")}
                         </td>
                         <td className="py-3 px-4 text-right">{measurement.chest || "-"}</td>
                         <td className="py-3 px-4 text-right">{measurement.waist || "-"}</td>
                         <td className="py-3 px-4 text-right">{measurement.hips || "-"}</td>
                         <td className="py-3 px-4 text-right">{measurement.arms || "-"}</td>
                         <td className="py-3 px-4 text-right">{measurement.thighs || "-"}</td>
+                        <td className="py-3 px-4 text-right">{measurement.weight || "-"}</td>
+                        <td className="py-3 px-4 text-right">{measurement.body_fat_percentage || "-"}</td>
                       </tr>
                     ))}
                   </tbody>
