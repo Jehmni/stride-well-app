@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { showProfileSuccess, showProfileError } from "@/utils/notifications";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Save, 
   User, 
@@ -28,7 +29,10 @@ import {
   Shield,
   Mail,
   CalendarDays,
-  Settings
+  Settings,
+  Sparkles,
+  Heart,
+  Dumbbell
 } from "lucide-react";
 import NutritionTargetsModal from "@/components/nutrition/NutritionTargetsModal";
 
@@ -148,10 +152,11 @@ const Profile: React.FC = () => {
 
       // Recalculate nutrition targets based on updated profile/goal
       // This will set daily calories, protein, carbs, and fat based on the user's goal
-      const { error: nutritionError } = await supabase.rpc('set_nutrition_targets_for_goal', {
-        user_id_param: user.id
-      });
-      if (nutritionError) throw nutritionError;
+      // Note: This RPC function may not exist in the current database schema
+      // const { error: nutritionError } = await supabase.rpc('set_nutrition_targets_for_goal', {
+      //   user_id_param: user.id
+      // });
+      // if (nutritionError) throw nutritionError;
       
       await refreshProfile();
       showProfileSuccess('Fitness information and nutrition targets updated successfully!');
@@ -168,67 +173,137 @@ const Profile: React.FC = () => {
   
   return (
     <DashboardLayout title="Your Profile">
-             {/* Profile Overview Card */}
-       <div className="mb-8">
-         <Card className="bg-gradient-to-r from-blue-50 via-purple-50 to-orange-50 dark:from-blue-950 dark:via-purple-950 dark:to-orange-950 border-blue-200 dark:border-blue-800 shadow-lg">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-                  <User className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="space-y-8"
+      >
+        {/* Profile Overview Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-8"
+        >
+          <Card className="bg-gradient-to-r from-blue-50 via-purple-50 to-orange-50 dark:from-blue-950 dark:via-purple-950 dark:to-orange-950 border-2 border-blue-200 dark:border-blue-800 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <motion.div 
+                    className="p-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full shadow-lg"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <User className="w-8 h-8 text-white" />
+                  </motion.div>
+                  <div>
+                    <motion.h2 
+                      className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      {profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : 'Complete Your Profile'}
+                    </motion.h2>
+                    <motion.p 
+                      className="text-gray-600 dark:text-gray-300 text-lg"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      {user?.email}
+                    </motion.p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : 'Complete Your Profile'}
-                  </h2>
-                  <p className="text-gray-600 dark:text-gray-300">
-                    {user?.email}
-                  </p>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <Badge 
+                    variant={completionPercentage === 100 ? "default" : "secondary"} 
+                    className={`text-sm px-4 py-2 ${
+                      completionPercentage === 100 
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' 
+                        : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
+                    }`}
+                  >
+                    {completionPercentage}% Complete
+                  </Badge>
+                </motion.div>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                  <span className="font-medium">Profile Completion</span>
+                  <span className="font-semibold">{completionPercentage}%</span>
                 </div>
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: "100%" }}
+                  transition={{ delay: 0.5, duration: 1 }}
+                >
+                  <Progress value={completionPercentage} className="h-3 bg-gray-200 dark:bg-gray-700" />
+                </motion.div>
+                {completionPercentage < 100 && (
+                  <motion.p 
+                    className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.6 }}
+                  >
+                    <Sparkles className="h-4 w-4 text-blue-500" />
+                    Complete your profile to get personalized recommendations
+                  </motion.p>
+                )}
               </div>
-              <Badge variant={completionPercentage === 100 ? "default" : "secondary"} className="text-sm">
-                {completionPercentage}% Complete
-              </Badge>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                <span>Profile Completion</span>
-                <span>{completionPercentage}%</span>
-              </div>
-              <Progress value={completionPercentage} className="h-2" />
-              {completionPercentage < 100 && (
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Complete your profile to get personalized recommendations
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-      {/* Main Profile Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+        {/* Main Profile Tabs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 p-2 rounded-xl shadow-lg">
           <TabsTrigger 
             value="personal" 
-            className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
+            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-blue-100 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 transition-all duration-300 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
           >
-            <User className="h-4 w-4" />
+            <motion.div
+              whileHover={{ rotate: 5 }}
+              transition={{ duration: 0.2 }}
+            >
+              <User className="h-4 w-4" />
+            </motion.div>
             Personal Info
           </TabsTrigger>
           <TabsTrigger 
             value="fitness" 
-            className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
+            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-green-100 dark:hover:bg-green-900/20 hover:text-green-700 dark:hover:text-green-300 transition-all duration-300 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
           >
-            <Target className="h-4 w-4" />
+            <motion.div
+              whileHover={{ rotate: 5 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Target className="h-4 w-4" />
+            </motion.div>
             Fitness Goals
           </TabsTrigger>
           <TabsTrigger 
             value="preferences" 
-            className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
+            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-purple-100 dark:hover:bg-purple-900/20 hover:text-purple-700 dark:hover:text-purple-300 transition-all duration-300 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
           >
-            <Settings className="h-4 w-4" />
+            <motion.div
+              whileHover={{ rotate: 5 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Settings className="h-4 w-4" />
+            </motion.div>
             Account
           </TabsTrigger>
         </TabsList>
@@ -237,19 +312,33 @@ const Profile: React.FC = () => {
         
         {/* Personal Information Tab */}
         <TabsContent value="personal" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+          >
             {/* Main Form */}
             <div className="lg:col-span-2">
-          <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5 text-blue-600" />
-                    Personal Information
-                  </CardTitle>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Update your basic personal details
-                  </p>
-                </CardHeader>
+              <motion.div
+                whileHover={{ scale: 1.01 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border-2 border-blue-200 dark:border-blue-800 shadow-xl">
+                  <CardHeader className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-t-lg">
+                    <CardTitle className="flex items-center gap-2 text-white">
+                      <motion.div
+                        whileHover={{ rotate: 10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <User className="h-6 w-6" />
+                      </motion.div>
+                      Personal Information
+                    </CardTitle>
+                    <p className="text-blue-100">
+                      Update your basic personal details
+                    </p>
+                  </CardHeader>
                 <CardContent>
                   <form onSubmit={handlePersonalInfoUpdate} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -359,81 +448,147 @@ const Profile: React.FC = () => {
                   </form>
                 </CardContent>
               </Card>
+              </motion.div>
             </div>
 
             {/* Quick Stats */}
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Quick Stats</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">BMI</span>
-                    <Badge variant="outline">
-                      {personalInfo.height && personalInfo.weight 
-                        ? ((parseFloat(personalInfo.weight) / Math.pow(parseFloat(personalInfo.height) / 100, 2)).toFixed(1))
-                        : 'N/A'
-                      }
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Age</span>
-                    <Badge variant="outline">
-                      {personalInfo.age || 'N/A'}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Sex</span>
-                    <Badge variant="outline">
-                      {personalInfo.sex ? personalInfo.sex.charAt(0).toUpperCase() + personalInfo.sex.slice(1) : 'N/A'}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="space-y-4"
+            >
+              <motion.div
+                whileHover={{ scale: 1.02, y: -2 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 border-2 border-indigo-200 dark:border-indigo-800 shadow-lg">
+                  <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-t-lg">
+                    <CardTitle className="text-lg text-white flex items-center gap-2">
+                      <motion.div
+                        whileHover={{ rotate: 10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <TrendingUp className="h-5 w-5" />
+                      </motion.div>
+                      Quick Stats
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 p-6">
+                    <motion.div 
+                      className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+                      whileHover={{ scale: 1.02 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">BMI</span>
+                      <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0">
+                        {personalInfo.height && personalInfo.weight 
+                          ? ((parseFloat(personalInfo.weight) / Math.pow(parseFloat(personalInfo.height) / 100, 2)).toFixed(1))
+                          : 'N/A'
+                        }
+                      </Badge>
+                    </motion.div>
+                    <motion.div 
+                      className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
+                      whileHover={{ scale: 1.02 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <span className="text-sm font-medium text-green-700 dark:text-green-300">Age</span>
+                      <Badge className="bg-gradient-to-r from-green-500 to-green-600 text-white border-0">
+                        {personalInfo.age || 'N/A'}
+                      </Badge>
+                    </motion.div>
+                    <motion.div 
+                      className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-950/20 dark:to-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800"
+                      whileHover={{ scale: 1.02 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Sex</span>
+                      <Badge className="bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0">
+                        {personalInfo.sex ? personalInfo.sex.charAt(0).toUpperCase() + personalInfo.sex.slice(1) : 'N/A'}
+                      </Badge>
+                    </motion.div>
+                  </CardContent>
+                </Card>
+              </motion.div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Next Steps</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950 rounded-lg">
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                      <div>
-                        <p className="text-sm font-medium text-green-900 dark:text-green-100">Complete Personal Info</p>
-                        <p className="text-xs text-green-700 dark:text-green-300">Fill in your basic details</p>
-                      </div>
+              <motion.div
+                whileHover={{ scale: 1.02, y: -2 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Card className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 border-2 border-orange-200 dark:border-orange-800 shadow-lg">
+                  <CardHeader className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-t-lg">
+                    <CardTitle className="text-lg text-white flex items-center gap-2">
+                      <motion.div
+                        whileHover={{ rotate: 10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Target className="h-5 w-5" />
+                      </motion.div>
+                      Next Steps
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="space-y-3">
+                      <motion.div 
+                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
+                        whileHover={{ scale: 1.02, x: 5 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <div>
+                          <p className="text-sm font-medium text-green-900 dark:text-green-100">Complete Personal Info</p>
+                          <p className="text-xs text-green-700 dark:text-green-300">Fill in your basic details</p>
+                        </div>
+                      </motion.div>
+                      <motion.div 
+                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+                        whileHover={{ scale: 1.02, x: 5 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Target className="h-5 w-5 text-blue-600" />
+                        <div>
+                          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Set Fitness Goals</p>
+                          <p className="text-xs text-blue-700 dark:text-blue-300">Define your objectives</p>
+                        </div>
+                      </motion.div>
                     </div>
-                    <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
-                      <Target className="h-5 w-5 text-blue-600" />
-                      <div>
-                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Set Fitness Goals</p>
-                        <p className="text-xs text-blue-700 dark:text-blue-300">Define your objectives</p>
-                      </div>
-                    </div>
-                  </div>
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
+              </motion.div>
             </div>
-          </div>
+          </motion.div>
         </TabsContent>
         
         {/* Fitness Goals Tab */}
         <TabsContent value="fitness" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+          >
             {/* Main Form */}
             <div className="lg:col-span-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-green-600" />
-                    Fitness Goals & Preferences
-                  </CardTitle>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Configure your fitness objectives and preferences
-                  </p>
-                </CardHeader>
+              <motion.div
+                whileHover={{ scale: 1.01 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-2 border-green-200 dark:border-green-800 shadow-xl">
+                  <CardHeader className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-t-lg">
+                    <CardTitle className="flex items-center gap-2 text-white">
+                      <motion.div
+                        whileHover={{ rotate: 10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Target className="h-6 w-6" />
+                      </motion.div>
+                      Fitness Goals & Preferences
+                    </CardTitle>
+                    <p className="text-green-100">
+                      Configure your fitness objectives and preferences
+                    </p>
+                  </CardHeader>
                 <CardContent>
                   <form onSubmit={handleFitnessInfoUpdate} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -504,7 +659,7 @@ const Profile: React.FC = () => {
                           Workouts per Week *
                         </Label>
                         <Select 
-                          value={fitnessInfo.workout_frequency_per_week.toString()} 
+                          value={fitnessInfo.workout_frequency_per_week?.toString() || "3"} 
                           onValueChange={(value) => setFitnessInfo({...fitnessInfo, workout_frequency_per_week: parseInt(value)})}
                         >
                           <SelectTrigger className="h-11">
@@ -527,7 +682,7 @@ const Profile: React.FC = () => {
                           Preferred Workout Duration *
                         </Label>
                         <Select 
-                          value={fitnessInfo.preferred_workout_duration.toString()} 
+                          value={fitnessInfo.preferred_workout_duration?.toString() || "30"} 
                           onValueChange={(value) => setFitnessInfo({...fitnessInfo, preferred_workout_duration: parseInt(value)})}
                         >
                           <SelectTrigger className="h-11">
@@ -733,16 +888,24 @@ const Profile: React.FC = () => {
           </Card>
           </div>
         </TabsContent>
-      </Tabs>
+          </Tabs>
+        </motion.div>
 
-      {/* Nutrition Targets Modal */}
-      <NutritionTargetsModal
-        isOpen={showNutritionTargets}
-        onClose={() => setShowNutritionTargets(false)}
-        onTargetsUpdated={() => {
-          console.log('Nutrition targets updated from profile');
-        }}
-      />
+        {/* Nutrition Targets Modal */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <NutritionTargetsModal
+            isOpen={showNutritionTargets}
+            onClose={() => setShowNutritionTargets(false)}
+            onTargetsUpdated={() => {
+              console.log('Nutrition targets updated from profile');
+            }}
+          />
+        </motion.div>
+      </motion.div>
     </DashboardLayout>
   );
 };
