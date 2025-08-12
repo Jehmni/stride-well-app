@@ -125,11 +125,13 @@ export const generateAIWorkoutPlan = async (userProfile: UserProfile): Promise<W
     const { data: insertedPlan, error: insertError } = await supabase
       .from('workout_plans')
       .insert({
+        name: processedPlan.title, // Add the required name field
         title: processedPlan.title,
         description: processedPlan.description,
         fitness_goal: processedPlan.fitness_goal,
         weekly_structure: processedPlan.weekly_structure as any,
         exercises: processedPlan.exercises as any,
+        user_id: userProfile.id, // Add the required user_id field
         ai_generated: true,
         created_at: new Date().toISOString()
       })

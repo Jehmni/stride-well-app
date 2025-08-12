@@ -331,43 +331,91 @@ export type Database = {
       }
       user_profiles: {
         Row: {
-          age: number
-          avatar_url: string | null
-          created_at: string
-          first_name: string | null
-          fitness_goal: string
-          height: number
           id: string
+          email: string | null
+          full_name: string | null
+          first_name: string | null
           last_name: string | null
-          sex: string
+          avatar_url: string | null
+          date_of_birth: string | null
+          gender: string | null
+          height: number | null
+          weight: number | null
+          fitness_level: string
+          fitness_goals: string[] | null
+          preferred_workout_types: string[] | null
+          available_equipment: string[] | null
+          workout_frequency_per_week: number
+          preferred_workout_duration: number
+          dietary_preferences: string[] | null
+          dietary_restrictions: string[] | null
+          activity_level: string
+          timezone: string
+          fitness_goal: string | null
+          age: number | null
+          sex: string | null
+          units: string
+          onboarding_completed: boolean
+          created_at: string
           updated_at: string
-          weight: number
         }
         Insert: {
-          age: number
-          avatar_url?: string | null
-          created_at?: string
-          first_name?: string | null
-          fitness_goal: string
-          height: number
           id: string
+          email?: string | null
+          full_name?: string | null
+          first_name?: string | null
           last_name?: string | null
-          sex: string
+          avatar_url?: string | null
+          date_of_birth?: string | null
+          gender?: string | null
+          height?: number | null
+          weight?: number | null
+          fitness_level?: string
+          fitness_goals?: string[] | null
+          preferred_workout_types?: string[] | null
+          available_equipment?: string[] | null
+          workout_frequency_per_week?: number
+          preferred_workout_duration?: number
+          dietary_preferences?: string[] | null
+          dietary_restrictions?: string[] | null
+          activity_level?: string
+          timezone?: string
+          fitness_goal?: string | null
+          age?: number | null
+          sex?: string | null
+          units?: string
+          onboarding_completed?: boolean
+          created_at?: string
           updated_at?: string
-          weight: number
         }
         Update: {
-          age?: number
-          avatar_url?: string | null
-          created_at?: string
-          first_name?: string | null
-          fitness_goal?: string
-          height?: number
           id?: string
+          email?: string | null
+          full_name?: string | null
+          first_name?: string | null
           last_name?: string | null
-          sex?: string
+          avatar_url?: string | null
+          date_of_birth?: string | null
+          gender?: string | null
+          height?: number | null
+          weight?: number | null
+          fitness_level?: string
+          fitness_goals?: string[] | null
+          preferred_workout_types?: string[] | null
+          available_equipment?: string[] | null
+          workout_frequency_per_week?: number
+          preferred_workout_duration?: number
+          dietary_preferences?: string[] | null
+          dietary_restrictions?: string[] | null
+          activity_level?: string
+          timezone?: string
+          fitness_goal?: string | null
+          age?: number | null
+          sex?: string | null
+          units?: string
+          onboarding_completed?: boolean
+          created_at?: string
           updated_at?: string
-          weight?: number
         }
         Relationships: []
       }
@@ -481,40 +529,70 @@ export type Database = {
       }
       workout_plans: {
         Row: {
-          ai_generated: boolean | null
-          created_at: string | null
-          description: string | null
-          exercises: Json
-          fitness_goal: string
           id: string
-          title: string
-          updated_at: string | null
           user_id: string | null
-          weekly_structure: Json
+          name: string
+          description: string | null
+          status: string | null
+          workout_template_id: string | null
+          start_date: string | null
+          end_date: string | null
+          scheduled_days: string[] | null
+          is_public: boolean | null
+          title: string | null
+          ai_generated: boolean | null
+          fitness_goal: string | null
+          weekly_structure: Json | null
+          exercises: Json | null
+          target_muscle_groups: string[] | null
+          estimated_calories: number | null
+          difficulty_level: string | null
+          created_at: string | null
+          updated_at: string | null
         }
         Insert: {
-          ai_generated?: boolean | null
-          created_at?: string | null
-          description?: string | null
-          exercises: Json
-          fitness_goal: string
           id?: string
-          title: string
-          updated_at?: string | null
           user_id?: string | null
-          weekly_structure: Json
+          name: string
+          description?: string | null
+          status?: string | null
+          workout_template_id?: string | null
+          start_date?: string | null
+          end_date?: string | null
+          scheduled_days?: string[] | null
+          is_public?: boolean | null
+          title?: string | null
+          ai_generated?: boolean | null
+          fitness_goal?: string | null
+          weekly_structure?: Json | null
+          exercises?: Json | null
+          target_muscle_groups?: string[] | null
+          estimated_calories?: number | null
+          difficulty_level?: string | null
+          created_at?: string | null
+          updated_at?: string | null
         }
         Update: {
-          ai_generated?: boolean | null
-          created_at?: string | null
-          description?: string | null
-          exercises?: Json
-          fitness_goal?: string
           id?: string
-          title?: string
-          updated_at?: string | null
           user_id?: string | null
-          weekly_structure?: Json
+          name?: string
+          description?: string | null
+          status?: string | null
+          workout_template_id?: string | null
+          start_date?: string | null
+          end_date?: string | null
+          scheduled_days?: string[] | null
+          is_public?: boolean | null
+          title?: string | null
+          ai_generated?: boolean | null
+          fitness_goal?: string | null
+          weekly_structure?: Json | null
+          exercises?: Json | null
+          target_muscle_groups?: string[] | null
+          estimated_calories?: number | null
+          difficulty_level?: string | null
+          created_at?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {

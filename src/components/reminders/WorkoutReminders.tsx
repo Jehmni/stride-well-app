@@ -18,7 +18,10 @@ import {
   isNotificationSupported,
   requestNotificationPermission,
   registerReminderServiceWorker,
-  scheduleLocalNotification
+  scheduleReminder,
+  cancelReminder,
+  updateReminder,
+  testNotification
 } from "@/services/notificationService";
 
 interface Reminder {
@@ -86,6 +89,15 @@ const WorkoutReminders: React.FC = () => {
       if (error) throw error;
       
       setReminders(data || []);
+      
+      // Sync reminders with service worker if notifications are enabled
+      if (notificationsSupported && notificationsPermission && data) {
+        for (const reminder of data) {
+          if (reminder.is_enabled) {
+            await scheduleReminder(reminder);
+          }
+        }
+      }
     } catch (error) {
       console.error('Error fetching reminders:', error);
       toast.error('Failed to load your reminders');
@@ -139,18 +151,16 @@ const WorkoutReminders: React.FC = () => {
       
       // Schedule the notification if permission is granted
       if (notificationsSupported && notificationsPermission) {
-        const reminderTime = new Date(`${formattedDate}T${time}`);
-        
-        await scheduleLocalNotification(
+        await scheduleReminder({
+          id: data.id,
           title,
-          {
-            body: selectedWorkoutPlanId 
-              ? `Time for your workout: ${getWorkoutPlanTitle(selectedWorkoutPlanId)}`
-              : 'Time for your workout!',
-            timestamp: reminderTime.getTime(),
-            workoutPlanId: selectedWorkoutPlanId
-          }
-        );
+          scheduled_date: formattedDate,
+          scheduled_time: time,
+          is_recurring: isRecurring,
+          recurrence_pattern: isRecurring ? recurrencePattern : undefined,
+          workout_plan_id: selectedWorkoutPlanId,
+          is_enabled: true
+        });
       } else if (notificationsSupported && !notificationsPermission) {
         // Ask for permission
         const granted = await requestNotificationPermission();
@@ -158,18 +168,16 @@ const WorkoutReminders: React.FC = () => {
         
         if (granted) {
           // If permission was just granted, schedule the notification
-          const reminderTime = new Date(`${formattedDate}T${time}`);
-          
-          await scheduleLocalNotification(
+          await scheduleReminder({
+            id: data.id,
             title,
-            {
-              body: selectedWorkoutPlanId 
-                ? `Time for your workout: ${getWorkoutPlanTitle(selectedWorkoutPlanId)}`
-                : 'Time for your workout!',
-              timestamp: reminderTime.getTime(),
-              workoutPlanId: selectedWorkoutPlanId
-            }
-          );
+            scheduled_date: formattedDate,
+            scheduled_time: time,
+            is_recurring: isRecurring,
+            recurrence_pattern: isRecurring ? recurrencePattern : undefined,
+            workout_plan_id: selectedWorkoutPlanId,
+            is_enabled: true
+          });
         }
       }
       
@@ -194,9 +202,19 @@ const WorkoutReminders: React.FC = () => {
 
       if (error) throw error;
       
-      setReminders(reminders.map(reminder => 
-        reminder.id === id ? { ...reminder, is_enabled: !isEnabled } : reminder
-      ));
+      const updatedReminder = reminders.find(r => r.id === id);
+      if (updatedReminder) {
+        const reminderWithToggle = { ...updatedReminder, is_enabled: !isEnabled };
+        
+        // Update the service worker
+        if (notificationsSupported && notificationsPermission) {
+          await updateReminder(reminderWithToggle);
+        }
+        
+        setReminders(reminders.map(reminder => 
+          reminder.id === id ? reminderWithToggle : reminder
+        ));
+      }
       
       toast.success(`Reminder ${!isEnabled ? 'enabled' : 'disabled'}`);
     } catch (error) {
@@ -213,6 +231,11 @@ const WorkoutReminders: React.FC = () => {
         .eq('id', id);
 
       if (error) throw error;
+      
+      // Cancel the reminder in the service worker
+      if (notificationsSupported && notificationsPermission) {
+        await cancelReminder(id);
+      }
       
       setReminders(reminders.filter(reminder => reminder.id !== id));
       toast.success('Reminder deleted');
@@ -268,6 +291,35 @@ const WorkoutReminders: React.FC = () => {
           {notificationsSupported === false && (
             <div className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 p-3 rounded mb-4 text-sm">
               Your browser doesn't support notifications. Reminders will be stored but you won't receive alerts.
+            </div>
+          )}
+          
+          {notificationsSupported && (
+            <div className="flex items-center justify-between p-3 rounded border bg-muted/10 mb-4">
+              <div className="text-sm">
+                <span className="font-medium">Notifications:</span> {notificationsPermission ? 'Enabled' : 'Disabled'}
+              </div>
+              <div className="flex gap-2">
+                {!notificationsPermission && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={async () => {
+                      const granted = await requestNotificationPermission();
+                      setNotificationsPermission(granted);
+                    }}
+                  >
+                    Enable Notifications
+                  </Button>
+                )}
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={testNotification}
+                >
+                  Test Notification
+                </Button>
+              </div>
             </div>
           )}
           <div className="space-y-4">

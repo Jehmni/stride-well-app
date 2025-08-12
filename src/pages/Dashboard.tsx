@@ -7,6 +7,7 @@ import NutritionCard from "@/components/dashboard/NutritionCard";
 import AIWorkoutCard from "@/components/dashboard/AIWorkoutCard";
 import StatsCard from "@/components/dashboard/StatsCard";
 import WorkoutStatistics from "@/components/workout/WorkoutStatistics";
+import RemindersWidget from "@/components/dashboard/RemindersWidget";
 import { useAuth } from "@/hooks/useAuth";
 import { calculateBMI, getBMICategory } from "@/utils/healthCalculations";
 import { generatePersonalizedWorkoutPlan } from "@/services/workoutService";
@@ -180,6 +181,11 @@ const Dashboard: React.FC = () => {
       {/* Workout Progress Statistics */}
       <div className="mb-8">
         <WorkoutStatistics onViewAllProgress={() => navigate('/progress')} />
+      </div>
+
+      {/* Reminders Widget */}
+      <div className="mb-8">
+        <RemindersWidget />
       </div>
 
       {/* Upcoming Workouts */}

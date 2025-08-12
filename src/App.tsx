@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import NotificationManager from "@/components/ui/NotificationManager";
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
@@ -82,6 +83,7 @@ const AIWorkoutDetail = withErrorBoundary(preloadModule(() => import("./pages/ai
 const AIWorkoutGeneration = withErrorBoundary(preloadModule(() => import("./pages/ai/AIWorkoutGenerationPage")), { level: 'page' });
 const CreateAIWorkout = withErrorBoundary(preloadModule(() => import("./pages/CreateAIWorkout")), { level: 'page' });
 const Reminders = withErrorBoundary(preloadModule(() => import("./pages/Reminders")), { level: 'page' });
+const EnhancedRemindersDemo = withErrorBoundary(preloadModule(() => import("./pages/EnhancedRemindersDemo")), { level: 'page' });
 
 // Simple error boundary for catching chunk loading errors
 class ChunkErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
@@ -252,6 +254,9 @@ function App() {
             <BrowserRouter>
             <ChunkErrorBoundary>
               <Suspense fallback={<LoadingSpinner />}>
+                {/* Global Notification Manager */}
+                <NotificationManager position="top-right" maxNotifications={5} />
+                
                 <Routes>
                   {/* Public Routes - Index is not lazy loaded */}
                   <Route path={ROUTES.HOME} element={<Index />} />
@@ -376,6 +381,14 @@ function App() {
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <Reminders />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/enhanced-reminders-demo" 
+                    element={
+                      <ProtectedRoute requiresOnboarding={true}>
+                        <EnhancedRemindersDemo />
                       </ProtectedRoute>
                     } 
                   />

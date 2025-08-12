@@ -238,6 +238,7 @@ async function saveAIWorkoutPlan(
     console.log("Inserting AI workout plan into database...");    const { data: insertedPlan, error } = await supabase
       .from('workout_plans')
       .insert({
+        name: processedPlan.title, // Add the required name field
         title: processedPlan.title,
         description: processedPlan.description,
         fitness_goal: processedPlan.fitness_goal,

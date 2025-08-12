@@ -43,15 +43,18 @@ export const registerReminderServiceWorker = async (): Promise<ServiceWorkerRegi
 };
 
 /**
- * Schedule a local notification
+ * Schedule a reminder notification
  */
-export const scheduleLocalNotification = async (
-  title: string,
-  options: {
-    body: string;
-    timestamp: number;
-    workoutPlanId?: string;
-    actions?: {action: string; title: string}[];
+export const scheduleReminder = async (
+  reminder: {
+    id: string;
+    title: string;
+    scheduled_date: string;
+    scheduled_time: string;
+    is_recurring: boolean;
+    recurrence_pattern?: string;
+    workout_plan_id?: string;
+    is_enabled: boolean;
   }
 ): Promise<boolean> => {
   if (!isNotificationSupported()) {
@@ -61,43 +64,81 @@ export const scheduleLocalNotification = async (
   try {
     const registration = await navigator.serviceWorker.ready;
     
-    if ('showNotification' in registration) {
-      const now = Date.now();
-      const delay = Math.max(0, options.timestamp - now);
-      
-      if (delay > 0) {
-        // For a demo version, we'll use setTimeout,
-        // In a real app this would use IndexedDB to persist
-        setTimeout(() => {
-          registration.showNotification(title, {
-            ...options,
-            icon: '/favicon.ico',
-            badge: '/favicon.ico',
-            data: {
-              url: options.workoutPlanId ? `/workouts/ai/${options.workoutPlanId}` : '/workouts',
-              workoutPlanId: options.workoutPlanId
-            },
-            vibrate: [200, 100, 200],
-            actions: options.actions || [
-              {
-                action: 'view',
-                title: 'View Workout'
-              },
-              {
-                action: 'close',
-                title: 'Dismiss'
-              }
-            ]
-          });
-        }, delay);
-      }
-      
+    // Send message to service worker to store the reminder
+    if (registration.active) {
+      registration.active.postMessage({
+        type: 'STORE_REMINDER',
+        reminder
+      });
       return true;
     }
     
     return false;
   } catch (error) {
-    console.error('Error scheduling notification:', error);
+    console.error('Error scheduling reminder:', error);
+    return false;
+  }
+};
+
+/**
+ * Cancel a specific reminder
+ */
+export const cancelReminder = async (reminderId: string): Promise<boolean> => {
+  if (!isNotificationSupported()) {
+    return false;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    
+    if (registration.active) {
+      registration.active.postMessage({
+        type: 'DELETE_REMINDER',
+        id: reminderId
+      });
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error canceling reminder:', error);
+    return false;
+  }
+};
+
+/**
+ * Update an existing reminder
+ */
+export const updateReminder = async (
+  reminder: {
+    id: string;
+    title: string;
+    scheduled_date: string;
+    scheduled_time: string;
+    is_recurring: boolean;
+    recurrence_pattern?: string;
+    workout_plan_id?: string;
+    is_enabled: boolean;
+  }
+): Promise<boolean> => {
+  if (!isNotificationSupported()) {
+    return false;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    
+    if (registration.active) {
+      registration.active.postMessage({
+        type: 'UPDATE_REMINDER',
+        reminder
+      });
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error updating reminder:', error);
     return false;
   }
 };
@@ -120,6 +161,33 @@ export const cancelAllNotifications = async (): Promise<boolean> => {
     return false;
   } catch (error) {
     console.error('Error canceling notifications:', error);
+    return false;
+  }
+};
+
+/**
+ * Test notification (for debugging)
+ */
+export const testNotification = async (): Promise<boolean> => {
+  if (!isNotificationSupported()) {
+    return false;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    
+    if ('showNotification' in registration) {
+      await registration.showNotification('Test Notification', {
+        body: 'This is a test notification from CorePilot',
+        icon: '/favicon.ico',
+        badge: '/favicon.ico'
+      });
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error showing test notification:', error);
     return false;
   }
 }; 
