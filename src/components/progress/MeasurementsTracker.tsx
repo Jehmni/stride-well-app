@@ -27,7 +27,7 @@ type ChartData = {
 };
 
 const MeasurementsTracker: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
   const [measurementData, setMeasurementData] = useState({
@@ -124,8 +124,27 @@ const MeasurementsTracker: React.FC = () => {
 
       // Refresh measurements
       fetchMeasurements();
+      
+      // Update user profile weight if weight was measured
+      if (measurementDataToInsert.weight) {
+        // Update the weight in user_profiles table
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .update({ weight: measurementDataToInsert.weight })
+          .eq('id', user.id);
+        
+        if (profileError) {
+          console.error("Error updating profile weight:", profileError);
+          toast.error("Failed to update profile weight");
+        } else {
+          // Refresh user profile to update weight and BMI on dashboard
+          await refreshProfile();
+          toast.success("Profile weight updated automatically!");
+        }
+      }
     } catch (error) {
       console.error("Error adding measurement:", error);
+      toast.error("Failed to save measurements. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
