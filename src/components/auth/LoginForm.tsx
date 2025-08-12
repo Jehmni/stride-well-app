@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,13 +11,26 @@ import { Eye, EyeOff } from "lucide-react";
 const LoginForm = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { refreshProfile } = useAuth();
+  const { refreshProfile, profile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+
+  // Handle navigation after successful login and profile fetch
+  useEffect(() => {
+    if (profile && !isLoading) {
+      const from = location.state?.from || '/dashboard';
+      
+      if (!profile.onboarding_completed) {
+        navigate("/onboarding");
+      } else {
+        navigate(from);
+      }
+    }
+  }, [profile, isLoading, navigate, location.state?.from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,24 +44,11 @@ const LoginForm = () => {
 
       if (error) throw error;
 
-      // Get redirect path or default to dashboard
-      const from = location.state?.from || '/dashboard';
-      
-      // Refresh the profile data
-      await refreshProfile();
-        // Check if user has completed onboarding
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .single();
-
       toast.success("Successfully signed in!");
       
-      if (!profile || !profile.onboarding_completed) {
-        navigate("/onboarding");
-      } else {
-        navigate(from);
-      }
+      // Refresh the profile data in the auth context
+      // The useEffect will handle navigation once profile is loaded
+      await refreshProfile();
     } catch (error: any) {
       let errorMessage = "Failed to sign in";
       
@@ -61,7 +61,6 @@ const LoginForm = () => {
       }
       
       toast.error(errorMessage);
-    } finally {
       setIsLoading(false);
     }
   };
