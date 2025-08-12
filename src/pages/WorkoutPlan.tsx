@@ -35,6 +35,7 @@ import { generatePersonalizedWorkoutPlan, fetchUserWorkouts } from "@/services/w
 import { regenerateWorkoutPlan } from "@/integrations/ai/workoutAIService";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess, showInfo, showAIWorkoutError, showAIWorkoutSuccess } from "@/utils/notifications";
+import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { WorkoutPlan } from "@/models/models";
@@ -93,10 +94,16 @@ const WorkoutPlanPage: React.FC = () => {
     selectedWorkout ? userWorkouts.find(w => w.id === selectedWorkout) : null, 
     [selectedWorkout, userWorkouts]
   );
-  const isTodayWorkoutAvailable = useMemo(() => 
-    todayWorkout.title !== "Loading workout..." && todayWorkout.exercises > 0, 
-    [todayWorkout]
-  );
+  const isTodayWorkoutAvailable = useMemo(() => {
+    // Check if we have any workouts available
+    if (userWorkouts.length === 0) return false;
+    
+    // Check if today's workout is loaded and has exercises
+    if (todayWorkout.title !== "Loading workout..." && todayWorkout.exercises > 0) return true;
+    
+    // Check if we have any custom workouts that can be started
+    return userWorkouts.some(workout => workout.id);
+  }, [todayWorkout, userWorkouts]);
 
   // Data fetching effects
   useEffect(() => {
@@ -286,6 +293,56 @@ const WorkoutPlanPage: React.FC = () => {
     navigate(`/workout-session/${workoutId}`);
   };
 
+  /**
+   * Handles starting today's workout by:
+   * 1. Finding a workout scheduled for today
+   * 2. Falling back to the first available workout if none scheduled for today
+   * 3. Redirecting to create workout if no workouts exist
+   * 4. Providing user feedback via toast notifications
+   */
+  const handleStartTodaysWorkout = () => {
+    try {
+      // If user has custom workouts, start the first one
+      if (userWorkouts.length > 0) {
+        // Find a workout suitable for today
+        const today = new Date().getDay();
+        const adjustedToday = today === 0 ? 6 : today - 1; // Convert to 0-6 range
+        
+        // Try to find a workout scheduled for today
+        let todaysWorkout = userWorkouts.find(workout => 
+          workout.day_of_week === adjustedToday
+        );
+        
+        // If no workout scheduled for today, use the first available workout
+        if (!todaysWorkout) {
+          todaysWorkout = userWorkouts[0];
+        }
+        
+        if (todaysWorkout && todaysWorkout.id) {
+          navigate(`/workout-session/${todaysWorkout.id}`);
+          toast.success(`Starting workout: ${todaysWorkout.name || 'Today\'s Workout'}`);
+        } else {
+          // Fallback to first workout
+          const firstWorkout = userWorkouts[0];
+          if (firstWorkout && firstWorkout.id) {
+            navigate(`/workout-session/${firstWorkout.id}`);
+            toast.success(`Starting workout: ${firstWorkout.name || 'Your Workout'}`);
+          } else {
+            throw new Error('No valid workout found');
+          }
+        }
+      } else {
+        // If no custom workouts exist, show a message and redirect to create workout
+        toast.info("No workouts found. Let's create your first workout!");
+        setActiveTab("create");
+      }
+    } catch (error) {
+      console.error('Error starting today\'s workout:', error);
+      toast.error('Unable to start workout. Please try again or create a new workout.');
+      setActiveTab("create");
+    }
+  };
+
   const handleRegeneratePlan = async () => {
     if (profile && user?.id && !isRegenerating) {
       setIsRegenerating(true);
@@ -393,11 +450,12 @@ const WorkoutPlanPage: React.FC = () => {
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  className="text-center"
                 >
                   <Button 
                     size="lg" 
                     className="bg-gradient-to-r from-white to-orange-50 text-blue-600 hover:from-orange-50 hover:to-white font-semibold shadow-lg px-8 py-3"
-                    onClick={() => navigate("/today-workout")}
+                    onClick={() => handleStartTodaysWorkout()}
                   >
                     <motion.div
                       whileHover={{ rotate: 15 }}
@@ -407,6 +465,36 @@ const WorkoutPlanPage: React.FC = () => {
                     </motion.div>
                     Start Today's Workout
                   </Button>
+                  <p className="text-xs text-white/80 mt-2">
+                    {userWorkouts.length > 0 
+                      ? `Starting ${userWorkouts[0].name || 'your workout'}`
+                      : 'Create your first workout to get started'
+                    }
+                  </p>
+                </motion.div>
+              )}
+              {!isTodayWorkoutAvailable && (
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="text-center"
+                >
+                  <Button 
+                    size="lg" 
+                    className="bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 font-semibold shadow-lg px-8 py-3"
+                    onClick={() => setActiveTab("create")}
+                  >
+                    <motion.div
+                      whileHover={{ rotate: 15 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Plus className="w-5 h-5 mr-2" />
+                    </motion.div>
+                    Create First Workout
+                  </Button>
+                  <p className="text-xs text-white/80 mt-2">
+                    Get started by creating your first workout routine
+                  </p>
                 </motion.div>
               )}
               <motion.div
