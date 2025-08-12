@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
   Clock,
@@ -14,7 +15,13 @@ import {
   Sparkles,
   Store,
   Loader2,
-  Check
+  Check,
+  Zap,
+  Flame,
+  Apple,
+  Carrot,
+  Fish,
+  Beef
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";

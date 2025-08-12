@@ -150,16 +150,14 @@ const Profile: React.FC = () => {
         
       if (error) throw error;
 
-      // Recalculate nutrition targets based on updated profile/goal
-      // This will set daily calories, protein, carbs, and fat based on the user's goal
-      // Note: This RPC function may not exist in the current database schema
+      // Note: RPC function may not exist in current database schema
       // const { error: nutritionError } = await supabase.rpc('set_nutrition_targets_for_goal', {
       //   user_id_param: user.id
       // });
       // if (nutritionError) throw nutritionError;
       
       await refreshProfile();
-      showProfileSuccess('Fitness information and nutrition targets updated successfully!');
+      showProfileSuccess('Fitness information updated successfully!');
       setShowNutritionTargets(true); // Show targets modal after update
     } catch (error: any) {
       console.error('Error updating fitness info:', error);
@@ -191,26 +189,41 @@ const Profile: React.FC = () => {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-4">
                   <motion.div 
-                    className="p-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full shadow-lg"
+                    className="p-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full shadow-lg cursor-pointer"
                     whileHover={{ scale: 1.1, rotate: 5 }}
+                    whileTap={{ scale: 0.95 }}
                     transition={{ duration: 0.2 }}
+                    onClick={() => {
+                      // Add click interaction - could open profile picture upload
+                      console.log('Profile picture clicked!');
+                    }}
                   >
                     <User className="w-8 h-8 text-white" />
                   </motion.div>
                   <div>
                     <motion.h2 
-                      className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+                      className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent cursor-pointer"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.2 }}
+                      whileHover={{ scale: 1.02 }}
+                      onClick={() => {
+                        // Add click interaction - could open name edit modal
+                        console.log('Name clicked!');
+                      }}
                     >
                       {profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : 'Complete Your Profile'}
                     </motion.h2>
                     <motion.p 
-                      className="text-gray-600 dark:text-gray-300 text-lg"
+                      className="text-gray-600 dark:text-gray-300 text-lg cursor-pointer"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 }}
+                      whileHover={{ scale: 1.01, color: '#3b82f6' }}
+                      onClick={() => {
+                        // Add click interaction - could open email edit modal
+                        console.log('Email clicked!');
+                      }}
                     >
                       {user?.email}
                     </motion.p>
@@ -220,14 +233,20 @@ const Profile: React.FC = () => {
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.4 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
                   <Badge 
                     variant={completionPercentage === 100 ? "default" : "secondary"} 
-                    className={`text-sm px-4 py-2 ${
+                    className={`text-sm px-4 py-2 cursor-pointer ${
                       completionPercentage === 100 
                         ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' 
                         : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
                     }`}
+                    onClick={() => {
+                      // Add click interaction - could show completion details
+                      console.log('Completion badge clicked!');
+                    }}
                   >
                     {completionPercentage}% Complete
                   </Badge>
@@ -243,17 +262,34 @@ const Profile: React.FC = () => {
                   initial={{ width: 0 }}
                   animate={{ width: "100%" }}
                   transition={{ delay: 0.5, duration: 1 }}
+                  className="relative"
                 >
                   <Progress value={completionPercentage} className="h-3 bg-gray-200 dark:bg-gray-700" />
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${completionPercentage.toString()}%` }}
+                    transition={{ delay: 0.5, duration: 1 }}
+                  />
                 </motion.div>
                 {completionPercentage < 100 && (
                   <motion.p 
-                    className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2"
+                    className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2 cursor-pointer"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.6 }}
+                    whileHover={{ scale: 1.02, color: '#3b82f6' }}
+                    onClick={() => {
+                      // Add click interaction - could show completion tips
+                      console.log('Completion message clicked!');
+                    }}
                   >
-                    <Sparkles className="h-4 w-4 text-blue-500" />
+                    <motion.div
+                      whileHover={{ rotate: 360 }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      <Sparkles className="h-4 w-4 text-blue-500" />
+                    </motion.div>
                     Complete your profile to get personalized recommendations
                   </motion.p>
                 )}
@@ -269,625 +305,677 @@ const Profile: React.FC = () => {
           transition={{ delay: 0.2 }}
         >
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 p-2 rounded-xl shadow-lg">
-          <TabsTrigger 
-            value="personal" 
-            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-blue-100 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 transition-all duration-300 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
-          >
-            <motion.div
-              whileHover={{ rotate: 5 }}
-              transition={{ duration: 0.2 }}
-            >
-              <User className="h-4 w-4" />
-            </motion.div>
-            Personal Info
-          </TabsTrigger>
-          <TabsTrigger 
-            value="fitness" 
-            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-green-100 dark:hover:bg-green-900/20 hover:text-green-700 dark:hover:text-green-300 transition-all duration-300 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
-          >
-            <motion.div
-              whileHover={{ rotate: 5 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Target className="h-4 w-4" />
-            </motion.div>
-            Fitness Goals
-          </TabsTrigger>
-          <TabsTrigger 
-            value="preferences" 
-            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-purple-100 dark:hover:bg-purple-900/20 hover:text-purple-700 dark:hover:text-purple-300 transition-all duration-300 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
-          >
-            <motion.div
-              whileHover={{ rotate: 5 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Settings className="h-4 w-4" />
-            </motion.div>
-            Account
-          </TabsTrigger>
-        </TabsList>
-        
-        <Separator className="my-6" />
-        
-        {/* Personal Information Tab */}
-        <TabsContent value="personal" className="space-y-6">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-          >
-            {/* Main Form */}
-            <div className="lg:col-span-2">
-              <motion.div
-                whileHover={{ scale: 1.01 }}
-                transition={{ duration: 0.2 }}
+            <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 p-2 rounded-xl shadow-lg">
+              <TabsTrigger 
+                value="personal" 
+                className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-blue-100 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 transition-all duration-300 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
               >
-                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border-2 border-blue-200 dark:border-blue-800 shadow-xl">
-                  <CardHeader className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-white">
-                      <motion.div
-                        whileHover={{ rotate: 10 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <User className="h-6 w-6" />
-                      </motion.div>
-                      Personal Information
-                    </CardTitle>
-                    <p className="text-blue-100">
-                      Update your basic personal details
-                    </p>
-                  </CardHeader>
-                <CardContent>
-                  <form onSubmit={handlePersonalInfoUpdate} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="first_name" className="text-sm font-medium">
-                          First Name *
-                        </Label>
-                        <Input
-                          id="first_name"
-                          value={personalInfo.first_name}
-                          onChange={(e) => setPersonalInfo({...personalInfo, first_name: e.target.value})}
-                          placeholder="Enter your first name"
-                          className="h-11"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="last_name" className="text-sm font-medium">
-                          Last Name
-                        </Label>
-                        <Input
-                          id="last_name"
-                          value={personalInfo.last_name}
-                          onChange={(e) => setPersonalInfo({...personalInfo, last_name: e.target.value})}
-                          placeholder="Enter your last name"
-                          className="h-11"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="age" className="text-sm font-medium">
-                          Age *
-                        </Label>
-                        <Input
-                          id="age"
-                          type="number"
-                          min="13"
-                          max="120"
-                          value={personalInfo.age}
-                          onChange={(e) => setPersonalInfo({...personalInfo, age: e.target.value})}
-                          placeholder="Enter your age"
-                          className="h-11"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="sex" className="text-sm font-medium">
-                          Sex *
-                        </Label>
-                        <Select 
-                          value={personalInfo.sex} 
-                          onValueChange={(value) => setPersonalInfo({...personalInfo, sex: value})}
+                <motion.div
+                  whileHover={{ rotate: 5 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <User className="h-4 w-4" />
+                </motion.div>
+                Personal Info
+              </TabsTrigger>
+              <TabsTrigger 
+                value="fitness" 
+                className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-green-100 dark:hover:bg-green-900/20 hover:text-green-700 dark:hover:text-green-300 transition-all duration-300 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
+              >
+                <motion.div
+                  whileHover={{ rotate: 5 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Target className="h-4 w-4" />
+                </motion.div>
+                Fitness Goals
+              </TabsTrigger>
+              <TabsTrigger 
+                value="preferences" 
+                className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-purple-100 dark:hover:bg-purple-900/20 hover:text-purple-700 dark:hover:text-purple-300 transition-all duration-300 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
+              >
+                <motion.div
+                  whileHover={{ rotate: 5 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Settings className="h-4 w-4" />
+                </motion.div>
+                Account
+              </TabsTrigger>
+            </TabsList>
+            
+            <Separator className="my-6" />
+            
+            {/* Personal Information Tab */}
+            <TabsContent value="personal" className="space-y-6">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+                className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+              >
+                {/* Main Form */}
+                <div className="lg:col-span-2">
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border-2 border-blue-200 dark:border-blue-800 shadow-xl">
+                      <CardHeader className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-t-lg">
+                        <CardTitle className="flex items-center gap-2 text-white">
+                          <motion.div
+                            whileHover={{ rotate: 10 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <User className="h-6 w-6" />
+                          </motion.div>
+                          Personal Information
+                        </CardTitle>
+                        <p className="text-blue-100">
+                          Update your basic personal details
+                        </p>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        <form onSubmit={handlePersonalInfoUpdate} className="space-y-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="first_name" className="text-sm font-medium">
+                                First Name *
+                              </Label>
+                              <Input
+                                id="first_name"
+                                value={personalInfo.first_name}
+                                onChange={(e) => setPersonalInfo({...personalInfo, first_name: e.target.value})}
+                                placeholder="Enter your first name"
+                                className="h-11"
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="last_name" className="text-sm font-medium">
+                                Last Name
+                              </Label>
+                              <Input
+                                id="last_name"
+                                value={personalInfo.last_name}
+                                onChange={(e) => setPersonalInfo({...personalInfo, last_name: e.target.value})}
+                                placeholder="Enter your last name"
+                                className="h-11"
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="age" className="text-sm font-medium">
+                                Age *
+                              </Label>
+                              <Input
+                                id="age"
+                                type="number"
+                                min="13"
+                                max="120"
+                                value={personalInfo.age}
+                                onChange={(e) => setPersonalInfo({...personalInfo, age: e.target.value})}
+                                placeholder="Enter your age"
+                                className="h-11"
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="sex" className="text-sm font-medium">
+                                Sex *
+                              </Label>
+                              <Select 
+                                value={personalInfo.sex} 
+                                onValueChange={(value) => setPersonalInfo({...personalInfo, sex: value})}
+                              >
+                                <SelectTrigger className="h-11">
+                                  <SelectValue placeholder="Select your sex" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="male">Male</SelectItem>
+                                  <SelectItem value="female">Female</SelectItem>
+                                  <SelectItem value="other">Other</SelectItem>
+                                  <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="height" className="text-sm font-medium">
+                                Height (cm) *
+                              </Label>
+                              <Input
+                                id="height"
+                                type="number"
+                                step="0.1"
+                                value={personalInfo.height}
+                                onChange={(e) => setPersonalInfo({...personalInfo, height: e.target.value})}
+                                placeholder="e.g., 175"
+                                className="h-11"
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="weight" className="text-sm font-medium">
+                                Weight (kg) *
+                              </Label>
+                              <Input
+                                id="weight"
+                                type="number"
+                                step="0.1"
+                                value={personalInfo.weight}
+                                onChange={(e) => setPersonalInfo({...personalInfo, weight: e.target.value})}
+                                placeholder="e.g., 70"
+                                className="h-11"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between pt-4 border-t">
+                            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                              <AlertCircle className="h-4 w-4" />
+                              Fields marked with * are required
+                            </div>
+                            <Button type="submit" disabled={isLoading} className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg">
+                              <Save className="h-4 w-4" />
+                              {isLoading ? 'Updating...' : 'Save Changes'}
+                            </Button>
+                          </div>
+                        </form>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </div>
+
+                {/* Quick Stats */}
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="space-y-4"
+                >
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 border-2 border-indigo-200 dark:border-indigo-800 shadow-lg">
+                      <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-t-lg">
+                        <CardTitle className="text-lg text-white flex items-center gap-2">
+                          <motion.div
+                            whileHover={{ rotate: 10 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <TrendingUp className="h-5 w-5" />
+                          </motion.div>
+                          Quick Stats
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4 p-6">
+                        <motion.div 
+                          className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+                          whileHover={{ scale: 1.02 }}
+                          transition={{ duration: 0.2 }}
                         >
-                          <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Select your sex" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="male">Male</SelectItem>
-                            <SelectItem value="female">Female</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                            <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="height" className="text-sm font-medium">
-                          Height (cm) *
-                        </Label>
-                        <Input
-                          id="height"
-                          type="number"
-                          step="0.1"
-                          value={personalInfo.height}
-                          onChange={(e) => setPersonalInfo({...personalInfo, height: e.target.value})}
-                          placeholder="e.g., 175"
-                          className="h-11"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="weight" className="text-sm font-medium">
-                          Weight (kg) *
-                        </Label>
-                        <Input
-                          id="weight"
-                          type="number"
-                          step="0.1"
-                          value={personalInfo.weight}
-                          onChange={(e) => setPersonalInfo({...personalInfo, weight: e.target.value})}
-                          placeholder="e.g., 70"
-                          className="h-11"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between pt-4 border-t">
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                        <AlertCircle className="h-4 w-4" />
-                        Fields marked with * are required
-                      </div>
-                                             <Button type="submit" disabled={isLoading} className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg">
-                         <Save className="h-4 w-4" />
-                         {isLoading ? 'Updating...' : 'Save Changes'}
-                       </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
-              </motion.div>
-            </div>
+                          <span className="text-sm font-medium text-blue-700 dark:text-blue-300">BMI</span>
+                          <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0">
+                            {personalInfo.height && personalInfo.weight 
+                              ? ((parseFloat(personalInfo.weight) / Math.pow(parseFloat(personalInfo.height) / 100, 2)).toFixed(1))
+                              : 'N/A'
+                            }
+                          </Badge>
+                        </motion.div>
+                        <motion.div 
+                          className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
+                          whileHover={{ scale: 1.02 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <span className="text-sm font-medium text-green-700 dark:text-green-300">Age</span>
+                          <Badge className="bg-gradient-to-r from-green-500 to-green-600 text-white border-0">
+                            {personalInfo.age || 'N/A'}
+                          </Badge>
+                        </motion.div>
+                        <motion.div 
+                          className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-950/20 dark:to-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800"
+                          whileHover={{ scale: 1.02 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Sex</span>
+                          <Badge className="bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0">
+                            {personalInfo.sex ? personalInfo.sex.charAt(0).toUpperCase() + personalInfo.sex.slice(1) : 'N/A'}
+                          </Badge>
+                        </motion.div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
 
-            {/* Quick Stats */}
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="space-y-4"
-            >
-              <motion.div
-                whileHover={{ scale: 1.02, y: -2 }}
-                transition={{ duration: 0.2 }}
-              >
-                <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 border-2 border-indigo-200 dark:border-indigo-800 shadow-lg">
-                  <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-t-lg">
-                    <CardTitle className="text-lg text-white flex items-center gap-2">
-                      <motion.div
-                        whileHover={{ rotate: 10 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <TrendingUp className="h-5 w-5" />
-                      </motion.div>
-                      Quick Stats
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4 p-6">
-                    <motion.div 
-                      className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-                      whileHover={{ scale: 1.02 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">BMI</span>
-                      <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0">
-                        {personalInfo.height && personalInfo.weight 
-                          ? ((parseFloat(personalInfo.weight) / Math.pow(parseFloat(personalInfo.height) / 100, 2)).toFixed(1))
-                          : 'N/A'
-                        }
-                      </Badge>
-                    </motion.div>
-                    <motion.div 
-                      className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
-                      whileHover={{ scale: 1.02 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <span className="text-sm font-medium text-green-700 dark:text-green-300">Age</span>
-                      <Badge className="bg-gradient-to-r from-green-500 to-green-600 text-white border-0">
-                        {personalInfo.age || 'N/A'}
-                      </Badge>
-                    </motion.div>
-                    <motion.div 
-                      className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-950/20 dark:to-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800"
-                      whileHover={{ scale: 1.02 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Sex</span>
-                      <Badge className="bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0">
-                        {personalInfo.sex ? personalInfo.sex.charAt(0).toUpperCase() + personalInfo.sex.slice(1) : 'N/A'}
-                      </Badge>
-                    </motion.div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: 1.02, y: -2 }}
-                transition={{ duration: 0.2 }}
-              >
-                <Card className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 border-2 border-orange-200 dark:border-orange-800 shadow-lg">
-                  <CardHeader className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-t-lg">
-                    <CardTitle className="text-lg text-white flex items-center gap-2">
-                      <motion.div
-                        whileHover={{ rotate: 10 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <Target className="h-5 w-5" />
-                      </motion.div>
-                      Next Steps
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <div className="space-y-3">
-                      <motion.div 
-                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
-                        whileHover={{ scale: 1.02, x: 5 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                        <div>
-                          <p className="text-sm font-medium text-green-900 dark:text-green-100">Complete Personal Info</p>
-                          <p className="text-xs text-green-700 dark:text-green-300">Fill in your basic details</p>
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Card className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 border-2 border-orange-200 dark:border-orange-800 shadow-lg">
+                      <CardHeader className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-t-lg">
+                        <CardTitle className="text-lg text-white flex items-center gap-2">
+                          <motion.div
+                            whileHover={{ rotate: 10 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <Target className="h-5 w-5" />
+                          </motion.div>
+                          Next Steps
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        <div className="space-y-3">
+                          <motion.div 
+                            className="flex items-center gap-3 p-3 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
+                            whileHover={{ scale: 1.02, x: 5 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                            <div>
+                              <p className="text-sm font-medium text-green-900 dark:text-green-100">Complete Personal Info</p>
+                              <p className="text-xs text-green-700 dark:text-green-300">Fill in your basic details</p>
+                            </div>
+                          </motion.div>
+                          <motion.div 
+                            className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+                            whileHover={{ scale: 1.02, x: 5 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <Target className="h-5 w-5 text-blue-600" />
+                            <div>
+                              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Set Fitness Goals</p>
+                              <p className="text-xs text-blue-700 dark:text-blue-300">Define your objectives</p>
+                            </div>
+                          </motion.div>
                         </div>
-                      </motion.div>
-                      <motion.div 
-                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-                        whileHover={{ scale: 1.02, x: 5 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <Target className="h-5 w-5 text-blue-600" />
-                        <div>
-                          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Set Fitness Goals</p>
-                          <p className="text-xs text-blue-700 dark:text-blue-300">Define your objectives</p>
-                        </div>
-                      </motion.div>
-                    </div>
-                  </CardContent>
-                </Card>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </motion.div>
               </motion.div>
-            </div>
-          </motion.div>
-        </TabsContent>
-        
-        {/* Fitness Goals Tab */}
-        <TabsContent value="fitness" className="space-y-6">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-          >
-            {/* Main Form */}
-            <div className="lg:col-span-2">
+            </TabsContent>
+            
+            {/* Fitness Goals Tab */}
+            <TabsContent value="fitness" className="space-y-6">
               <motion.div
-                whileHover={{ scale: 1.01 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+                className="grid grid-cols-1 lg:grid-cols-3 gap-6"
               >
-                <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-2 border-green-200 dark:border-green-800 shadow-xl">
-                  <CardHeader className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-white">
-                      <motion.div
-                        whileHover={{ rotate: 10 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <Target className="h-6 w-6" />
-                      </motion.div>
-                      Fitness Goals & Preferences
-                    </CardTitle>
-                    <p className="text-green-100">
-                      Configure your fitness objectives and preferences
-                    </p>
-                  </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleFitnessInfoUpdate} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="fitness_goal" className="text-sm font-medium">
-                          Primary Goal *
-                        </Label>
-                        <Select 
-                          value={fitnessInfo.fitness_goal} 
-                          onValueChange={(value) => setFitnessInfo({...fitnessInfo, fitness_goal: value})}
-                        >
-                          <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Select your fitness goal" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="weight-loss">Weight Loss</SelectItem>
-                            <SelectItem value="muscle-gain">Muscle Gain</SelectItem>
-                            <SelectItem value="general-fitness">General Fitness</SelectItem>
-                            <SelectItem value="strength">Strength Training</SelectItem>
-                            <SelectItem value="endurance">Endurance</SelectItem>
-                            <SelectItem value="flexibility">Flexibility</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="fitness_level" className="text-sm font-medium">
-                          Current Level *
-                        </Label>
-                        <Select 
-                          value={fitnessInfo.fitness_level} 
-                          onValueChange={(value) => setFitnessInfo({...fitnessInfo, fitness_level: value})}
-                        >
-                          <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Select your fitness level" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="beginner">Beginner</SelectItem>
-                            <SelectItem value="intermediate">Intermediate</SelectItem>
-                            <SelectItem value="advanced">Advanced</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="activity_level" className="text-sm font-medium">
-                          Activity Level *
-                        </Label>
-                        <Select 
-                          value={fitnessInfo.activity_level} 
-                          onValueChange={(value) => setFitnessInfo({...fitnessInfo, activity_level: value})}
-                        >
-                          <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Select your activity level" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="sedentary">Sedentary (little to no exercise)</SelectItem>
-                            <SelectItem value="lightly_active">Lightly Active (light exercise 1-3 days/week)</SelectItem>
-                            <SelectItem value="moderately_active">Moderately Active (moderate exercise 3-5 days/week)</SelectItem>
-                            <SelectItem value="very_active">Very Active (hard exercise 6-7 days/week)</SelectItem>
-                            <SelectItem value="extremely_active">Extremely Active (very hard exercise & physical job)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="workout_frequency" className="text-sm font-medium">
-                          Workouts per Week *
-                        </Label>
-                        <Select 
-                          value={fitnessInfo.workout_frequency_per_week?.toString() || "3"} 
-                          onValueChange={(value) => setFitnessInfo({...fitnessInfo, workout_frequency_per_week: parseInt(value)})}
-                        >
-                          <SelectTrigger className="h-11">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">1 day per week</SelectItem>
-                            <SelectItem value="2">2 days per week</SelectItem>
-                            <SelectItem value="3">3 days per week</SelectItem>
-                            <SelectItem value="4">4 days per week</SelectItem>
-                            <SelectItem value="5">5 days per week</SelectItem>
-                            <SelectItem value="6">6 days per week</SelectItem>
-                            <SelectItem value="7">7 days per week</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="workout_duration" className="text-sm font-medium">
-                          Preferred Workout Duration *
-                        </Label>
-                        <Select 
-                          value={fitnessInfo.preferred_workout_duration?.toString() || "30"} 
-                          onValueChange={(value) => setFitnessInfo({...fitnessInfo, preferred_workout_duration: parseInt(value)})}
-                        >
-                          <SelectTrigger className="h-11">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="15">15 minutes</SelectItem>
-                            <SelectItem value="30">30 minutes</SelectItem>
-                            <SelectItem value="45">45 minutes</SelectItem>
-                            <SelectItem value="60">60 minutes</SelectItem>
-                            <SelectItem value="90">90 minutes</SelectItem>
-                            <SelectItem value="120">120 minutes</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between pt-4 border-t">
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                        <Zap className="h-4 w-4" />
-                        These settings help personalize your workout plans
-                      </div>
-                                             <Button type="submit" disabled={isLoading} className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white shadow-lg">
-                         <Save className="h-4 w-4" />
-                         {isLoading ? 'Updating...' : 'Save Goals'}
-                       </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
-            </div>
+                {/* Main Form */}
+                <div className="lg:col-span-2">
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-2 border-green-200 dark:border-green-800 shadow-xl">
+                      <CardHeader className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-t-lg">
+                        <CardTitle className="flex items-center gap-2 text-white">
+                          <motion.div
+                            whileHover={{ rotate: 10 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <Target className="h-6 w-6" />
+                          </motion.div>
+                          Fitness Goals & Preferences
+                        </CardTitle>
+                        <p className="text-green-100">
+                          Configure your fitness objectives and preferences
+                        </p>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        <form onSubmit={handleFitnessInfoUpdate} className="space-y-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="fitness_goal" className="text-sm font-medium">
+                                Primary Goal *
+                              </Label>
+                              <Select 
+                                value={fitnessInfo.fitness_goal} 
+                                onValueChange={(value) => setFitnessInfo({...fitnessInfo, fitness_goal: value})}
+                              >
+                                <SelectTrigger className="h-11">
+                                  <SelectValue placeholder="Select your fitness goal" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="weight-loss">Weight Loss</SelectItem>
+                                  <SelectItem value="muscle-gain">Muscle Gain</SelectItem>
+                                  <SelectItem value="general-fitness">General Fitness</SelectItem>
+                                  <SelectItem value="strength">Strength Training</SelectItem>
+                                  <SelectItem value="endurance">Endurance</SelectItem>
+                                  <SelectItem value="flexibility">Flexibility</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="fitness_level" className="text-sm font-medium">
+                                Current Level *
+                              </Label>
+                              <Select 
+                                value={fitnessInfo.fitness_level} 
+                                onValueChange={(value) => setFitnessInfo({...fitnessInfo, fitness_level: value})}
+                              >
+                                <SelectTrigger className="h-11">
+                                  <SelectValue placeholder="Select your fitness level" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="beginner">Beginner</SelectItem>
+                                  <SelectItem value="intermediate">Intermediate</SelectItem>
+                                  <SelectItem value="advanced">Advanced</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="activity_level" className="text-sm font-medium">
+                                Activity Level *
+                              </Label>
+                              <Select 
+                                value={fitnessInfo.activity_level} 
+                                onValueChange={(value) => setFitnessInfo({...fitnessInfo, activity_level: value})}
+                              >
+                                <SelectTrigger className="h-11">
+                                  <SelectValue placeholder="Select your activity level" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="sedentary">Sedentary (little to no exercise)</SelectItem>
+                                  <SelectItem value="lightly_active">Lightly Active (light exercise 1-3 days/week)</SelectItem>
+                                  <SelectItem value="moderately_active">Moderately Active (moderate exercise 3-5 days/week)</SelectItem>
+                                  <SelectItem value="very_active">Very Active (hard exercise 6-7 days/week)</SelectItem>
+                                  <SelectItem value="extremely_active">Extremely Active (very hard exercise & physical job)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="workout_frequency" className="text-sm font-medium">
+                                Workouts per Week *
+                              </Label>
+                              <Select 
+                                value={fitnessInfo.workout_frequency_per_week?.toString() || "3"} 
+                                onValueChange={(value) => setFitnessInfo({...fitnessInfo, workout_frequency_per_week: parseInt(value)})}
+                              >
+                                <SelectTrigger className="h-11">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="1">1 day per week</SelectItem>
+                                  <SelectItem value="2">2 days per week</SelectItem>
+                                  <SelectItem value="3">3 days per week</SelectItem>
+                                  <SelectItem value="4">4 days per week</SelectItem>
+                                  <SelectItem value="5">5 days per week</SelectItem>
+                                  <SelectItem value="6">6 days per week</SelectItem>
+                                  <SelectItem value="7">7 days per week</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div className="space-y-2 md:col-span-2">
+                              <Label htmlFor="workout_duration" className="text-sm font-medium">
+                                Preferred Workout Duration *
+                              </Label>
+                              <Select 
+                                value={fitnessInfo.preferred_workout_duration?.toString() || "30"} 
+                                onValueChange={(value) => setFitnessInfo({...fitnessInfo, preferred_workout_duration: parseInt(value)})}
+                              >
+                                <SelectTrigger className="h-11">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="15">15 minutes</SelectItem>
+                                  <SelectItem value="30">30 minutes</SelectItem>
+                                  <SelectItem value="45">45 minutes</SelectItem>
+                                  <SelectItem value="60">60 minutes</SelectItem>
+                                  <SelectItem value="90">90 minutes</SelectItem>
+                                  <SelectItem value="120">120 minutes</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between pt-4 border-t">
+                            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                              <Zap className="h-4 w-4" />
+                              These settings help personalize your workout plans
+                            </div>
+                            <Button type="submit" disabled={isLoading} className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white shadow-lg">
+                              <Save className="h-4 w-4" />
+                              {isLoading ? 'Updating...' : 'Save Goals'}
+                            </Button>
+                          </div>
+                        </form>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </div>
 
-            {/* Fitness Insights */}
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Fitness Insights</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
-                    <TrendingUp className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                        {fitnessInfo.fitness_goal ? fitnessInfo.fitness_goal.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Set Your Goal'}
-                      </p>
-                      <p className="text-xs text-blue-700 dark:text-blue-300">
-                        {fitnessInfo.fitness_level ? `${fitnessInfo.fitness_level.charAt(0).toUpperCase() + fitnessInfo.fitness_level.slice(1)} level` : 'Define your level'}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 p-3 bg-purple-50 dark:bg-purple-950 rounded-lg">
-                    <Calendar className="h-5 w-5 text-purple-600" />
-                    <div>
-                      <p className="text-sm font-medium text-purple-900 dark:text-purple-100">
-                        {fitnessInfo.workout_frequency_per_week || 0} workouts/week
-                      </p>
-                      <p className="text-xs text-purple-700 dark:text-purple-300">
-                        {fitnessInfo.preferred_workout_duration || 0} min sessions
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 p-3 bg-orange-50 dark:bg-orange-950 rounded-lg">
-                    <Activity className="h-5 w-5 text-orange-600" />
-                    <div>
-                      <p className="text-sm font-medium text-orange-900 dark:text-orange-100">
-                        {fitnessInfo.activity_level ? fitnessInfo.activity_level.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Set Activity Level'}
-                      </p>
-                      <p className="text-xs text-orange-700 dark:text-orange-300">
-                        Daily activity baseline
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                {/* Fitness Insights */}
+                <div className="space-y-4">
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border-2 border-blue-200 dark:border-blue-800 shadow-lg">
+                      <CardHeader className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-t-lg">
+                        <CardTitle className="text-lg text-white flex items-center gap-2">
+                          <motion.div
+                            whileHover={{ rotate: 10 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <TrendingUp className="h-5 w-5" />
+                          </motion.div>
+                          Fitness Insights
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4 p-6">
+                        <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                          <TrendingUp className="h-5 w-5 text-blue-600" />
+                          <div>
+                            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                              {fitnessInfo.fitness_goal ? fitnessInfo.fitness_goal.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Set Your Goal'}
+                            </p>
+                            <p className="text-xs text-blue-700 dark:text-blue-300">
+                              {fitnessInfo.fitness_level ? `${fitnessInfo.fitness_level.charAt(0).toUpperCase() + fitnessInfo.fitness_level.slice(1)} level` : 'Define your level'}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 p-3 bg-purple-50 dark:bg-purple-950 rounded-lg">
+                          <Calendar className="h-5 w-5 text-purple-600" />
+                          <div>
+                            <p className="text-sm font-medium text-purple-900 dark:text-purple-100">
+                              {fitnessInfo.workout_frequency_per_week || 0} workouts/week
+                            </p>
+                            <p className="text-xs text-purple-700 dark:text-purple-300">
+                              {fitnessInfo.preferred_workout_duration || 0} min sessions
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 p-3 bg-orange-50 dark:bg-orange-950 rounded-lg">
+                          <Activity className="h-5 w-5 text-orange-600" />
+                          <div>
+                            <p className="text-sm font-medium text-orange-900 dark:text-orange-100">
+                              {fitnessInfo.activity_level ? fitnessInfo.activity_level.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Set Activity Level'}
+                            </p>
+                            <p className="text-xs text-orange-700 dark:text-orange-300">
+                              Daily activity baseline
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
 
-          <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Recommendations</CardTitle>
-                </CardHeader>
-            <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Complete Profile</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">Get personalized workout recommendations</p>
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Card className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-2 border-gray-200 dark:border-gray-700 shadow-lg">
+                      <CardHeader className="bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-t-lg">
+                        <CardTitle className="text-lg text-white flex items-center gap-2">
+                          <motion.div
+                            whileHover={{ rotate: 10 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <CheckCircle className="h-5 w-5" />
+                          </motion.div>
+                          Recommendations
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Complete Profile</p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">Get personalized workout recommendations</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <Target className="h-4 w-4 text-blue-600 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Set Realistic Goals</p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">Start with achievable targets</p>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </div>
+              </motion.div>
+            </TabsContent>
+            
+            {/* Account Information Tab */}
+            <TabsContent value="preferences" className="space-y-6">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+                className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+              >
+                <motion.div
+                  whileHover={{ scale: 1.01 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Card className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-2 border-gray-200 dark:border-gray-700 shadow-lg">
+                    <CardHeader className="bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-t-lg">
+                      <CardTitle className="flex items-center gap-2 text-white">
+                        <motion.div
+                          whileHover={{ rotate: 10 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <Shield className="h-5 w-5" />
+                        </motion.div>
+                        Account Information
+                      </CardTitle>
+                      <p className="text-gray-100">
+                        Your account details and security information
+                      </p>
+                    </CardHeader>
+                    <CardContent className="space-y-4 p-6">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Mail className="h-4 w-4 text-gray-600" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Email Address</p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">{user?.email}</p>
+                            </div>
+                          </div>
+                          <Badge variant="outline">Verified</Badge>
+                        </div>
+                        
+                        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <CalendarDays className="h-4 w-4 text-gray-600" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Member Since</p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">
+                                {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { 
+                                  year: 'numeric', 
+                                  month: 'long', 
+                                  day: 'numeric' 
+                                }) : 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <CheckCircle className="h-4 w-4 text-gray-600" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Onboarding Status</p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">
+                                {profile?.onboarding_completed ? 'Completed' : 'Incomplete'}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant={profile?.onboarding_completed ? "default" : "secondary"}>
+                            {profile?.onboarding_completed ? 'Complete' : 'Pending'}
+                          </Badge>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <Target className="h-4 w-4 text-blue-600 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Set Realistic Goals</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">Start with achievable targets</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  whileHover={{ scale: 1.01 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Card className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-2 border-gray-200 dark:border-gray-700 shadow-lg">
+                    <CardHeader className="bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-t-lg">
+                      <CardTitle className="flex items-center gap-2 text-white">
+                        <motion.div
+                          whileHover={{ rotate: 10 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <Settings className="h-5 w-5" />
+                        </motion.div>
+                        Account Actions
+                      </CardTitle>
+                      <p className="text-gray-100">
+                        Manage your account settings and preferences
+                      </p>
+                    </CardHeader>
+                    <CardContent className="space-y-4 p-6">
+                      <div className="space-y-3">
+                        <Button variant="outline" className="w-full justify-start h-12">
+                          <Shield className="h-4 w-4 mr-2" />
+                          Change Password
+                        </Button>
+                        <Button variant="outline" className="w-full justify-start h-12">
+                          <Mail className="h-4 w-4 mr-2" />
+                          Update Email
+                        </Button>
+                        <Button variant="outline" className="w-full justify-start h-12">
+                          <Settings className="h-4 w-4 mr-2" />
+                          Notification Settings
+                        </Button>
+                        <Button variant="outline" className="w-full justify-start h-12 text-red-600 hover:text-red-700">
+                          <AlertCircle className="h-4 w-4 mr-2" />
+                          Delete Account
+                        </Button>
                       </div>
-                    </div>
-                  </div>
-            </CardContent>
-          </Card>
-            </div>
-          </div>
-        </TabsContent>
-        
-        {/* Account Information Tab */}
-        <TabsContent value="preferences" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-gray-600" />
-                  Account Information
-                </CardTitle>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Your account details and security information
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Mail className="h-4 w-4 text-gray-600" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Email Address</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">{user?.email}</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline">Verified</Badge>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <CalendarDays className="h-4 w-4 text-gray-600" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Member Since</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
-                          }) : 'N/A'}
+                      
+                      <Separator />
+                      
+                      <div className="text-center">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Profile ID: {profile?.id}
                         </p>
                       </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle className="h-4 w-4 text-gray-600" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Onboarding Status</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          {profile?.onboarding_completed ? 'Completed' : 'Incomplete'}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge variant={profile?.onboarding_completed ? "default" : "secondary"}>
-                      {profile?.onboarding_completed ? 'Complete' : 'Pending'}
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-          <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5 text-gray-600" />
-                  Account Actions
-                </CardTitle>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Manage your account settings and preferences
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <Button variant="outline" className="w-full justify-start h-12">
-                    <Shield className="h-4 w-4 mr-2" />
-                    Change Password
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start h-12">
-                    <Mail className="h-4 w-4 mr-2" />
-                    Update Email
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start h-12">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Notification Settings
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start h-12 text-red-600 hover:text-red-700">
-                    <AlertCircle className="h-4 w-4 mr-2" />
-                    Delete Account
-                  </Button>
-                </div>
-                
-                <Separator />
-                
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Profile ID: {profile?.id}
-                  </p>
-                </div>
-            </CardContent>
-          </Card>
-          </div>
-        </TabsContent>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </motion.div>
+            </TabsContent>
           </Tabs>
         </motion.div>
 

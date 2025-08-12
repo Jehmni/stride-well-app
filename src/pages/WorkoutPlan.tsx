@@ -11,6 +11,7 @@ import AIGeneratedNotice from "@/components/common/AIGeneratedNotice";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { TodayWorkoutProps, WorkoutDay, WorkoutExercise, UserWorkout, WorkoutExerciseDetail } from "@/components/workout/types";
 import { 
   Activity, 
@@ -24,7 +25,11 @@ import {
   Plus,
   Settings,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Zap,
+  Dumbbell,
+  Timer,
+  Flame
 } from "lucide-react";
 import { generatePersonalizedWorkoutPlan, fetchUserWorkouts } from "@/services/workoutService";
 import { regenerateWorkoutPlan } from "@/integrations/ai/workoutAIService";
@@ -113,44 +118,44 @@ const WorkoutPlanPage: React.FC = () => {
   }, []);
 
   // Optimized data loading functions
-      const loadWorkoutPlan = async () => {
-        try {
-          setIsGeneratingAIPlan(true);
-          const workoutPlan = await generatePersonalizedWorkoutPlan(profile);
-          setIsGeneratingAIPlan(false);
-          
-          if (workoutPlan) {
-            setIsAIGenerated(workoutPlan.ai_generated === true);
-            
-            if (Array.isArray(workoutPlan.weekly_structure) && workoutPlan.weekly_structure.length > 0) {
-              setWeeklyStructure(workoutPlan.weekly_structure);
-            }
-            
-            if (Array.isArray(workoutPlan.exercises) && workoutPlan.exercises.length > 0) {
-              setKeyExercises(workoutPlan.exercises);
-            }
-            
+  const loadWorkoutPlan = async () => {
+    try {
+      setIsGeneratingAIPlan(true);
+      const workoutPlan = await generatePersonalizedWorkoutPlan(profile);
+      setIsGeneratingAIPlan(false);
+      
+      if (workoutPlan) {
+        setIsAIGenerated(workoutPlan.ai_generated === true);
+        
+        if (Array.isArray(workoutPlan.weekly_structure) && workoutPlan.weekly_structure.length > 0) {
+          setWeeklyStructure(workoutPlan.weekly_structure);
+        }
+        
+        if (Array.isArray(workoutPlan.exercises) && workoutPlan.exercises.length > 0) {
+          setKeyExercises(workoutPlan.exercises);
+        }
+        
         // Update today's workout
-            const today = new Date().getDay();
+        const today = new Date().getDay();
         const adjustedToday = today === 0 ? 6 : today - 1;
         const todayPlan = workoutPlan.weekly_structure?.[adjustedToday];
         
         if (todayPlan) {
-              setTodayWorkout({
+          setTodayWorkout({
             title: todayPlan.focus || "Today's Workout",
             description: `Focus on ${todayPlan.focus.toLowerCase()}`,
             duration: todayPlan.duration || 45,
             exercises: workoutPlan.exercises?.length || 0,
-                date: "Today",
+            date: "Today",
             image: getWorkoutImage(String(workoutPlan.title || "General Fitness Workout"))
           });
         }
-          }
-        } catch (error) {
-          console.error("Error loading workout plan:", error);
-          setIsGeneratingAIPlan(false);
-        }
-      };
+      }
+    } catch (error) {
+      console.error("Error loading workout plan:", error);
+      setIsGeneratingAIPlan(false);
+    }
+  };
 
   const fetchUserWorkoutsData = async () => {
     try {
@@ -283,301 +288,453 @@ const WorkoutPlanPage: React.FC = () => {
 
   const handleRegeneratePlan = async () => {
     if (profile && user?.id && !isRegenerating) {
-                setIsRegenerating(true);
+      setIsRegenerating(true);
       showInfo("Regenerating your AI workout plan...");
-                
-                try {
-                  const success = await regenerateWorkoutPlan(
-                    user.id,
-                    (message, progress) => {
-                      setRegenerationStatus(message);
-                      setRegenerationProgress(progress);
-                    }
-                  );
-                  
-                  if (success) {
+      
+      try {
+        const success = await regenerateWorkoutPlan(
+          user.id,
+          (message, progress) => {
+            setRegenerationStatus(message);
+            setRegenerationProgress(progress);
+          }
+        );
+        
+        if (success) {
           showAIWorkoutSuccess("Workout plan regenerated successfully!");
-                    setTimeout(() => window.location.reload(), 1500);
-                  } else {
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
           showAIWorkoutError("Failed to regenerate workout plan. Please try again.");
-                    setIsRegenerating(false);
-                  }
-                } catch (error) {
-                  console.error("Error regenerating workout plan:", error);
+          setIsRegenerating(false);
+        }
+      } catch (error) {
+        console.error("Error regenerating workout plan:", error);
         showAIWorkoutError("An error occurred while regenerating your workout plan");
-                  setIsRegenerating(false);
-                }
-              }
+        setIsRegenerating(false);
+      }
+    }
   };
 
   return (
     <DashboardLayout title="Workout Plan">
-      {/* Hero Section - Primary Action Area */}
-      <div className="mb-8">
-                        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-orange-500 rounded-xl p-6 text-white shadow-xl">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold mb-2">Ready to crush your goals?</h1>
-              <p className="text-blue-100">Your personalized workout plan is ready to go</p>
-            </div>
-            <div className="hidden md:flex items-center space-x-2">
-              <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                <Target className="w-3 h-3 mr-1" />
-                {profile?.fitness_goal || "General Fitness"}
-              </Badge>
-            </div>
-          </div>
-          
-                     {/* Primary Action Buttons */}
-           <div className="flex flex-col sm:flex-row gap-3">
-             {isTodayWorkoutAvailable && (
-                                       <Button 
-                          size="lg" 
-                          className="bg-gradient-to-r from-white to-orange-50 text-blue-600 hover:from-orange-50 hover:to-white font-semibold shadow-lg"
-                          onClick={() => navigate("/today-workout")}
-                        >
-                 <Play className="w-5 h-5 mr-2" />
-                 Start Today's Workout
-          </Button>
-             )}
-        <Button 
-          variant="outline" 
-               size="lg"
-               className="border-white/30 text-white hover:bg-gradient-to-r hover:from-white/20 hover:to-orange-500/20 bg-white/10 shadow-lg"
-          onClick={() => navigate("/progress")}
-        >
-               <TrendingUp className="w-5 h-5 mr-2" />
-          View Progress
-        </Button>
-           </div>
-        </div>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="space-y-6"
+      >
+        {/* AI Generated Notice */}
+        <AnimatePresence>
+          {isAIGenerated && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <AIGeneratedNotice />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      {/* AI Status Banner */}
-      {(isGeneratingAIPlan || isRegenerating || isAIGenerated) && (
-        <Card className="mb-6 border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2">
-                  <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  <span className="font-medium text-blue-900 dark:text-blue-100">
-                    {isGeneratingAIPlan && "Creating your AI workout plan..."}
-                    {isRegenerating && "Regenerating your workout plan..."}
-                    {!isGeneratingAIPlan && !isRegenerating && isAIGenerated && "AI-Powered Workout Plan"}
-                  </span>
-                </div>
-                {isRegenerating && (
-                  <div className="flex items-center space-x-2">
-                    <Progress value={regenerationProgress} className="w-20 h-2" />
-                    <span className="text-sm text-blue-700 dark:text-blue-300">
-                      {regenerationProgress}%
-                    </span>
-                  </div>
-                )}
-              </div>
-              
-              {!isGeneratingAIPlan && !isRegenerating && isAIGenerated && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRegeneratePlan}
-                  disabled={isRegenerating}
-                  className="border-blue-300 text-blue-700 hover:bg-blue-100"
+        {/* Hero Section - Primary Action Area */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-8"
+        >
+          <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-orange-500 rounded-xl p-8 text-white shadow-2xl hover:shadow-3xl transition-all duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <motion.h1 
+                  className="text-3xl font-bold mb-3"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
                 >
-                  <RefreshCw className={`w-4 h-4 mr-2 ${isRegenerating ? 'animate-spin' : ''}`} />
-                  {isRegenerating ? 'Regenerating...' : 'Regenerate'}
-                </Button>
-              )}
+                  Ready to crush your goals? 💪
+                </motion.h1>
+                <motion.p 
+                  className="text-blue-100 text-lg"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  Your personalized workout plan is ready to go
+                </motion.p>
+              </div>
+              <motion.div 
+                className="hidden md:flex items-center space-x-2"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                <Badge variant="secondary" className="bg-white/20 text-white border-white/30 px-4 py-2">
+                  <motion.div
+                    whileHover={{ rotate: 10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Target className="w-4 h-4 mr-2" />
+                  </motion.div>
+                  {profile?.fitness_goal || "General Fitness"}
+                </Badge>
+              </motion.div>
             </div>
             
-            {isRegenerating && regenerationStatus && (
-              <p className="text-sm text-blue-700 dark:text-blue-300 mt-2">
-                {regenerationStatus}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Main Content Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-3 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
-          <TabsTrigger 
-            value="overview" 
-            className="flex items-center space-x-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
-          >
-            <Target className="w-4 h-4" />
-            <span className="hidden sm:inline">Overview</span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="custom" 
-            className="flex items-center space-x-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
-          >
-            <Settings className="w-4 h-4" />
-            <span className="hidden sm:inline">Custom</span>
-          </TabsTrigger>
-          {selectedWorkout && (
-            <TabsTrigger 
-              value="exercises" 
-              className="flex items-center space-x-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200 text-gray-700 dark:text-gray-300"
+            {/* Primary Action Buttons */}
+            <motion.div 
+              className="flex flex-col sm:flex-row gap-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
             >
-              <Calendar className="w-4 h-4" />
-              <span className="hidden sm:inline">Edit</span>
-            </TabsTrigger>
-          )}
-        </TabsList>
-        
-        {/* Overview Tab - AI Workouts & Plan */}
-        <TabsContent value="overview" className="space-y-6">
-          {/* Today's Workout Card */}
-          <Card className="border-2 border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Play className="w-5 h-5 text-green-600 dark:text-green-400" />
-                <span>Today's Workout</span>
-                <Badge variant="secondary" className="bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-200">
-                  Recommended
-                </Badge>
-              </CardTitle>
-              <CardDescription>
-                Your AI-generated workout for today
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-      <TodayWorkout 
-        todayWorkout={todayWorkout}
-        userId={user?.id}
-      />
-            </CardContent>
-          </Card>
-
-          {/* Weekly Plan & Key Exercises */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center space-x-2 text-xl">
-                  <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-                    <Calendar className="w-5 h-5 text-white" />
-                  </div>
-                  <span>Weekly Plan</span>
-                </CardTitle>
-                <CardDescription className="text-base">
-                  Your 7-day workout structure
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-        <WeeklyStructure weeklyStructure={weeklyStructure} />
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
-              <CardContent className="p-6">
-        <KeyExercises exercises={keyExercises} />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* AI Workouts Link */}
-          <Card className="bg-gradient-to-r from-blue-50 via-purple-50 to-orange-50 dark:from-blue-950 dark:via-purple-950 dark:to-orange-950 border-blue-200 dark:border-blue-800 shadow-lg">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                    <Brain className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-blue-900 dark:text-blue-100">
-                      AI-Powered Workouts
-                    </h3>
-                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                      Generate custom workouts tailored to your needs
-                    </p>
-                  </div>
-                </div>
+              {isTodayWorkoutAvailable && (
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Button 
+                    size="lg" 
+                    className="bg-gradient-to-r from-white to-orange-50 text-blue-600 hover:from-orange-50 hover:to-white font-semibold shadow-lg px-8 py-3"
+                    onClick={() => navigate("/today-workout")}
+                  >
+                    <motion.div
+                      whileHover={{ rotate: 15 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Play className="w-5 h-5 mr-2" />
+                    </motion.div>
+                    Start Today's Workout
+                  </Button>
+                </motion.div>
+              )}
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
                 <Button 
-                  variant="outline"
-                  onClick={() => navigate('/ai-workouts')}
-                  className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                  variant="outline" 
+                  size="lg"
+                  className="border-white/30 text-white hover:bg-gradient-to-r hover:from-white/20 hover:to-orange-500/20 bg-white/10 shadow-lg px-8 py-3"
+                  onClick={() => navigate("/progress")}
                 >
-                  Explore
-                  <ChevronRight className="w-4 h-4 ml-2" />
+                  <motion.div
+                    whileHover={{ rotate: 15 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <TrendingUp className="w-5 h-5 mr-2" />
+                  </motion.div>
+                  View Progress
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Custom Workouts Tab */}
-        <TabsContent value="custom" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold">Custom Workouts</h2>
-              <p className="text-gray-600 dark:text-gray-400">
-                Create and manage your own workout routines
-              </p>
-            </div>
-            <CreateWorkoutForm userId={user?.id} onWorkoutCreated={handleWorkoutCreated} />
-      </div>
-
-      <CustomWorkoutList 
-        userId={user?.id} 
-        userWorkouts={userWorkouts}
-        selectedWorkout={selectedWorkout}
-        onSelectWorkout={handleSelectWorkout}
-        onDeleteWorkout={handleDeleteWorkout}
-        onWorkoutCreated={handleWorkoutCreated}
-      />
-        </TabsContent>
-
-        {/* Edit Exercises Tab */}
-        {selectedWorkout && (
-          <TabsContent value="exercises" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold">Edit Workout</h2>
-                <p className="text-gray-600 dark:text-gray-400">
-                  Customize exercises for {selectedWorkoutObj?.name}
-                </p>
-              </div>
-              <div className="flex space-x-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setActiveTab("custom")}
-                >
-                  Back to Custom
-                </Button>
-                <Button
-                  onClick={() => handleStartWorkout(selectedWorkout)}
-                  className="bg-fitness-primary hover:bg-fitness-primary-dark"
-                >
-                  <Play className="w-4 h-4 mr-2" />
-                  Start Workout
-                </Button>
+              </motion.div>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Workout Details</CardTitle>
-                <CardDescription>
-                  Add, remove, or modify exercises in your workout
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <WorkoutDetails
-                  selectedWorkout={selectedWorkout}
-                  userWorkouts={userWorkouts}
-                  workoutExercises={workoutExercises}
-                  exercises={allExercises}
-                  onExerciseAdded={handleExerciseAdded}
-                  onRemoveExercise={handleRemoveExercise}
-                />
+        {/* AI Status Banner */}
+        {(isGeneratingAIPlan || isRegenerating || isAIGenerated) && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="mb-6 border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2">
+                      <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <span className="font-medium text-blue-900 dark:text-blue-100">
+                        {isGeneratingAIPlan && "Creating your AI workout plan..."}
+                        {isRegenerating && "Regenerating your workout plan..."}
+                        {!isGeneratingAIPlan && !isRegenerating && isAIGenerated && "AI-Powered Workout Plan"}
+                      </span>
+                    </div>
+                    {isRegenerating && (
+                      <div className="flex items-center space-x-2">
+                        <Progress value={regenerationProgress} className="w-20 h-2" />
+                        <span className="text-sm text-blue-700 dark:text-blue-300">
+                          {regenerationProgress}%
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {!isGeneratingAIPlan && !isRegenerating && isAIGenerated && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRegeneratePlan}
+                      disabled={isRegenerating}
+                      className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                    >
+                      <RefreshCw className={`w-4 h-4 mr-2 ${isRegenerating ? 'animate-spin' : ''}`} />
+                      {isRegenerating ? 'Regenerating...' : 'Regenerate'}
+                    </Button>
+                  )}
+                </div>
+                
+                {isRegenerating && regenerationStatus && (
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-2">
+                    {regenerationStatus}
+                  </p>
+                )}
               </CardContent>
             </Card>
-          </TabsContent>
+          </motion.div>
         )}
-      </Tabs>
+
+        {/* Main Content Tabs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-4 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 p-2 rounded-xl shadow-lg">
+              <TabsTrigger 
+                value="overview" 
+                className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-blue-100 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 transition-all duration-300 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
+              >
+                <motion.div
+                  whileHover={{ rotate: 5 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Target className="w-4 w-4" />
+                </motion.div>
+                <span className="hidden sm:inline">Overview</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="weekly" 
+                className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-green-100 dark:hover:bg-green-900/20 hover:text-green-700 dark:hover:text-green-300 transition-all duration-300 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
+              >
+                <motion.div
+                  whileHover={{ rotate: 5 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Calendar className="w-4 w-4" />
+                </motion.div>
+                <span className="hidden sm:inline">Weekly</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="custom" 
+                className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-purple-100 dark:hover:bg-purple-900/20 hover:text-purple-700 dark:hover:text-purple-300 transition-all duration-300 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
+              >
+                <motion.div
+                  whileHover={{ rotate: 5 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Dumbbell className="w-4 w-4" />
+                </motion.div>
+                <span className="hidden sm:inline">Custom</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="create" 
+                className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-orange-100 dark:hover:bg-orange-900/20 hover:text-orange-700 dark:hover:text-orange-300 transition-all duration-300 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
+              >
+                <motion.div
+                  whileHover={{ rotate: 5 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Plus className="w-4 w-4" />
+                </motion.div>
+                <span className="hidden sm:inline">Create</span>
+              </TabsTrigger>
+            </TabsList>
+            
+            <Separator className="my-6" />
+            
+            {/* Overview Tab - AI Workouts & Plan */}
+            <TabsContent value="overview" className="space-y-6">
+              {/* Today's Workout Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <Card className="border-2 border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <motion.div
+                        whileHover={{ rotate: 10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Play className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      </motion.div>
+                      <span>Today's Workout</span>
+                      <Badge variant="secondary" className="bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-200">
+                        Recommended
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription>
+                      Your AI-generated workout for today
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <TodayWorkout 
+                      todayWorkout={todayWorkout}
+                      userId={user?.id}
+                    />
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Weekly Plan & Key Exercises */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 hover:shadow-xl transition-all duration-300">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="flex items-center space-x-2 text-xl">
+                        <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
+                          <Calendar className="w-5 h-5 text-white" />
+                        </div>
+                        <span>Weekly Plan</span>
+                      </CardTitle>
+                      <CardDescription className="text-base">
+                        Your 7-day workout structure
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <WeeklyStructure weeklyStructure={weeklyStructure} />
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 hover:shadow-xl transition-all duration-300">
+                    <CardContent className="p-6">
+                      <KeyExercises exercises={keyExercises} />
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </div>
+
+              {/* AI Workouts Link */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                <Card className="bg-gradient-to-r from-blue-50 via-purple-50 to-orange-50 dark:from-blue-950 dark:via-purple-950 dark:to-orange-950 border-blue-200 dark:border-blue-800 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                          <Brain className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                            AI-Powered Workouts
+                          </h3>
+                          <p className="text-sm text-blue-700 dark:text-blue-300">
+                            Generate custom workouts tailored to your needs
+                          </p>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="outline"
+                        onClick={() => navigate('/ai-workouts')}
+                        className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                      >
+                        Explore
+                        <ChevronRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </TabsContent>
+
+            {/* Weekly Structure Tab */}
+            <TabsContent value="weekly" className="space-y-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <Card className="shadow-xl border-0 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
+                  <CardHeader>
+                    <CardTitle className="text-2xl flex items-center gap-3">
+                      <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl">
+                        <Calendar className="w-6 h-6 text-white" />
+                      </div>
+                      Weekly Workout Structure
+                    </CardTitle>
+                    <CardDescription className="text-lg">
+                      Your complete 7-day workout plan breakdown
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <WeeklyStructure weeklyStructure={weeklyStructure} />
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </TabsContent>
+
+            {/* Custom Workouts Tab */}
+            <TabsContent value="custom" className="space-y-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="flex items-center justify-between"
+              >
+                <div>
+                  <h2 className="text-2xl font-bold">Custom Workouts</h2>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Create and manage your own workout routines
+                  </p>
+                </div>
+                <CreateWorkoutForm userId={user?.id} onWorkoutCreated={handleWorkoutCreated} />
+              </motion.div>
+
+              <CustomWorkoutList 
+                userId={user?.id} 
+                userWorkouts={userWorkouts}
+                selectedWorkout={selectedWorkout}
+                onSelectWorkout={handleSelectWorkout}
+                onDeleteWorkout={handleDeleteWorkout}
+                onWorkoutCreated={handleWorkoutCreated}
+              />
+            </TabsContent>
+
+            {/* Create Workout Tab */}
+            <TabsContent value="create" className="space-y-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <Card className="shadow-xl border-0 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
+                  <CardHeader>
+                    <CardTitle className="text-2xl flex items-center gap-3">
+                      <div className="p-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl">
+                        <Plus className="w-6 h-6 text-white" />
+                      </div>
+                      Create New Workout
+                    </CardTitle>
+                    <CardDescription className="text-lg">
+                      Build a custom workout routine from scratch
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <CreateWorkoutForm userId={user?.id} onWorkoutCreated={handleWorkoutCreated} />
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </TabsContent>
+          </Tabs>
+        </motion.div>
+      </motion.div>
     </DashboardLayout>
   );
 };

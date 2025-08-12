@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Trophy, 
   Users, 
@@ -11,7 +12,11 @@ import {
   Plus,
   Target,
   Medal,
-  TrendingUp
+  TrendingUp,
+  Zap,
+  Flame,
+  Star,
+  Award
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -181,19 +186,105 @@ const Challenges: React.FC = () => {
 
   return (
     <DashboardLayout title="Fitness Challenges">
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <p className="text-gray-600 dark:text-gray-400">
-              Join challenges to stay motivated and compete with friends.
-            </p>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="space-y-6"
+      >
+        {/* Hero Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-8"
+        >
+          <div className="bg-gradient-to-r from-purple-600 via-blue-600 to-green-500 rounded-xl p-8 text-white shadow-2xl hover:shadow-3xl transition-all duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <motion.h1 
+                  className="text-3xl font-bold mb-3"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  Ready for a Challenge? 🏆
+                </motion.h1>
+                <motion.p 
+                  className="text-purple-100 text-lg"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  Join challenges to stay motivated and compete with friends
+                </motion.p>
+              </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.4 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Button 
+                  onClick={() => setShowCreateDialog(true)}
+                  className="bg-white text-purple-600 hover:bg-purple-50 font-semibold shadow-lg px-6 py-3"
+                >
+                  <motion.div
+                    whileHover={{ rotate: 90 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Plus className="w-5 h-5 mr-2" />
+                  </motion.div>
+                  Create Challenge
+                </Button>
+              </motion.div>
+            </div>
+            
+            {/* Challenge Stats */}
+            <motion.div 
+              className="grid grid-cols-1 md:grid-cols-3 gap-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <div className="bg-white/20 rounded-lg p-4 text-center">
+                <motion.div
+                  whileHover={{ scale: 1.1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Trophy className="w-8 h-8 mx-auto mb-2 text-yellow-300" />
+                  <div className="text-2xl font-bold">{challenges.length}</div>
+                  <div className="text-sm text-purple-100">Active Challenges</div>
+                </motion.div>
+              </div>
+              <div className="bg-white/20 rounded-lg p-4 text-center">
+                <motion.div
+                  whileHover={{ scale: 1.1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Users className="w-8 h-8 mx-auto mb-2 text-blue-300" />
+                  <div className="text-2xl font-bold">
+                    {challenges.reduce((sum, c) => sum + (c.total_participants || 0), 0)}
+                  </div>
+                  <div className="text-sm text-purple-100">Total Participants</div>
+                </motion.div>
+              </div>
+              <div className="bg-white/20 rounded-lg p-4 text-center">
+                <motion.div
+                  whileHover={{ scale: 1.1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Star className="w-8 h-8 mx-auto mb-2 text-green-300" />
+                  <div className="text-2xl font-bold">
+                    {challenges.filter(c => c.completed).length}
+                  </div>
+                  <div className="text-sm text-purple-100">Completed</div>
+                </motion.div>
+              </div>
+            </motion.div>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Challenge
-          </Button>
-        </div>
-      </div>
+        </motion.div>
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -211,9 +302,22 @@ const Challenges: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {displayChallenges.map((challenge) => (
-            <Card key={challenge.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          {displayChallenges.map((challenge, index) => (
+            <motion.div
+              key={challenge.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 * index }}
+              whileHover={{ y: -5, scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-purple-200 dark:hover:border-purple-800">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-2">
@@ -303,8 +407,9 @@ const Challenges: React.FC = () => {
                 )}
               </CardFooter>
             </Card>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {/* Update Progress Dialog */}
@@ -444,6 +549,7 @@ const Challenges: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </motion.div>
     </DashboardLayout>
   );
 };
