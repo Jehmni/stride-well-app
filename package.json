@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:localhost": "vite --host localhost --port 8080",
     "dev:clean": "rimraf node_modules/.vite && vite --force",
     "dev:force": "vite --force",
     "build": "vite build",

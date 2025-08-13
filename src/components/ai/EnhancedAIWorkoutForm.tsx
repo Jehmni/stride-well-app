@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Brain, Dumbbell, Loader2 } from "lucide-react";
+import { Brain, Dumbbell, Loader2, User, Clock, Target, Settings, Lightbulb, Star, CheckCircle, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,44 +35,45 @@ interface UserMeasurements {
 }
 
 const fitnessGoalOptions = [
-  { value: "weight-loss", label: "Weight Loss" },
-  { value: "muscle-gain", label: "Muscle Gain" },
-  { value: "general-fitness", label: "General Fitness" },
-  { value: "endurance", label: "Endurance" },
-  { value: "strength", label: "Strength" },
-  { value: "flexibility", label: "Flexibility" },
+  { value: "weight-loss", label: "Weight Loss", icon: "🔥", color: "from-red-500 to-orange-500" },
+  { value: "muscle-gain", label: "Muscle Gain", icon: "💪", color: "from-blue-500 to-purple-500" },
+  { value: "general-fitness", label: "General Fitness", icon: "⚡", color: "from-green-500 to-blue-500" },
+  { value: "endurance", label: "Endurance", icon: "🏃", color: "from-cyan-500 to-blue-500" },
+  { value: "strength", label: "Strength", icon: "🏋️", color: "from-purple-500 to-pink-500" },
+  { value: "flexibility", label: "Flexibility", icon: "🧘", color: "from-pink-500 to-rose-500" },
 ];
 
 const equipmentOptions = [
-  { id: "none", label: "None / Bodyweight Only" },
-  { id: "dumbbells", label: "Dumbbells" },
-  { id: "barbells", label: "Barbells" },
-  { id: "kettlebells", label: "Kettlebells" },
-  { id: "resistance-bands", label: "Resistance Bands" },
-  { id: "trx", label: "TRX / Suspension Trainer" },
-  { id: "gym-machines", label: "Gym Machines" },
-  { id: "pull-up-bar", label: "Pull-up Bar" },
-  { id: "bench", label: "Bench" },
-  { id: "box", label: "Plyo Box" },
+  { id: "none", label: "None / Bodyweight Only", icon: "🤸", popular: true },
+  { id: "dumbbells", label: "Dumbbells", icon: "🏋️", popular: true },
+  { id: "barbells", label: "Barbells", icon: "💪", popular: false },
+  { id: "kettlebells", label: "Kettlebells", icon: "⚡", popular: false },
+  { id: "resistance-bands", label: "Resistance Bands", icon: "🎯", popular: true },
+  { id: "trx", label: "TRX / Suspension Trainer", icon: "🔗", popular: false },
+  { id: "gym-machines", label: "Gym Machines", icon: "🏢", popular: false },
+  { id: "pull-up-bar", label: "Pull-up Bar", icon: "📏", popular: true },
+  { id: "bench", label: "Bench", icon: "🪑", popular: false },
+  { id: "box", label: "Plyo Box", icon: "📦", popular: false },
 ];
 
 const focusAreaOptions = [
-  { id: "upper-body", label: "Upper Body" },
-  { id: "lower-body", label: "Lower Body" },
-  { id: "core", label: "Core/Abs" },
-  { id: "back", label: "Back" },
-  { id: "chest", label: "Chest" },
-  { id: "arms", label: "Arms" },
-  { id: "shoulders", label: "Shoulders" },
-  { id: "legs", label: "Legs" },
-  { id: "glutes", label: "Glutes" },
-  { id: "cardio", label: "Cardiovascular" },
+  { id: "upper-body", label: "Upper Body", icon: "💪", gradient: "from-blue-500 to-purple-500" },
+  { id: "lower-body", label: "Lower Body", icon: "🦵", gradient: "from-green-500 to-blue-500" },
+  { id: "core", label: "Core/Abs", icon: "⚡", gradient: "from-yellow-500 to-orange-500" },
+  { id: "back", label: "Back", icon: "🔄", gradient: "from-indigo-500 to-purple-500" },
+  { id: "chest", label: "Chest", icon: "🎯", gradient: "from-red-500 to-pink-500" },
+  { id: "arms", label: "Arms", icon: "💪", gradient: "from-purple-500 to-pink-500" },
+  { id: "shoulders", label: "Shoulders", icon: "🏔️", gradient: "from-cyan-500 to-blue-500" },
+  { id: "legs", label: "Legs", icon: "🦵", gradient: "from-green-500 to-emerald-500" },
+  { id: "glutes", label: "Glutes", icon: "🍑", gradient: "from-pink-500 to-rose-500" },
+  { id: "cardio", label: "Cardiovascular", icon: "❤️", gradient: "from-red-500 to-orange-500" },
 ];
 
 const EnhancedAIWorkoutForm: React.FC = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
   const [measurements, setMeasurements] = useState<UserMeasurements>({
     chest: null,
     waist: null,
@@ -119,7 +120,7 @@ const EnhancedAIWorkoutForm: React.FC = () => {
           hips: latestMeasurement.hips,
           arms: latestMeasurement.arms,
           thighs: latestMeasurement.thighs,
-          lastMeasuredDate: latestMeasurement.recorded_at,
+          lastMeasuredDate: latestMeasurement.measured_at,
         });
       }
     } catch (error) {
@@ -246,7 +247,7 @@ const EnhancedAIWorkoutForm: React.FC = () => {
         const { data: savedWorkout, error } = await supabase
           .from("workout_plans")
           .insert({
-            title: workoutPlan.title,
+            name: workoutPlan.title,
             description: workoutPlan.description,
             fitness_goal: formData.fitnessGoal,
             weekly_structure: workoutPlan.weekly_structure,
@@ -373,180 +374,399 @@ const EnhancedAIWorkoutForm: React.FC = () => {
   };
 
   return (
-    <Card className="w-full max-w-3xl mx-auto">
-      <CardHeader>
-        <CardTitle className="text-2xl flex items-center gap-2">
-          <Brain className="h-6 w-6 text-primary" /> Enhanced AI Workout Generator
-        </CardTitle>
-        <CardDescription>
-          Generate a personalized workout plan with our AI trainer
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
+    <div className="w-full max-w-4xl mx-auto space-y-8">
+      {/* Progress Indicator */}
+      <div className="relative">
+        <div className="flex items-center justify-between mb-8">
+          {[1, 2, 3, 4].map((step) => (
+            <div key={step} className="flex flex-col items-center flex-1">
+              <div className={`relative w-12 h-12 rounded-full border-2 transition-all duration-500 ${
+                step <= currentStep 
+                  ? 'bg-gradient-to-r from-indigo-500 to-purple-600 border-transparent text-white shadow-lg' 
+                  : 'border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500'
+              }`}>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  {step < currentStep ? (
+                    <CheckCircle className="h-6 w-6 text-white" />
+                  ) : (
+                    <span className="text-lg font-semibold">{step}</span>
+                  )}
+                </div>
+                {step <= currentStep && (
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 animate-pulse opacity-25"></div>
+                )}
+              </div>
+              <div className={`mt-3 text-sm font-medium transition-colors duration-300 ${
+                step <= currentStep ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'
+              }`}>
+                {step === 1 && 'Goals'}
+                {step === 2 && 'Schedule'}
+                {step === 3 && 'Equipment'}
+                {step === 4 && 'Focus Areas'}
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {/* Progress Bar */}
+        <div className="absolute top-6 left-6 right-6 h-0.5 bg-gray-200 dark:bg-gray-700 -z-10">
+          <div 
+            className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-700 ease-out"
+            style={{ width: `${((currentStep - 1) / 3) * 100}%` }}
+          ></div>
+        </div>
+      </div>
+
+      {/* Form Content */}
+      <Card className="overflow-hidden border-0 shadow-2xl bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50 backdrop-blur-sm">
+        <CardHeader className="bg-gradient-to-r from-indigo-600/10 via-purple-600/10 to-pink-600/10 border-b border-gradient-to-r from-indigo-200 to-purple-200 dark:from-indigo-800 dark:to-purple-800">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl shadow-lg">
+              <Brain className="h-8 w-8 text-white" />
+            </div>
             <div>
-              <Label htmlFor="fitnessGoal">Primary Fitness Goal</Label>
-              <Select
-                value={formData.fitnessGoal}
-                onValueChange={(value) => handleInputChange("fitnessGoal", value)}
-              >
-                <SelectTrigger id="fitnessGoal">
-                  <SelectValue placeholder="Select your main goal" />
-                </SelectTrigger>
-                <SelectContent>
+              <CardTitle className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                AI Workout Generator
+              </CardTitle>
+              <CardDescription className="text-lg text-gray-600 dark:text-gray-400">
+                Step {currentStep} of 4: {currentStep === 1 && 'Set Your Fitness Goals'}
+                {currentStep === 2 && 'Plan Your Schedule'}
+                {currentStep === 3 && 'Choose Equipment'}
+                {currentStep === 4 && 'Select Focus Areas'}
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Step 1: Goals */}
+            {currentStep === 1 && (
+              <div className="space-y-8 animate-in fade-in-0 slide-in-from-right-5 duration-500">
+                <div className="text-center mb-8">
+                  <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/50 dark:to-purple-900/50 rounded-full px-6 py-3 mb-4">
+                    <Target className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                    <span className="text-indigo-700 dark:text-indigo-300 font-medium">Define Your Journey</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">What's Your Primary Goal?</h3>
+                  <p className="text-gray-600 dark:text-gray-400">Choose the goal that best represents your fitness aspirations</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {fitnessGoalOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleInputChange("fitnessGoal", option.value)}
+                      className={`relative p-6 rounded-2xl border-2 transition-all duration-300 hover:scale-105 ${
+                        formData.fitnessGoal === option.value
+                          ? 'border-transparent bg-gradient-to-br ' + option.color + ' text-white shadow-2xl'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600 bg-white dark:bg-gray-800 hover:shadow-lg'
+                      }`}
+                    >
+                      <div className="text-center">
+                        <div className="text-3xl mb-3">{option.icon}</div>
+                        <h4 className="font-semibold text-lg mb-2">{option.label}</h4>
+                        {formData.fitnessGoal === option.value && (
+                          <div className="absolute top-3 right-3">
+                            <CheckCircle className="h-6 w-6 text-white" />
+                          </div>
+                        )}
+                      </div>
+                    </button>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="workoutDaysPerWeek">Days Per Week</Label>
-                <Select
-                  value={formData.workoutDaysPerWeek.toString()}
-                  onValueChange={(value) =>
-                    handleInputChange("workoutDaysPerWeek", parseInt(value))
-                  }
-                >
-                  <SelectTrigger id="workoutDaysPerWeek">
-                    <SelectValue placeholder="Select days per week" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5, 6, 7].map((num) => (
-                      <SelectItem key={num} value={num.toString()}>
-                        {num} {num === 1 ? "day" : "days"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="workoutDuration">
-                  Workout Duration (minutes)
-                </Label>
-                <Select
-                  value={formData.workoutDuration.toString()}
-                  onValueChange={(value) =>
-                    handleInputChange("workoutDuration", parseInt(value))
-                  }
-                >
-                  <SelectTrigger id="workoutDuration">
-                    <SelectValue placeholder="Select workout duration" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[15, 30, 45, 60, 75, 90].map((num) => (
-                      <SelectItem key={num} value={num.toString()}>
-                        {num} minutes
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div>
-              <Label className="mb-2 block">Available Equipment</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {equipmentOptions.map((option) => (
-                  <div key={option.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`equipment-${option.id}`}
-                      checked={formData.equipment.includes(option.id)}
-                      onCheckedChange={(checked) =>
-                        handleEquipmentChange(option.id, checked === true)
-                      }
-                    />
-                    <label
-                      htmlFor={`equipment-${option.id}`}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      {option.label}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <Label className="mb-2 block">Focus Areas</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {focusAreaOptions.map((option) => (
-                  <div key={option.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`focus-${option.id}`}
-                      checked={formData.fitnessFocus.includes(option.id)}
-                      onCheckedChange={(checked) =>
-                        handleFocusAreaChange(option.id, checked === true)
-                      }
-                    />
-                    <label
-                      htmlFor={`focus-${option.id}`}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      {option.label}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="specificGoals">Specific Goals (Optional)</Label>
-              <Textarea
-                id="specificGoals"
-                placeholder="E.g., I want to be able to do 10 pull-ups, or I want to tone my abs"
-                value={formData.specificGoals}
-                onChange={(e) =>
-                  handleInputChange("specificGoals", e.target.value)
-                }
-                className="h-24"
-              />
-            </div>
-
-            {Object.values(measurements).some(
-              (m) => m !== null && m !== measurements.lastMeasuredDate
-            ) && (
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="includeMeasurements"
-                  checked={formData.includeMeasurements}
-                  onCheckedChange={(checked) =>
-                    handleInputChange("includeMeasurements", checked)
-                  }
-                />
-                <Label htmlFor="includeMeasurements">
-                  Include my body measurements in the workout plan
-                </Label>
+                </div>
               </div>
             )}
+
+            {/* Step 2: Schedule */}
+            {currentStep === 2 && (
+              <div className="space-y-8 animate-in fade-in-0 slide-in-from-right-5 duration-500">
+                <div className="text-center mb-8">
+                  <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-green-100 to-blue-100 dark:from-green-900/50 dark:to-blue-900/50 rounded-full px-6 py-3 mb-4">
+                    <Clock className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    <span className="text-green-700 dark:text-green-300 font-medium">Time Investment</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Plan Your Schedule</h3>
+                  <p className="text-gray-600 dark:text-gray-400">How much time can you dedicate to your fitness journey?</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <div>
+                      <Label className="text-lg font-semibold text-gray-900 dark:text-white mb-4 block">Days Per Week</Label>
+                      <div className="grid grid-cols-4 gap-3">
+                        {[1, 2, 3, 4, 5, 6, 7].map((num) => (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => handleInputChange("workoutDaysPerWeek", num)}
+                            className={`aspect-square rounded-xl border-2 transition-all duration-300 hover:scale-105 ${
+                              formData.workoutDaysPerWeek === num
+                                ? 'border-transparent bg-gradient-to-br from-green-500 to-blue-500 text-white shadow-lg'
+                                : 'border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600 bg-white dark:bg-gray-800'
+                            }`}
+                          >
+                            <div className="flex flex-col items-center justify-center h-full">
+                              <span className="text-2xl font-bold">{num}</span>
+                              <span className="text-xs">{num === 1 ? 'day' : 'days'}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <Label className="text-lg font-semibold text-gray-900 dark:text-white mb-4 block">Session Duration</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[15, 30, 45, 60, 75, 90].map((num) => (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => handleInputChange("workoutDuration", num)}
+                            className={`p-4 rounded-xl border-2 transition-all duration-300 hover:scale-105 ${
+                              formData.workoutDuration === num
+                                ? 'border-transparent bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg'
+                                : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 bg-white dark:bg-gray-800'
+                            }`}
+                          >
+                            <div className="text-center">
+                              <div className="text-xl font-bold">{num}</div>
+                              <div className="text-sm">minutes</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Equipment */}
+            {currentStep === 3 && (
+              <div className="space-y-8 animate-in fade-in-0 slide-in-from-right-5 duration-500">
+                <div className="text-center mb-8">
+                  <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/50 dark:to-red-900/50 rounded-full px-6 py-3 mb-4">
+                    <Dumbbell className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                    <span className="text-orange-700 dark:text-orange-300 font-medium">Your Arsenal</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Available Equipment</h3>
+                  <p className="text-gray-600 dark:text-gray-400">Select all equipment you have access to</p>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Star className="h-5 w-5 text-yellow-500" />
+                      <Label className="text-lg font-semibold text-gray-900 dark:text-white">Popular Choices</Label>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {equipmentOptions.filter(option => option.popular).map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => handleEquipmentChange(option.id, !formData.equipment.includes(option.id))}
+                          className={`relative p-6 rounded-2xl border-2 transition-all duration-300 hover:scale-105 ${
+                            formData.equipment.includes(option.id)
+                              ? 'border-transparent bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-2xl'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-orange-300 dark:hover:border-orange-600 bg-white dark:bg-gray-800 hover:shadow-lg'
+                          }`}
+                        >
+                          <div className="text-center">
+                            <div className="text-3xl mb-3">{option.icon}</div>
+                            <h4 className="font-medium text-sm">{option.label}</h4>
+                            {formData.equipment.includes(option.id) && (
+                              <div className="absolute top-3 right-3">
+                                <CheckCircle className="h-5 w-5 text-white" />
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-lg font-semibold text-gray-900 dark:text-white mb-4 block">All Equipment</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {equipmentOptions.filter(option => !option.popular).map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => handleEquipmentChange(option.id, !formData.equipment.includes(option.id))}
+                          className={`p-4 rounded-xl border-2 transition-all duration-300 hover:scale-105 ${
+                            formData.equipment.includes(option.id)
+                              ? 'border-transparent bg-gradient-to-br from-gray-600 to-gray-700 text-white shadow-lg'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 bg-white dark:bg-gray-800'
+                          }`}
+                        >
+                          <div className="text-center">
+                            <div className="text-2xl mb-2">{option.icon}</div>
+                            <div className="text-xs font-medium">{option.label}</div>
+                            {formData.equipment.includes(option.id) && (
+                              <CheckCircle className="h-4 w-4 text-white mt-2 mx-auto" />
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Focus Areas */}
+            {currentStep === 4 && (
+              <div className="space-y-8 animate-in fade-in-0 slide-in-from-right-5 duration-500">
+                <div className="text-center mb-8">
+                  <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/50 dark:to-pink-900/50 rounded-full px-6 py-3 mb-4">
+                    <Target className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                    <span className="text-purple-700 dark:text-purple-300 font-medium">Target Areas</span>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Focus Areas</h3>
+                  <p className="text-gray-600 dark:text-gray-400">Which muscle groups do you want to prioritize?</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                  {focusAreaOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => handleFocusAreaChange(option.id, !formData.fitnessFocus.includes(option.id))}
+                      className={`relative p-6 rounded-2xl border-2 transition-all duration-300 hover:scale-105 ${
+                        formData.fitnessFocus.includes(option.id)
+                          ? `border-transparent bg-gradient-to-br ${option.gradient} text-white shadow-2xl`
+                          : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 bg-white dark:bg-gray-800 hover:shadow-lg'
+                      }`}
+                    >
+                      <div className="text-center">
+                        <div className="text-3xl mb-3">{option.icon}</div>
+                        <h4 className="font-medium text-sm">{option.label}</h4>
+                        {formData.fitnessFocus.includes(option.id) && (
+                          <div className="absolute top-3 right-3">
+                            <CheckCircle className="h-5 w-5 text-white" />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <Label htmlFor="specificGoals" className="text-lg font-semibold text-gray-900 dark:text-white mb-3 block">
+                      <div className="flex items-center space-x-2">
+                        <Lightbulb className="h-5 w-5 text-yellow-500" />
+                        <span>Specific Goals (Optional)</span>
+                      </div>
+                    </Label>
+                    <Textarea
+                      id="specificGoals"
+                      placeholder="E.g., I want to be able to do 10 pull-ups, lose 15 pounds, or tone my abs for summer..."
+                      value={formData.specificGoals}
+                      onChange={(e) => handleInputChange("specificGoals", e.target.value)}
+                      className="h-32 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-purple-500 dark:focus:border-purple-400 transition-colors duration-300"
+                    />
+                  </div>
+
+                  {Object.values(measurements).some((m) => m !== null && m !== measurements.lastMeasuredDate) && (
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-blue-500 rounded-lg">
+                            <Settings className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <Label htmlFor="includeMeasurements" className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+                              Include Body Measurements
+                            </Label>
+                            <p className="text-sm text-blue-700 dark:text-blue-300">
+                              Use your recorded measurements for more precise recommendations
+                            </p>
+                          </div>
+                        </div>
+                        <Switch
+                          id="includeMeasurements"
+                          checked={formData.includeMeasurements}
+                          onCheckedChange={(checked) => handleInputChange("includeMeasurements", checked)}
+                          className="data-[state=checked]:bg-blue-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </form>
+        </CardContent>
+
+        <CardFooter className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 p-8">
+          <div className="flex justify-between w-full">
+            <Button 
+              variant="outline" 
+              onClick={() => currentStep > 1 ? setCurrentStep(currentStep - 1) : navigate(-1)}
+              className="px-8 py-3 border-2 hover:scale-105 transition-all duration-300"
+              disabled={isLoading}
+            >
+              {currentStep > 1 ? 'Previous' : 'Cancel'}
+            </Button>
+            
+            {currentStep < 4 ? (
+              <Button 
+                onClick={() => setCurrentStep(currentStep + 1)}
+                className="px-8 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg hover:scale-105 transition-all duration-300"
+                disabled={isLoading}
+              >
+                Next Step
+                <CheckCircle className="ml-2 h-5 w-5" />
+              </Button>
+            ) : (
+              <Button 
+                onClick={handleSubmit} 
+                disabled={isLoading}
+                className="px-8 py-3 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white shadow-2xl hover:scale-105 transition-all duration-300"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    <span className="animate-pulse">Generating Magic...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    Generate My Workout Plan
+                  </>
+                )}
+              </Button>
+            )}
           </div>
-        </form>
-      </CardContent>
-      <CardFooter className="flex justify-between">
-        <Button variant="outline" onClick={() => navigate(-1)}>
-          Cancel
-        </Button>
-        <Button onClick={handleSubmit} disabled={isLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Brain className="mr-2 h-4 w-4" />
-              Generate Workout Plan
-            </>
-          )}
-        </Button>
-      </CardFooter>
-    </Card>
+        </CardFooter>
+      </Card>
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4 text-center">
+            <div className="relative mb-6">
+              <div className="w-20 h-20 mx-auto bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-2xl animate-pulse">
+                <Brain className="h-10 w-10 text-white" />
+              </div>
+              <div className="absolute inset-0 w-20 h-20 mx-auto bg-gradient-to-r from-indigo-400 to-purple-500 rounded-full animate-ping opacity-25"></div>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Creating Your Perfect Workout</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">Our AI is analyzing your preferences and crafting a personalized plan...</p>
+            <div className="flex justify-center space-x-1">
+              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+              <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

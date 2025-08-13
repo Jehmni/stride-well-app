@@ -28,7 +28,6 @@ import {
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { getExerciseIcon } from "@/utils/exerciseIcons";
 
 type AIWorkoutPlan = {
   id: string;
@@ -39,6 +38,81 @@ type AIWorkoutPlan = {
   times_completed: number;
   weekly_structure?: any;
   exercises?: any;
+};
+
+// Exercise Icon Mapping Function
+const getExerciseIcon = (exerciseName: string) => {
+  const name = exerciseName.toLowerCase();
+  
+  // Upper Body Exercises
+  if (name.includes('push') || name.includes('press') || name.includes('chest')) {
+    return '💪';
+  }
+  if (name.includes('pull') || name.includes('row') || name.includes('chin') || name.includes('lat')) {
+    return '🔄';
+  }
+  if (name.includes('curl') || name.includes('bicep')) {
+    return '💪';
+  }
+  if (name.includes('tricep') || name.includes('dip')) {
+    return '🔥';
+  }
+  if (name.includes('shoulder') || name.includes('lateral') || name.includes('overhead')) {
+    return '🏔️';
+  }
+  
+  // Lower Body Exercises
+  if (name.includes('squat') || name.includes('quad')) {
+    return '🦵';
+  }
+  if (name.includes('lunge') || name.includes('step')) {
+    return '👟';
+  }
+  if (name.includes('deadlift') || name.includes('hamstring')) {
+    return '⚡';
+  }
+  if (name.includes('calf') || name.includes('raise')) {
+    return '🦶';
+  }
+  if (name.includes('glute') || name.includes('hip')) {
+    return '🍑';
+  }
+  
+  // Core Exercises
+  if (name.includes('plank') || name.includes('core')) {
+    return '🎯';
+  }
+  if (name.includes('crunch') || name.includes('sit') || name.includes('ab')) {
+    return '⚡';
+  }
+  if (name.includes('mountain') || name.includes('climber')) {
+    return '🏔️';
+  }
+  
+  // Cardio/Full Body
+  if (name.includes('burpee') || name.includes('jump')) {
+    return '🔥';
+  }
+  if (name.includes('run') || name.includes('sprint')) {
+    return '🏃';
+  }
+  if (name.includes('bike') || name.includes('cycle')) {
+    return '🚴';
+  }
+  if (name.includes('swim')) {
+    return '🏊';
+  }
+  
+  // General/Compound Movements
+  if (name.includes('clean') || name.includes('snatch')) {
+    return '🏋️';
+  }
+  if (name.includes('row') && !name.includes('dumbbell')) {
+    return '🚣';
+  }
+  
+  // Default
+  return '💪';
 };
 
 const getFitnessGoalGradient = (goal: string) => {
@@ -105,13 +179,7 @@ export function AIWorkoutList() {
 
     toast.loading("Generating your personalized workout plan...");
     
-    // Cast profile to EnhancedUserProfile format
-    const enhancedProfile = {
-      ...profile,
-      fitness_level: profile.fitness_level as 'beginner' | 'intermediate' | 'advanced'
-    };
-    
-    const workoutId = await generateEnhancedAIWorkout(enhancedProfile);
+    const workoutId = await generateEnhancedAIWorkout(profile);
     
     toast.dismiss();
     

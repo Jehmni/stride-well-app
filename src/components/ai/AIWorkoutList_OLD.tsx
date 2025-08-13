@@ -28,7 +28,6 @@ import {
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { getExerciseIcon } from "@/utils/exerciseIcons";
 
 type AIWorkoutPlan = {
   id: string;
@@ -39,6 +38,81 @@ type AIWorkoutPlan = {
   times_completed: number;
   weekly_structure?: any;
   exercises?: any;
+};
+
+// Exercise Icon Mapping Function
+const getExerciseIcon = (exerciseName: string) => {
+  const name = exerciseName.toLowerCase();
+  
+  // Upper Body Exercises
+  if (name.includes('push') || name.includes('press') || name.includes('chest')) {
+    return '💪';
+  }
+  if (name.includes('pull') || name.includes('row') || name.includes('chin') || name.includes('lat')) {
+    return '🔄';
+  }
+  if (name.includes('curl') || name.includes('bicep')) {
+    return '💪';
+  }
+  if (name.includes('tricep') || name.includes('dip')) {
+    return '🔥';
+  }
+  if (name.includes('shoulder') || name.includes('lateral') || name.includes('overhead')) {
+    return '🏔️';
+  }
+  
+  // Lower Body Exercises
+  if (name.includes('squat') || name.includes('quad')) {
+    return '🦵';
+  }
+  if (name.includes('lunge') || name.includes('step')) {
+    return '👟';
+  }
+  if (name.includes('deadlift') || name.includes('hamstring')) {
+    return '⚡';
+  }
+  if (name.includes('calf') || name.includes('raise')) {
+    return '🦶';
+  }
+  if (name.includes('glute') || name.includes('hip')) {
+    return '🍑';
+  }
+  
+  // Core Exercises
+  if (name.includes('plank') || name.includes('core')) {
+    return '🎯';
+  }
+  if (name.includes('crunch') || name.includes('sit') || name.includes('ab')) {
+    return '⚡';
+  }
+  if (name.includes('mountain') || name.includes('climber')) {
+    return '🏔️';
+  }
+  
+  // Cardio/Full Body
+  if (name.includes('burpee') || name.includes('jump')) {
+    return '🔥';
+  }
+  if (name.includes('run') || name.includes('sprint')) {
+    return '🏃';
+  }
+  if (name.includes('bike') || name.includes('cycle')) {
+    return '🚴';
+  }
+  if (name.includes('swim')) {
+    return '🏊';
+  }
+  
+  // General/Compound Movements
+  if (name.includes('clean') || name.includes('snatch')) {
+    return '🏋️';
+  }
+  if (name.includes('row') && !name.includes('dumbbell')) {
+    return '🚣';
+  }
+  
+  // Default
+  return '💪';
 };
 
 const getFitnessGoalGradient = (goal: string) => {
@@ -105,13 +179,7 @@ export function AIWorkoutList() {
 
     toast.loading("Generating your personalized workout plan...");
     
-    // Cast profile to EnhancedUserProfile format
-    const enhancedProfile = {
-      ...profile,
-      fitness_level: profile.fitness_level as 'beginner' | 'intermediate' | 'advanced'
-    };
-    
-    const workoutId = await generateEnhancedAIWorkout(enhancedProfile);
+    const workoutId = await generateEnhancedAIWorkout(profile);
     
     toast.dismiss();
     
@@ -121,6 +189,10 @@ export function AIWorkoutList() {
     } else {
       toast.error("Failed to generate workout plan. Please try again.");
     }
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedPlan(expandedPlan === id ? null : id);
   };
 
   const handleStartWorkout = async (planId: string) => {
@@ -314,195 +386,203 @@ export function AIWorkoutList() {
                 </div>
               </div>
             </CardHeader>
-            
-            {/* Collapsible Content */}
-            {expandedPlan === plan.id && (
-              <CardContent className="relative pt-0">
-                <div className="space-y-8">
-                  {/* Quick Stats */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
-                      <div className="flex items-center space-x-2">
-                        <Clock className="h-5 w-5 text-blue-600" />
-                        <div>
-                          <p className="text-xs text-blue-600 font-medium uppercase tracking-wide">Duration</p>
-                          <p className="text-lg font-bold text-blue-900">
-                            {plan.weekly_structure?.total_duration || "45"} min
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
-                      <div className="flex items-center space-x-2">
-                        <Gauge className="h-5 w-5 text-green-600" />
-                        <div>
-                          <p className="text-xs text-green-600 font-medium uppercase tracking-wide">Intensity</p>
-                          <p className="text-lg font-bold text-green-900">
-                            {plan.weekly_structure?.intensity || "Moderate"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
-                      <div className="flex items-center space-x-2">
-                        <Target className="h-5 w-5 text-purple-600" />
-                        <div>
-                          <p className="text-xs text-purple-600 font-medium uppercase tracking-wide">Focus</p>
-                          <p className="text-lg font-bold text-purple-900">
-                            {plan.weekly_structure?.primary_focus || "Full Body"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-200">
-                      <div className="flex items-center space-x-2">
-                        <TrendingUp className="h-5 w-5 text-orange-600" />
-                        <div>
-                          <p className="text-xs text-orange-600 font-medium uppercase tracking-wide">Progress</p>
-                          <p className="text-lg font-bold text-orange-900">
-                            {plan.times_completed || 0}/{Math.ceil((plan.weekly_structure?.total_weeks || 4))}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Weekly Structure */}
-                  {plan.weekly_structure && (
-                    <div className="space-y-4">
-                      <h3 className="text-xl font-bold text-gray-900 flex items-center">
-                        <Calendar className="h-5 w-5 mr-2 text-blue-600" />
-                        Weekly Structure
-                      </h3>
-                      <div className="bg-gradient-to-r from-blue-50/50 to-purple-50/50 rounded-xl p-6 border border-gray-200">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {Object.entries(plan.weekly_structure).map(([day, exercises]: [string, any]) => {
-                            if (typeof exercises !== 'object' || !exercises || Array.isArray(exercises)) return null;
-                            
-                            return (
-                              <div key={day} className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                                <h4 className="font-semibold text-gray-900 mb-3 capitalize flex items-center">
-                                  <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${getFitnessGoalGradient(plan.fitness_goal)} mr-2`}></div>
-                                  {day.replace('_', ' ')}
-                                </h4>
-                                <div className="space-y-2">
-                                  {Array.isArray(exercises.exercises) ? (
-                                    exercises.exercises.slice(0, 3).map((exercise: string, idx: number) => (
-                                      <div key={idx} className="flex items-center text-sm text-gray-600">
-                                        <span className="mr-2">{getExerciseIcon(exercise)}</span>
-                                        <span className="truncate">{exercise}</span>
-                                      </div>
-                                    ))
-                                  ) : (
-                                    <p className="text-sm text-gray-500">{exercises.focus || 'Rest day'}</p>
-                                  )}
-                                  {Array.isArray(exercises.exercises) && exercises.exercises.length > 3 && (
-                                    <p className="text-xs text-gray-400">+{exercises.exercises.length - 3} more exercises</p>
-                                  )}
+  const startWorkout = (planId: string) => {
+    // Navigate to workout detail page
+    navigate(`/workouts/ai/${planId}`);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">Your AI Workout Plans</h2>
+        </div>
+        <div className="grid gap-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="h-6 w-48 bg-muted animate-pulse rounded"></div>
+                <div className="h-4 w-32 bg-muted animate-pulse rounded"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-28 bg-muted animate-pulse rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!workoutPlans || workoutPlans.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">Your AI Workout Plans</h2>
+          <Button onClick={handleGenerateWorkout}>Generate New Plan</Button>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>No AI Workout Plans Yet</CardTitle>
+            <CardDescription>
+              Generate your first personalized workout plan with AI
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              Our AI will analyze your profile data and create a custom workout plan
+              tailored to your fitness goals, age, sex, height, and weight.
+            </p>
+            <Button onClick={handleGenerateWorkout}>Generate Workout Plan</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Your AI Workout Plans</h2>
+        <Button onClick={handleGenerateWorkout} className="flex items-center gap-2">
+          <Brain className="h-4 w-4" />
+          Generate New Plan
+        </Button>
+      </div>
+
+      <div className="space-y-4">
+        {workoutPlans.map((plan: AIWorkoutPlan) => (
+          <Card key={plan.id} className="overflow-hidden">
+            <CardHeader className="pb-3">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle>{plan.title}</CardTitle>
+                    <Badge variant="outline" className="bg-primary/10 text-primary">
+                      {plan.fitness_goal.replace("-", " ")}
+                    </Badge>
+                  </div>
+                  <CardDescription>
+                    Created: {format(new Date(plan.created_at), "PPP")}
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  {plan.times_completed > 0 && (
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      <Dumbbell className="h-3 w-3" />
+                      {plan.times_completed} {plan.times_completed === 1 ? "completion" : "completions"}
+                    </Badge>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => toggleExpand(plan.id)}
+                    className="p-2 h-8 w-8"
+                  >
+                    {expandedPlan === plan.id ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+              <p className="text-sm mt-2">{plan.description}</p>
+            </CardHeader>
+
+            {expandedPlan === plan.id && (
+              <>
+                <CardContent>
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="schedule">
+                      <AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          Weekly Schedule
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="grid gap-2">
+                          {Object.entries(plan.weekly_structure?.days || {}).map(
+                            ([day, dayData]: [string, any]) => (
+                              <div
+                                key={day}
+                                className="border rounded-md p-3 bg-card"
+                              >
+                                <div className="font-medium capitalize">
+                                  {day}: {dayData.name}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {dayData.description}
+                                </div>
+                                <div className="mt-1 text-xs bg-primary/10 text-primary inline-block px-2 py-0.5 rounded-full">
+                                  {dayData.focus}
                                 </div>
                               </div>
-                            );
-                          })}
+                            )
+                          )}
                         </div>
-                      </div>
-                    </div>
-                  )}
+                      </AccordionContent>
+                    </AccordionItem>
 
-                  {/* Exercise Details */}
-                  {plan.exercises && plan.exercises.length > 0 && (
-                    <div className="space-y-4">
-                      <h3 className="text-xl font-bold text-gray-900 flex items-center">
-                        <Dumbbell className="h-5 w-5 mr-2 text-purple-600" />
-                        Exercise Library
-                      </h3>
-                      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100">
-                              <TableHead className="font-semibold text-gray-900">Exercise</TableHead>
-                              <TableHead className="font-semibold text-gray-900">Sets</TableHead>
-                              <TableHead className="font-semibold text-gray-900">Reps</TableHead>
-                              <TableHead className="font-semibold text-gray-900">Rest</TableHead>
-                              <TableHead className="font-semibold text-gray-900">Notes</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {plan.exercises.map((exercise: any, index: number) => (
-                              <TableRow key={index} className="hover:bg-gray-50 transition-colors">
-                                <TableCell className="font-medium">
-                                  <div className="flex items-center space-x-3">
-                                    <span className="text-lg">{getExerciseIcon(exercise.name || exercise.exercise)}</span>
-                                    <span className="text-gray-900">{exercise.name || exercise.exercise}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                    {exercise.sets || exercise.set || '3'}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                    {exercise.reps || exercise.rep || '12'}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
-                                    {exercise.rest || '60s'}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-sm text-gray-600 max-w-xs">
-                                  {exercise.notes || exercise.instructions || 'Focus on proper form'}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
+                    <AccordionItem value="exercises">
+                      <AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                          <Dumbbell className="h-4 w-4" />
+                          Exercises
+                        </div>
+                      </AccordionTrigger>                      <AccordionContent>
+                        {Array.isArray(plan.exercises) && plan.exercises.length > 0 ? (
+                          <div className="mb-4">
+                            <div className="rounded-md border">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Exercise</TableHead>
+                                    <TableHead>Muscle Group</TableHead>
+                                    <TableHead>Sets</TableHead>
+                                    <TableHead>Reps</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {plan.exercises.map((exercise: any, index: number) => (
+                                    <TableRow key={`${plan.id}-exercise-${index}`}>
+                                      <TableCell className="font-medium">
+                                        {exercise.name || 'Unknown Exercise'}
+                                      </TableCell>
+                                      <TableCell>{exercise.muscle || exercise.muscle_group || 'N/A'}</TableCell>
+                                      <TableCell>{exercise.sets || 0}</TableCell>
+                                      <TableCell>{exercise.reps || 0}</TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center text-muted-foreground py-4">
+                            No exercise data available
+                          </div>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    className="w-full flex items-center gap-2 mt-2"
+                    onClick={() => startWorkout(plan.id)}
+                  >
+                    <Play className="h-4 w-4" />
+                    Start Workout
+                  </Button>
+                </CardFooter>
+              </>
             )}
-
-            <CardFooter className="relative bg-gradient-to-r from-gray-50/50 to-gray-100/50 border-t border-gray-200">
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center space-x-4 text-sm text-gray-600">
-                  <span className="flex items-center">
-                    <Brain className="h-4 w-4 mr-1 text-purple-500" />
-                    AI Generated
-                  </span>
-                  <span className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-1 text-blue-500" />
-                    {format(new Date(plan.created_at), "MMM d")}
-                  </span>
-                  {plan.times_completed > 0 && (
-                    <span className="flex items-center">
-                      <CheckCircle className="h-4 w-4 mr-1 text-green-500" />
-                      {plan.times_completed} completions
-                    </span>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setExpandedPlan(expandedPlan === plan.id ? null : plan.id)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  {expandedPlan === plan.id ? 'Show Less' : 'Show More'}
-                  {expandedPlan === plan.id ? (
-                    <ChevronDown className="h-4 w-4 ml-1" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  )}
-                </Button>
-              </div>
-            </CardFooter>
           </Card>
         ))}
       </div>
     </div>
   );
-}
+} 

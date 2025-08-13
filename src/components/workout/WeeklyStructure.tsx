@@ -101,37 +101,58 @@ const WeeklyStructure: React.FC<WeeklyStructureProps> = ({ weeklyStructure }) =>
 
   return (
     <div className="space-y-6">
-      {/* Header with Summary */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-            <Calendar className="h-5 w-5 text-white" />
+      {/* Header with Summary - Enhanced for Desktop */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+        <div className="flex items-center space-x-4">
+          <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg">
+            <Calendar className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Weekly Structure</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Your 7-day fitness journey</p>
+            <h3 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">Weekly Structure</h3>
+            <p className="text-gray-600 dark:text-gray-400">Your 7-day fitness journey</p>
           </div>
         </div>
         
-        {/* Weekly Stats */}
-        <div className="hidden md:flex items-center space-x-4 text-sm">
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-            <span className="text-gray-600 dark:text-gray-400">Strength</span>
+        {/* Enhanced Weekly Stats for Desktop */}
+        <div className="flex flex-wrap lg:flex-nowrap items-center gap-4 lg:gap-6">
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 bg-orange-100 dark:bg-orange-900/30 px-3 py-2 rounded-lg">
+              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+              <span className="text-sm font-medium text-orange-700 dark:text-orange-300">Strength</span>
+              <span className="text-xs bg-orange-200 dark:bg-orange-800 text-orange-800 dark:text-orange-200 px-2 py-0.5 rounded-full">
+                {weeklyStructure.filter(d => d.focus.toLowerCase().includes('strength')).length}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2 bg-green-100 dark:bg-green-900/30 px-3 py-2 rounded-lg">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span className="text-sm font-medium text-green-700 dark:text-green-300">Cardio</span>
+              <span className="text-xs bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-0.5 rounded-full">
+                {weeklyStructure.filter(d => d.focus.toLowerCase().includes('cardio')).length}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2 bg-purple-100 dark:bg-purple-900/30 px-3 py-2 rounded-lg">
+              <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+              <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Core</span>
+              <span className="text-xs bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200 px-2 py-0.5 rounded-full">
+                {weeklyStructure.filter(d => d.focus.toLowerCase().includes('core')).length}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span className="text-gray-600 dark:text-gray-400">Cardio</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-            <span className="text-gray-600 dark:text-gray-400">Core</span>
+          
+          {/* Quick stats for large screens */}
+          <div className="hidden xl:flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex items-center space-x-1">
+              <Clock className="h-4 w-4" />
+              <span className="font-medium">
+                {weeklyStructure.reduce((total, day) => total + day.duration, 0)} min/week
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Weekly Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
+      {/* Weekly Grid - Stacked Layout for Maximum Space */}
+      <div className="flex flex-col space-y-4">
         {weeklyStructure.map((day, index) => {
           const isToday = today === getDayNumber(index);
           const dayName = dayNames[index];
@@ -139,89 +160,140 @@ const WeeklyStructure: React.FC<WeeklyStructureProps> = ({ weeklyStructure }) =>
           return (
             <div 
               key={index}
-              className={`relative p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-lg hover:scale-105 ${
+              className={`group relative p-6 rounded-xl border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-default ${
                 getDayColor(day.focus, isToday)
-              }`}
+              } ${isToday ? 'ring-2 ring-blue-400 ring-offset-2 ring-offset-background' : ''}`}
             >
               {/* Today Badge */}
               {isToday && (
-                <div className="absolute -top-2 -right-2 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg">
+                <div className="absolute -top-2 -right-2 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-3 py-1.5 rounded-full font-bold shadow-lg animate-pulse">
                   Today
                 </div>
               )}
               
-              {/* Day Header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-2">
-                  {getDayIcon(day.focus)}
-                  <span className={`font-bold text-sm ${getDayTextColor(day.focus, isToday)}`}>
-                    {dayName}
-                  </span>
+              {/* Day Header with Enhanced Layout */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <div className={`p-3 rounded-lg ${isToday ? 'bg-white/20' : 'bg-current/10'}`}>
+                    {getDayIcon(day.focus)}
+                  </div>
+                  <div>
+                    <span className={`font-bold text-lg ${getDayTextColor(day.focus, isToday)}`}>
+                      {dayName}
+                    </span>
+                    <h4 className={`font-semibold text-xl mt-1 leading-tight ${getDayTextColor(day.focus, isToday)}`}>
+                      {day.focus}
+                    </h4>
+                  </div>
+                </div>
+                
+                {/* Duration and Intensity on the Right */}
+                <div className="flex items-center space-x-6">
+                  {day.duration > 0 ? (
+                    <>
+                      <div className={`flex items-center space-x-2 ${getDayTextColor(day.focus, isToday)}`}>
+                        <Clock className="h-5 w-5" />
+                        <span className="text-lg font-bold">{day.duration} mins</span>
+                      </div>
+                      
+                      {/* Intensity Indicator */}
+                      <div className="flex flex-col items-center space-y-2">
+                        <div className="flex space-x-1">
+                          {[...Array(3)].map((_, i) => (
+                            <div
+                              key={i}
+                              className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                                i < (day.duration > 45 ? 3 : day.duration > 30 ? 2 : 1)
+                                  ? (isToday ? 'bg-white/70' : 'bg-current opacity-70')
+                                  : (isToday ? 'bg-white/25' : 'bg-current opacity-25')
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <div className={`text-sm font-medium ${getDayTextColor(day.focus, isToday)} opacity-60`}>
+                          {day.duration > 45 ? 'High' : day.duration > 30 ? 'Med' : 'Low'}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className={`px-4 py-2 rounded-full text-sm font-bold ${getDayBadgeColor(day.focus, isToday)}`}>
+                      Rest Day
+                    </div>
+                  )}
                 </div>
               </div>
               
-              {/* Workout Focus */}
-              <div className="mb-3">
-                <h4 className={`font-semibold text-sm mb-1 ${getDayTextColor(day.focus, isToday)}`}>
-                  {day.focus}
-                </h4>
-              </div>
+              {/* Workout Details */}
+              {day.duration > 0 && (
+                <div className="mb-4">
+                  <p className={`text-base opacity-75 ${getDayTextColor(day.focus, isToday)}`}>
+                    {day.duration < 30 ? 'Quick session - Light and efficient workout' : 
+                     day.duration < 45 ? 'Standard workout - Balanced training session' : 
+                     'Intensive training - Comprehensive workout session'}
+                  </p>
+                </div>
+              )}
               
-              {/* Duration or Rest Badge */}
-              <div className="flex items-center justify-between">
-                {day.duration > 0 ? (
-                  <div className={`flex items-center space-x-1 ${getDayTextColor(day.focus, isToday)}`}>
-                    <Clock className="h-3 w-3" />
-                    <span className="text-xs font-medium">{day.duration} mins</span>
-                  </div>
-                ) : (
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${getDayBadgeColor(day.focus, isToday)}`}>
-                    Rest Day
-                  </div>
-                )}
-                
-                {/* Intensity Indicator */}
-                {day.duration > 0 && (
-                  <div className="flex space-x-1">
-                    {[...Array(3)].map((_, i) => (
-                      <div
-                        key={i}
-                        className={`w-1 h-1 rounded-full ${
-                          i < (day.duration > 45 ? 3 : day.duration > 30 ? 2 : 1)
-                            ? (isToday ? 'bg-white/60' : 'bg-current opacity-60')
-                            : (isToday ? 'bg-white/20' : 'bg-current opacity-20')
-                        }`}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+              {/* Hover Effect for Desktop */}
+              <div className="hidden lg:block absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl pointer-events-none" />
             </div>
           );
         })}
       </div>
 
-      {/* Weekly Summary */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/50 dark:to-purple-950/50 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+      {/* Weekly Summary - Enhanced for Desktop */}
+      <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-950/50 dark:via-indigo-950/50 dark:to-purple-950/50 rounded-xl p-6 border border-blue-200 dark:border-blue-800 shadow-lg">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg">
+              <Target className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h4 className="font-semibold text-blue-900 dark:text-blue-100">Weekly Overview</h4>
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                {weeklyStructure.filter(d => d.duration > 0).length} active days • 
-                {weeklyStructure.reduce((total, day) => total + day.duration, 0)} total minutes
+              <h4 className="font-bold text-lg text-blue-900 dark:text-blue-100">Weekly Overview</h4>
+              <p className="text-blue-700 dark:text-blue-300">
+                <span className="font-semibold">{weeklyStructure.filter(d => d.duration > 0).length} active days</span> • 
+                <span className="font-semibold ml-2">{weeklyStructure.reduce((total, day) => total + day.duration, 0)} total minutes</span>
               </p>
             </div>
           </div>
           
-          <div className="text-right">
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {weeklyStructure.filter(d => d.duration > 0).length}/7
+          {/* Desktop-optimized stats grid */}
+          <div className="flex flex-col lg:flex-row lg:items-center space-y-3 lg:space-y-0 lg:space-x-8">
+            <div className="flex items-center justify-between lg:justify-start lg:space-x-6">
+              <div className="text-center">
+                <div className="text-2xl lg:text-3xl font-bold text-blue-600 dark:text-blue-400">
+                  {weeklyStructure.filter(d => d.duration > 0).length}
+                </div>
+                <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">Active Days</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-2xl lg:text-3xl font-bold text-purple-600 dark:text-purple-400">
+                  {Math.round(weeklyStructure.reduce((total, day) => total + day.duration, 0) / 60)}h
+                </div>
+                <div className="text-xs text-purple-600 dark:text-purple-400 font-medium">Total Time</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-2xl lg:text-3xl font-bold text-indigo-600 dark:text-indigo-400">
+                  {Math.round(weeklyStructure.reduce((total, day) => total + day.duration, 0) / weeklyStructure.filter(d => d.duration > 0).length) || 0}m
+                </div>
+                <div className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Avg Session</div>
+              </div>
             </div>
-            <div className="text-xs text-blue-600 dark:text-blue-400">Active Days</div>
+            
+            {/* Progress indicator */}
+            <div className="hidden lg:flex items-center space-x-2">
+              <div className="w-24 h-2 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-500"
+                  style={{ width: `${(weeklyStructure.filter(d => d.duration > 0).length / 7) * 100}%` }}
+                />
+              </div>
+              <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                {Math.round((weeklyStructure.filter(d => d.duration > 0).length / 7) * 100)}%
+              </span>
+            </div>
           </div>
         </div>
       </div>

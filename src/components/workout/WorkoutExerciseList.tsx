@@ -8,6 +8,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Dumbbell, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getExerciseIcon } from '@/utils/exerciseIcons';
 
 interface Exercise {
   id: string;
@@ -69,7 +70,7 @@ const WorkoutExerciseList: React.FC<WorkoutExerciseListProps> = ({
             <AccordionItem value={exercise.id} key={exercise.id}>
               <AccordionTrigger className="hover:no-underline py-3">
                 <div className="flex items-start text-left">
-                  <Dumbbell className="h-5 w-5 mr-2 mt-0.5 text-primary" />
+                  <span className="text-xl mr-2 mt-0.5">{getExerciseIcon(exercise.name)}</span>
                     <div>
                     <div className="font-medium">{exercise.name}</div>
                     <div className="text-sm text-muted-foreground">
@@ -117,7 +118,7 @@ const WorkoutExerciseList: React.FC<WorkoutExerciseListProps> = ({
                     className="flex items-center justify-between py-2 px-3 rounded-md bg-secondary/50"
                   >
                     <div className="flex items-center">
-                      <Dumbbell className="h-4 w-4 mr-2 text-primary" />
+                      <span className="text-lg mr-2">{getExerciseIcon(exercise.name)}</span>
                       <span>{exercise.name}</span>
                     </div>
                     <div className="text-sm text-muted-foreground">

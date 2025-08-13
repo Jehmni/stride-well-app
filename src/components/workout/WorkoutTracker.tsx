@@ -34,6 +34,7 @@ import { Dumbbell, Clock, Activity, CheckCircle, Save, ArrowUpFromLine, Wifi, Wi
 import { format } from 'date-fns';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { getExerciseIcon } from '@/utils/exerciseIcons';
 
 interface Exercise {
   id: string;
@@ -389,8 +390,9 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({
                   />
                   
                   <div className="flex-1 text-left">
-                    <span className={exerciseStates[exercise.id]?.completed ? "line-through opacity-70" : ""}>
-                      {exercise.name}
+                    <span className={`flex items-center space-x-2 ${exerciseStates[exercise.id]?.completed ? "line-through opacity-70" : ""}`}>
+                      <span className="text-lg">{getExerciseIcon(exercise.name)}</span>
+                      <span>{exercise.name}</span>
                     </span>
                     <div className="text-sm text-muted-foreground">
                       {exercise.sets} sets • {exercise.reps} reps • {exercise.muscle}

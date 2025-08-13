@@ -2,6 +2,7 @@
 import React from "react";
 import { Dumbbell, Target, Activity, Zap, Clock, TrendingUp, Eye } from "lucide-react";
 import { ExerciseCount, WorkoutExercise } from "./types";
+import { getExerciseIcon } from "@/utils/exerciseIcons";
 
 interface KeyExercisesProps {
   exerciseData?: ExerciseCount[];
@@ -62,8 +63,9 @@ const KeyExercises: React.FC<KeyExercisesProps> = ({ exerciseData, exercises, on
                     {getMuscleGroupIcon(exercise.muscle_group)}
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
-                      {exercise.name}
+                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm flex items-center space-x-2">
+                      <span className="text-lg">{getExerciseIcon(exercise.name)}</span>
+                      <span>{exercise.name}</span>
                     </h4>
                     <p className="text-xs text-gray-600 dark:text-gray-400 capitalize">
                       {exercise.muscle_group?.replace('_', ' ') || 'General'}
@@ -125,8 +127,9 @@ const KeyExercises: React.FC<KeyExercisesProps> = ({ exerciseData, exercises, on
                     {getMuscleGroupIcon(exercise.muscle)}
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
-                      {exercise.name}
+                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm flex items-center space-x-2">
+                      <span className="text-lg">{getExerciseIcon(exercise.name)}</span>
+                      <span>{exercise.name}</span>
                     </h4>
                     <p className="text-xs text-gray-600 dark:text-gray-400 capitalize">
                       {exercise.muscle?.replace('_', ' ') || 'General'}
@@ -181,6 +184,142 @@ const KeyExercises: React.FC<KeyExercisesProps> = ({ exerciseData, exercises, on
                 {exercises.length}
               </div>
               <div className="text-xs text-orange-600 dark:text-orange-400">Exercises</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Additional Workout Insights - Fills white space */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Muscle Group Distribution */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
+                <Target className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-white text-sm">Muscle Focus</h4>
+                <p className="text-xs text-gray-600 dark:text-gray-400">Target distribution</p>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              {(() => {
+                const muscleGroups = exercises.reduce((acc, ex) => {
+                  const muscle = ex.muscle || 'general';
+                  acc[muscle] = (acc[muscle] || 0) + ex.sets;
+                  return acc;
+                }, {} as Record<string, number>);
+                
+                return Object.entries(muscleGroups).slice(0, 4).map(([muscle, sets]) => (
+                  <div key={muscle} className="flex items-center justify-between">
+                    <span className="text-xs capitalize text-gray-600 dark:text-gray-400">
+                      {muscle.replace('_', ' ')}
+                    </span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-purple-500 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min((sets / Math.max(...Object.values(muscleGroups))) * 100, 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-bold text-purple-600 dark:text-purple-400">{sets}</span>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+
+          {/* Workout Intensity */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+                <Activity className="h-4 w-4 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-white text-sm">Intensity Metrics</h4>
+                <p className="text-xs text-gray-600 dark:text-gray-400">Workout breakdown</p>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-600 dark:text-gray-400">Total Volume</span>
+                <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                  {exercises.reduce((total, ex) => {
+                    const avgReps = typeof ex.reps === 'string' ? 
+                      (parseInt(ex.reps.split('-')[0]) + parseInt(ex.reps.split('-')[1] || ex.reps.split('-')[0])) / 2 :
+                      ex.reps;
+                    return total + (ex.sets * avgReps);
+                  }, 0)} reps
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-600 dark:text-gray-400">Est. Duration</span>
+                <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                  {Math.round(exercises.length * 2.5)} min
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-600 dark:text-gray-400">Complexity</span>
+                <div className="flex space-x-1">
+                  {[...Array(5)].map((_, i) => (
+                    <div
+                      key={i}
+                      className={`w-2 h-2 rounded-full ${
+                        i < Math.min(Math.ceil(exercises.length / 3), 5)
+                          ? 'bg-green-500'
+                          : 'bg-gray-300 dark:bg-gray-600'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Workout Tips & Recommendations */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+              <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-blue-900 dark:text-blue-100">Pro Tips</h4>
+              <p className="text-xs text-blue-700 dark:text-blue-300">Maximize your workout effectiveness</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-3">
+              <h5 className="text-xs font-semibold text-blue-800 dark:text-blue-200 mb-1">Rest Between Sets</h5>
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                {exercises.some(ex => ex.muscle?.includes('strength')) ? '2-3 minutes' : '1-2 minutes'}
+              </p>
+            </div>
+            
+            <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-3">
+              <h5 className="text-xs font-semibold text-blue-800 dark:text-blue-200 mb-1">Form Focus</h5>
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                Quality over quantity - control the movement
+              </p>
+            </div>
+            
+            <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-3">
+              <h5 className="text-xs font-semibold text-blue-800 dark:text-blue-200 mb-1">Progression</h5>
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                Increase weight when you can complete all sets
+              </p>
+            </div>
+            
+            <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-3">
+              <h5 className="text-xs font-semibold text-blue-800 dark:text-blue-200 mb-1">Warm-up</h5>
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                5-10 minutes before starting exercises
+              </p>
             </div>
           </div>
         </div>
