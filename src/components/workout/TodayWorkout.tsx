@@ -32,6 +32,34 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
   const [todayExercises, setTodayExercises] = useState<WorkoutExerciseDetail[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Generate date-specific workout ID to prevent cross-day completion persistence
+  const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+  const todayWorkoutId = `today-workout-${today}`;
+
+  // Clean up old workout data on component mount
+  useEffect(() => {
+    const cleanupOldWorkoutData = () => {
+      const allKeys = Object.keys(localStorage);
+      const workoutKeys = allKeys.filter(key => key.startsWith('completedExercises-today-workout-'));
+      
+      workoutKeys.forEach(key => {
+        const dateMatch = key.match(/today-workout-(\d{4}-\d{2}-\d{2})$/);
+        if (dateMatch) {
+          const workoutDate = dateMatch[1];
+          // Remove data older than 7 days
+          const workoutDateObj = new Date(workoutDate);
+          const daysDiff = (new Date().getTime() - workoutDateObj.getTime()) / (1000 * 3600 * 24);
+          
+          if (daysDiff > 7) {
+            localStorage.removeItem(key);
+          }
+        }
+      });
+    };
+    
+    cleanupOldWorkoutData();
+  }, []);
+
   // Fetch exercises for today's workout when tracking is shown
   useEffect(() => {
     if (showTracking && userId) {
@@ -342,7 +370,7 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
     setShowTracking(false);
     
     // Clear any local storage data for the workout without affecting workout history
-    localStorage.removeItem(`completedExercises-today-workout`);
+    localStorage.removeItem(`completedExercises-${todayWorkoutId}`);
     
     // Reload today's workout data
     fetchTodayExercises();
@@ -420,7 +448,7 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
           ) : (
             <WorkoutProgress 
               exercises={todayExercises}
-              workoutId="today-workout"
+              workoutId={todayWorkoutId}
               userId={userId}
               onWorkoutCompleted={handleWorkoutCompleted}
             />
@@ -434,7 +462,7 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
                     variant="outline"
                     onClick={() => {
                       // Clear local storage for workout exercises (both formats)
-                      localStorage.removeItem(`completedExercises-today-workout`);
+                      localStorage.removeItem(`completedExercises-${todayWorkoutId}`);
                       
                       // Reload today's workout data
                       fetchTodayExercises();
