@@ -264,10 +264,13 @@ const Dashboard: React.FC = () => {
                           {selectedWorkout.description}
                         </p>
                         <Button
-                          onClick={() => navigate('/workouts')}
+                          onClick={() => {
+                            // Navigate to workouts page and auto-start today's workout
+                            navigate('/workouts?autostart=true');
+                          }}
                           className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white h-8 sm:h-auto text-sm sm:text-base px-3 sm:px-4 touch-manipulation"
                         >
-                          Start Workout
+                          Start Today's Workout
                           <ChevronRight className="ml-2 h-4 w-4" />
                         </Button>
                       </div>

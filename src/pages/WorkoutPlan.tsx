@@ -10,7 +10,7 @@ import CreateWorkoutForm from "@/components/workout/CreateWorkoutForm";
 import AIGeneratedNotice from "@/components/common/AIGeneratedNotice";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { TodayWorkoutProps, WorkoutDay, WorkoutExercise, UserWorkout, WorkoutExerciseDetail } from "@/components/workout/types";
 import { 
@@ -46,6 +46,7 @@ import { Separator } from "@/components/ui/separator";
 const WorkoutPlanPage: React.FC = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
   // State Management - Organized by concern
   const [isGeneratingAIPlan, setIsGeneratingAIPlan] = useState<boolean>(false);
@@ -446,33 +447,6 @@ const WorkoutPlanPage: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
             >
-              {isTodayWorkoutAvailable && (
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="text-center"
-                >
-                  <Button 
-                    size="lg" 
-                    className="bg-gradient-to-r from-white to-orange-50 text-blue-600 hover:from-orange-50 hover:to-white font-semibold shadow-lg px-8 py-3"
-                    onClick={() => handleStartTodaysWorkout()}
-                  >
-                    <motion.div
-                      whileHover={{ rotate: 15 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <Play className="w-5 h-5 mr-2" />
-                    </motion.div>
-                    Start Today's Workout
-                  </Button>
-                  <p className="text-xs text-white/80 mt-2">
-                    {userWorkouts.length > 0 
-                      ? `Starting ${userWorkouts[0].name || 'your workout'}`
-                      : 'Create your first workout to get started'
-                    }
-                  </p>
-                </motion.div>
-              )}
               {!isTodayWorkoutAvailable && (
                 <motion.div
                   whileHover={{ scale: 1.05 }}
@@ -656,13 +630,17 @@ const WorkoutPlanPage: React.FC = () => {
                       </Badge>
                     </CardTitle>
                     <CardDescription>
-                      Your AI-generated workout for today
+                      {searchParams.get('autostart') === 'true' ? 
+                        "Starting your workout automatically..." : 
+                        "Your AI-generated workout for today"
+                      }
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <TodayWorkout 
                       todayWorkout={todayWorkout}
                       userId={user?.id}
+                      autoStart={searchParams.get('autostart') === 'true'}
                     />
                   </CardContent>
                 </Card>

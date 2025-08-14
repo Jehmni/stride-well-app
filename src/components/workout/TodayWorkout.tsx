@@ -14,6 +14,7 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/comp
 interface TodayWorkoutComponentProps {
   todayWorkout: TodayWorkoutProps;
   userId: string | undefined;
+  autoStart?: boolean;
 }
 
 // Define type for AI plan exercise
@@ -26,7 +27,7 @@ interface AIPlanExercise {
   muscle?: string;
 }
 
-const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, userId }) => {
+const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, userId, autoStart = false }) => {
   const navigate = useNavigate();
   const [showTracking, setShowTracking] = useState(false);
   const [todayExercises, setTodayExercises] = useState<WorkoutExerciseDetail[]>([]);
@@ -66,6 +67,13 @@ const TodayWorkout: React.FC<TodayWorkoutComponentProps> = ({ todayWorkout, user
       fetchTodayExercises();
     }
   }, [showTracking, userId]);
+
+  // Auto-start workout if autoStart prop is true
+  useEffect(() => {
+    if (autoStart && todayWorkout.title !== "Loading workout..." && todayWorkout.exercises > 0) {
+      handleStartWorkout();
+    }
+  }, [autoStart, todayWorkout]);
 
   const fetchTodayExercises = async () => {
     if (!userId) return;
