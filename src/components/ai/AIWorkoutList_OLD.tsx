@@ -165,10 +165,9 @@ export function AIWorkoutList() {
   const navigate = useNavigate();
   const { data: workoutPlans, isLoading, refetch } = useQuery({
     queryKey: ["aiWorkoutPlans"],
-    queryFn: () => getEnhancedAIWorkoutPlans(""),
-    enabled: true,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
+    queryFn: () => getEnhancedAIWorkoutPlans(user?.id),
+    enabled: !!user?.id,
+    staleTime: 60 * 60 * 1000,
   });
 
   const handleGenerateWorkout = async () => {
@@ -293,7 +292,7 @@ export function AIWorkoutList() {
                 </div>
               </div>
               <Button 
-                onClick={() => navigate("/workout/ai")}
+                onClick={() => navigate("/ai-workouts/generate")}
                 size="lg"
                 className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
               >
@@ -389,7 +388,7 @@ export function AIWorkoutList() {
 
   const startWorkout = (planId: string) => {
     // Navigate to workout detail page
-    navigate(`/workouts/ai/${planId}`);
+    navigate(`/ai-workouts/${planId}`);
   };
 
   if (isLoading) {

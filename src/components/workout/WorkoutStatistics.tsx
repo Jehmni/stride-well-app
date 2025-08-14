@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { ExerciseCountResponse } from '@/types/rpc';
 import { getUserExerciseCountsRPC } from '@/integrations/supabase/functions';
+import { getExerciseIcon } from "@/utils/exerciseIcons";
 
 interface ExerciseCount {
   exercise_id: string;
@@ -132,9 +133,12 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({ onViewAllProgress
                   const uniqueKey = exercise.exercise_id || `exercise-${index}-${exercise.name || 'unknown'}`;
                   return (
                     <li key={uniqueKey} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div>
-                        <h5 className="font-medium">{exercise.name || 'Unknown Exercise'}</h5>
-                        <p className="text-sm text-gray-500">{exercise.muscle_group || 'Unknown'}</p>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">{getExerciseIcon(exercise.name || 'Unknown Exercise')}</span>
+                        <div>
+                          <h5 className="font-medium">{exercise.name || 'Unknown Exercise'}</h5>
+                          <p className="text-sm text-gray-500">{exercise.muscle_group || 'Unknown'}</p>
+                        </div>
                       </div>
                       <div className="flex items-center">
                         <span className="text-lg font-semibold">{isNaN(exercise.count) ? 0 : exercise.count}</span>

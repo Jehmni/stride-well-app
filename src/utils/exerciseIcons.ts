@@ -1,5 +1,30 @@
 // Exercise Icon Mapping Utility
 // This provides consistent exercise icons across the application
+// Hybrid approach: Emoji icons for exercises + Lucide icons for UI elements
+
+import { 
+  Dumbbell, 
+  Activity, 
+  Target, 
+  Zap, 
+  Heart, 
+  Flame,
+  Timer,
+  TrendingUp,
+  BarChart3,
+  Gauge,
+  Trophy,
+  Award,
+  CheckCircle,
+  Play,
+  Pause,
+  RotateCcw,
+  RefreshCw,
+  Footprints,
+  Bike,
+  Waves,
+  Mountain
+} from 'lucide-react';
 
 export const getExerciseIcon = (exerciseName: string) => {
   const name = exerciseName.toLowerCase();
@@ -130,4 +155,85 @@ export const getDifficultyIcon = (difficulty: string | number) => {
   }
   
   return '⚪';
+};
+
+// Get Lucide React icon component for UI elements
+export const getLucideWorkoutIcon = (type: string) => {
+  switch (type.toLowerCase()) {
+    case 'strength':
+    case 'weights':
+      return Dumbbell;
+    case 'cardio':
+    case 'endurance':
+      return Heart;
+    case 'flexibility':
+    case 'yoga':
+      return Target;
+    case 'hiit':
+    case 'intensity':
+      return Flame;
+    case 'running':
+      return Footprints;
+    case 'cycling':
+      return Bike;
+    case 'swimming':
+      return Waves;
+    case 'climbing':
+      return Mountain;
+    case 'progress':
+      return TrendingUp;
+    case 'stats':
+      return BarChart3;
+    case 'timer':
+      return Timer;
+    case 'intensity-meter':
+      return Gauge;
+    case 'achievement':
+      return Trophy;
+    case 'award':
+      return Award;
+    case 'completed':
+      return CheckCircle;
+    case 'play':
+      return Play;
+    case 'pause':
+      return Pause;
+    case 'repeat':
+      return RotateCcw;
+    case 'refresh':
+      return RefreshCw;
+    default:
+      return Activity;
+  }
+};
+
+// Get workout intensity indicator
+export const getIntensityLucideIcon = (level: number | string) => {
+  if (typeof level === 'string') {
+    switch (level.toLowerCase()) {
+      case 'low':
+      case 'easy':
+        return Activity;
+      case 'medium':
+      case 'moderate':
+        return Gauge;
+      case 'high':
+      case 'hard':
+        return Flame;
+      case 'extreme':
+      case 'max':
+        return Zap;
+      default:
+        return Activity;
+    }
+  }
+  
+  if (typeof level === 'number') {
+    if (level <= 3) return Activity;
+    if (level <= 6) return Gauge;
+    if (level <= 8) return Flame;
+    return Zap;
+  }
+  
+  return Activity;
 };

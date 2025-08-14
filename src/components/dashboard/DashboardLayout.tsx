@@ -133,7 +133,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
   }) => (
     <Button
       variant="ghost"
-      className={`w-full justify-start py-6 transition-all duration-200 group ${
+      className={`w-full justify-start py-4 sm:py-6 px-3 sm:px-4 transition-all duration-200 group touch-manipulation ${
         isActive 
           ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-600 dark:text-blue-400 border-r-2 border-blue-500 shadow-lg' 
           : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-orange-50 hover:to-blue-50 dark:hover:from-orange-950/30 dark:hover:to-blue-950/30 hover:text-orange-700 dark:hover:text-orange-300 hover:shadow-md hover:border-r-2 hover:border-orange-300'
@@ -144,9 +144,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
       <div className={`transition-all duration-200 group-hover:scale-110 group-hover:rotate-3 ${
         isActive ? 'scale-110' : ''
       }`}>
-        {item.icon}
+        {React.cloneElement(item.icon as React.ReactElement, { 
+          size: 20, 
+          className: "sm:w-6 sm:h-6" 
+        })}
       </div>
-      <span className="ml-4 font-medium">{item.label}</span>
+      <span className="ml-2 sm:ml-4 font-medium text-sm sm:text-base">{item.label}</span>
     </Button>
   ));
 
@@ -157,22 +160,22 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Desktop Sidebar */}
         <aside className="fixed inset-y-0 left-0 hidden w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 md:flex flex-col z-10">
-                     {/* Header */}
-           <div className="h-16 flex items-center justify-between px-6 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700">
-            <h2 className="text-2xl font-bold text-white">{APP_CONFIG.NAME}</h2>
+          {/* Header */}
+          <div className="h-16 flex items-center justify-between px-4 sm:px-6 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700">
+            <h2 className="text-xl sm:text-2xl font-bold text-white truncate">{APP_CONFIG.NAME}</h2>
             <div className="flex items-center gap-2">
               <SyncStatus />
               <Avatar 
-                className="h-8 w-8 bg-primary-foreground text-primary cursor-pointer" 
+                className="h-8 w-8 bg-primary-foreground text-primary cursor-pointer flex-shrink-0" 
                 title={userDisplayName}
               >
-                <AvatarFallback>{userInitials}</AvatarFallback>
+                <AvatarFallback className="text-sm">{userInitials}</AvatarFallback>
               </Avatar>
             </div>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-1" role="navigation" aria-label="Main navigation">
+          <nav className="flex-1 p-2 sm:p-4 space-y-1 overflow-y-auto" role="navigation" aria-label="Main navigation">
             {menuItems.map((item) => (
               <NavigationItem
                 key={item.path}
@@ -184,38 +187,38 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="p-2 sm:p-4 border-t border-gray-200 dark:border-gray-700">
             <Button
               variant="ghost"
-              className="w-full justify-start py-6 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-red-50 hover:to-orange-50 dark:hover:from-red-950/30 dark:hover:to-orange-950/30 hover:text-red-600 dark:hover:text-red-400 hover:shadow-md transition-all duration-200"
+              className="w-full justify-start py-4 sm:py-6 px-3 sm:px-4 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-red-50 hover:to-orange-50 dark:hover:from-red-950/30 dark:hover:to-orange-950/30 hover:text-red-600 dark:hover:text-red-400 hover:shadow-md transition-all duration-200 touch-manipulation"
               onClick={handleLogout}
             >
-              <LogOut />
-              <span className="ml-4">Logout</span>
+              <LogOut size={20} className="sm:w-6 sm:h-6" />
+              <span className="ml-2 sm:ml-4 text-sm sm:text-base">Logout</span>
             </Button>
           </div>
         </aside>
 
         {/* Mobile Header */}
-        <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
-          <div className="h-16 px-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20">
+          <div className="h-14 sm:h-16 px-3 sm:px-4 flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
               <Sheet open={isMobileMenuOpen} onOpenChange={toggleMobileMenu}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="md:hidden">
-                    <Menu className="h-6 w-6" />
+                  <Button variant="ghost" size="icon" className="md:hidden flex-shrink-0 h-9 w-9 sm:h-10 sm:w-10 touch-manipulation">
+                    <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
                     <span className="sr-only">Toggle menu</span>
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-64 p-0">
+                <SheetContent side="left" className="w-72 sm:w-80 p-0">
                   <div className="flex flex-col h-full">
-                                         {/* Mobile Header */}
-                     <div className="h-16 flex items-center justify-between px-6 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700">
-                      <h2 className="text-xl font-bold text-white">{APP_CONFIG.NAME}</h2>
+                    {/* Mobile Header */}
+                    <div className="h-16 flex items-center justify-between px-4 sm:px-6 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700">
+                      <h2 className="text-lg sm:text-xl font-bold text-white truncate">{APP_CONFIG.NAME}</h2>
                     </div>
 
                     {/* Mobile Navigation */}
-                    <nav className="flex-1 p-4 space-y-1" role="navigation" aria-label="Mobile navigation">
+                    <nav className="flex-1 p-3 sm:p-4 space-y-1 overflow-y-auto" role="navigation" aria-label="Mobile navigation">
                       {menuItems.map((item) => (
                         <NavigationItem
                           key={item.path}
@@ -226,33 +229,33 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
                       ))}
                     </nav>
 
-                                         {/* Mobile Footer */}
-                     <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-                       <Button
-                         variant="ghost"
-                         className="w-full justify-start py-6 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-red-50 hover:to-orange-50 dark:hover:from-red-950/30 dark:hover:to-orange-950/30 hover:text-red-600 dark:hover:text-red-400 hover:shadow-md transition-all duration-200"
-                         onClick={handleLogout}
-                       >
-                         <LogOut />
-                         <span className="ml-4">Logout</span>
-                       </Button>
-                     </div>
+                    {/* Mobile Footer */}
+                    <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-gray-700">
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start py-4 sm:py-6 px-3 sm:px-4 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-red-50 hover:to-orange-50 dark:hover:from-red-950/30 dark:hover:to-orange-950/30 hover:text-red-600 dark:hover:text-red-400 hover:shadow-md transition-all duration-200 touch-manipulation"
+                        onClick={handleLogout}
+                      >
+                        <LogOut size={20} className="sm:w-6 sm:h-6" />
+                        <span className="ml-2 sm:ml-4 text-sm sm:text-base">Logout</span>
+                      </Button>
+                    </div>
                   </div>
                 </SheetContent>
               </Sheet>
               
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-white truncate">
+              <h1 className="text-base sm:text-xl font-semibold text-gray-900 dark:text-white truncate">
                 {title}
               </h1>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               <SyncStatus />
               <Avatar 
-                className="h-8 w-8 bg-primary-foreground text-primary cursor-pointer" 
+                className="h-7 w-7 sm:h-8 sm:w-8 bg-primary-foreground text-primary cursor-pointer touch-manipulation" 
                 title={userDisplayName}
               >
-                <AvatarFallback>{userInitials}</AvatarFallback>
+                <AvatarFallback className="text-xs sm:text-sm">{userInitials}</AvatarFallback>
               </Avatar>
             </div>
           </div>
@@ -260,10 +263,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
 
         {/* Main Content */}
         <main className="md:ml-64 min-h-screen">
-          <div className="p-6">
+          <div className="p-3 sm:p-4 lg:p-6">
             {/* Desktop Page Title */}
-            <div className="hidden md:block mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <div className="hidden md:block mb-4 lg:mb-6">
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
                 {title}
               </h1>
             </div>

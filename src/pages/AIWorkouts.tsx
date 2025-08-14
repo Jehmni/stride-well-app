@@ -41,36 +41,36 @@ const AIWorkoutsPage = () => {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="AI Workouts">
       <div className="min-h-screen relative overflow-hidden">
-        {/* Animated Background */}
+        {/* Animated Background - Mobile Optimized */}
         <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50 dark:from-slate-950 dark:via-blue-950/30 dark:to-indigo-950">
-          <div className="absolute top-0 left-0 w-72 h-72 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute top-32 right-0 w-96 h-96 bg-gradient-to-r from-indigo-400/15 to-cyan-400/15 rounded-full blur-3xl animate-pulse delay-1000" />
-          <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-gradient-to-r from-violet-400/10 to-pink-400/10 rounded-full blur-3xl animate-pulse delay-2000" />
+          <div className="absolute top-0 left-0 w-48 h-48 sm:w-72 sm:h-72 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute top-20 right-0 sm:top-32 w-64 h-64 sm:w-96 sm:h-96 bg-gradient-to-r from-indigo-400/15 to-cyan-400/15 rounded-full blur-3xl animate-pulse delay-1000" />
+          <div className="absolute bottom-0 left-1/4 sm:left-1/3 w-56 h-56 sm:w-80 sm:h-80 bg-gradient-to-r from-violet-400/10 to-pink-400/10 rounded-full blur-3xl animate-pulse delay-2000" />
         </div>
 
-        <div className="container max-w-6xl mx-auto py-8 relative z-10">
+        <div className="container max-w-6xl mx-auto py-4 sm:py-8 relative z-10 px-4 sm:px-6">
           <DbFixesNotice userId={userId || undefined} />
           
-          {/* Hero Section */}
-          <div className="mb-12 text-center">
-            <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-200/50 dark:border-blue-700/50 mb-6 animate-fadeIn">
-              <Brain className="h-5 w-5 mr-2 text-blue-600 dark:text-blue-400 animate-pulse" />
-              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">AI-Powered Fitness Intelligence</span>
+          {/* Hero Section - Mobile Optimized */}
+          <div className="mb-8 sm:mb-12 text-center">
+            <div className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-200/50 dark:border-blue-700/50 mb-4 sm:mb-6 animate-fadeIn">
+              <Brain className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2 text-blue-600 dark:text-blue-400 animate-pulse" />
+              <span className="text-xs sm:text-sm font-medium text-blue-700 dark:text-blue-300">AI-Powered Fitness Intelligence</span>
             </div>
             
-            <h1 className="text-5xl lg:text-6xl font-bold mb-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400 bg-clip-text text-transparent animate-slideUp">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400 bg-clip-text text-transparent animate-slideUp leading-tight">
               AI Workout Plans
             </h1>
             
-            <p className="text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed animate-slideUp" style={{animationDelay: '0.1s'}}>
+            <p className="text-base sm:text-lg lg:text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed animate-slideUp px-4" style={{animationDelay: '0.1s'}}>
               Experience the future of fitness with personalized workout plans crafted by advanced AI. 
               Each plan adapts to your unique goals, preferences, and progress.
             </p>
 
-            {/* Feature Pills */}
-            <div className="flex flex-wrap justify-center gap-3 mt-8 animate-slideUp" style={{animationDelay: '0.2s'}}>
+            {/* Feature Pills - Mobile Optimized */}
+            <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mt-6 sm:mt-8 animate-slideUp px-4" style={{animationDelay: '0.2s'}}>
               {[
                 { icon: "🧠", text: "Smart Adaptation" },
                 { icon: "📊", text: "Progress Tracking" },
@@ -79,16 +79,16 @@ const AIWorkoutsPage = () => {
               ].map((feature, index) => (
                 <div 
                   key={index}
-                  className="flex items-center px-4 py-2 rounded-full bg-white/70 dark:bg-slate-800/70 border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm hover:bg-white/90 dark:hover:bg-slate-800/90 transition-all duration-300 hover:scale-105"
+                  className="flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/70 dark:bg-slate-800/70 border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm hover:bg-white/90 dark:hover:bg-slate-800/90 transition-all duration-300 hover:scale-105"
                 >
-                  <span className="mr-2">{feature.icon}</span>
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{feature.text}</span>
+                  <span className="mr-1.5 sm:mr-2 text-sm">{feature.icon}</span>
+                  <span className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">{feature.text}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Workout Plans Section */}
+          {/* Workout Plans Section - Mobile Optimized */}
           <div className="animate-slideUp" style={{animationDelay: '0.3s'}}>
             {userId && <AIWorkoutList userId={userId} />}
           </div>

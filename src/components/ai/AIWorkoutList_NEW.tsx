@@ -165,8 +165,8 @@ export function AIWorkoutList() {
   const navigate = useNavigate();
   const { data: workoutPlans, isLoading, refetch } = useQuery({
     queryKey: ["aiWorkoutPlans"],
-    queryFn: () => getEnhancedAIWorkoutPlans(""),
-    enabled: true,
+    queryFn: () => getEnhancedAIWorkoutPlans(user?.id),
+    enabled: !!user?.id,
     staleTime: 5 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
   });
@@ -179,7 +179,10 @@ export function AIWorkoutList() {
 
     toast.loading("Generating your personalized workout plan...");
     
-    const workoutId = await generateEnhancedAIWorkout(profile);
+    const workoutId = await generateEnhancedAIWorkout({
+      ...profile,
+      fitness_level: profile.fitness_level as "beginner" | "intermediate" | "advanced"
+    });
     
     toast.dismiss();
     
@@ -289,7 +292,7 @@ export function AIWorkoutList() {
                 </div>
               </div>
               <Button 
-                onClick={() => navigate("/workout/ai")}
+                onClick={() => navigate("/ai-workouts/generate")}
                 size="lg"
                 className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
               >

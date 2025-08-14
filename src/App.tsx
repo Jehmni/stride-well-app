@@ -85,6 +85,7 @@ const CreateAIWorkout = withErrorBoundary(preloadModule(() => import("./pages/Cr
 const Reminders = withErrorBoundary(preloadModule(() => import("./pages/Reminders")), { level: 'page' });
 const EnhancedRemindersDemo = withErrorBoundary(preloadModule(() => import("./pages/EnhancedRemindersDemo")), { level: 'page' });
 const GoogleAuthCallback = withErrorBoundary(preloadModule(() => import("./pages/GoogleAuthCallback")), { level: 'page' });
+const IconShowcase = withErrorBoundary(preloadModule(() => import("./components/demo/IconShowcase")), { level: 'page' });
 
 // Simple error boundary for catching chunk loading errors
 class ChunkErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
@@ -390,6 +391,14 @@ function App() {
                     element={
                       <ProtectedRoute requiresOnboarding={true}>
                         <EnhancedRemindersDemo />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/icon-showcase" 
+                    element={
+                      <ProtectedRoute requiresOnboarding={false}>
+                        <IconShowcase />
                       </ProtectedRoute>
                     } 
                   />

@@ -361,6 +361,12 @@ const saveWorkoutPlan = async (workoutPlan: AIWorkoutResponse, userProfile: Enha
  * @returns Array of workout plans with completion counts
  */
 export const getEnhancedAIWorkoutPlans = async (userId?: string) => {
+  // Validate userId - must be a non-empty string to proceed
+  if (!userId || userId.trim() === '') {
+    console.warn('getEnhancedAIWorkoutPlans called with invalid userId:', userId);
+    return [];
+  }
+
   // Try to get from cache first (only if userId is provided)
   if (userId) {
     try {

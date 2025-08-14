@@ -21,6 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { WorkoutExerciseDetail } from "./types";
+import { getExerciseIcon } from "@/utils/exerciseIcons";
 
 interface ExerciseTrackerProps {
   exercise: WorkoutExerciseDetail;
@@ -131,6 +132,7 @@ const ExerciseTracker: React.FC<ExerciseTrackerProps> = ({ exercise, onComplete,
               <div className={`h-3 w-3 rounded-full transition-colors ${
                 isCompleted ? 'bg-green-500' : progressPercentage > 0 ? 'bg-blue-500' : 'bg-gray-300'
               }`} />
+              <span className="text-lg mr-1">{getExerciseIcon(exercise.exercise.name)}</span>
               <h4 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{exercise.exercise.name}</h4>
               {isCompleted && (
                 <Badge className="bg-green-600 text-white font-medium">

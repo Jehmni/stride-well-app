@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { logExerciseCompletion } from "@/services/workoutService";
 import { toast } from "sonner";
 import { Loader2, CheckCircle } from "lucide-react";
+import { getExerciseIcon } from "@/utils/exerciseIcons";
 
 interface ExerciseLogFormProps {
   workoutLogId: string;
@@ -101,6 +102,7 @@ const ExerciseLogForm: React.FC<ExerciseLogFormProps> = ({
       <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-md flex items-center">
         <CheckCircle className="text-green-600 dark:text-green-400 mr-2" />
         <span>
+          <span className="text-lg mr-1">{getExerciseIcon(exerciseName)}</span>
           <strong>{exerciseName}</strong> completed: {setsCompleted} sets
           {repsCompleted ? ` of ${repsCompleted} reps` : ''}
           {weightUsed ? ` with ${weightUsed}kg` : ''}
@@ -111,7 +113,10 @@ const ExerciseLogForm: React.FC<ExerciseLogFormProps> = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 p-4 border rounded-md bg-gray-50 dark:bg-gray-800/50">
-      <h4 className="font-medium">{exerciseName}</h4>
+      <h4 className="font-medium flex items-center">
+        <span className="text-lg mr-2">{getExerciseIcon(exerciseName)}</span>
+        {exerciseName}
+      </h4>
       <p className="text-sm text-gray-500 dark:text-gray-400">
         Recommended: {recommendedSets} sets of {recommendedReps} reps
       </p>

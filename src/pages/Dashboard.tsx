@@ -111,23 +111,23 @@ const Dashboard: React.FC = () => {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2 }}
-          className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 rounded-xl border border-blue-200 dark:border-blue-800"
+          className="p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 rounded-xl border border-blue-200 dark:border-blue-800"
         >
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full">
-              <Zap className="h-6 w-6 text-white" />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+            <div className="p-2 sm:p-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full self-start">
+              <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
-            <div>
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Welcome back, {firstName}! 👋
               </h2>
-              <p className="text-gray-600 dark:text-gray-400 text-lg">
+              <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-lg">
                 Here's an overview of your fitness journey today.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
-            <Activity className="h-4 w-4" />
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-blue-600 dark:text-blue-400">
+            <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>Ready to crush your fitness goals?</span>
           </div>
         </motion.div>
@@ -137,44 +137,44 @@ const Dashboard: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6"
         >
           {workoutStats.isLoading ? (
             <Skeleton className="h-32 w-full" />
           ) : (
             <motion.div
               whileHover={{ scale: 1.02, y: -2 }}
-              className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg"
+              className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 sm:p-6 rounded-xl shadow-lg"
             >
-              <div className="flex items-center justify-between mb-4">
-                <Dumbbell className="h-8 w-8 text-blue-200" />
-                <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <Dumbbell className="h-6 w-6 sm:h-8 sm:w-8 text-blue-200" />
+                <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-xs">
                   Total
                 </Badge>
               </div>
-              <h3 className="text-sm font-medium text-blue-100 mb-2">Workouts Completed</h3>
-              <div className="text-3xl font-bold mb-1">
+              <h3 className="text-xs sm:text-sm font-medium text-blue-100 mb-1 sm:mb-2">Workouts Completed</h3>
+              <div className="text-2xl sm:text-3xl font-bold mb-1">
                 {workoutStats.totalCount || 0}
               </div>
-              <p className="text-blue-200 text-sm">Keep up the great work!</p>
+              <p className="text-blue-200 text-xs sm:text-sm">Keep up the great work!</p>
             </motion.div>
           )}
 
           <motion.div
             whileHover={{ scale: 1.02, y: -2 }}
-            className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg"
+            className="bg-gradient-to-br from-green-500 to-green-600 text-white p-4 sm:p-6 rounded-xl shadow-lg"
           >
-            <div className="flex items-center justify-between mb-4">
-              <Weight className="h-8 w-8 text-green-200" />
-              <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <Weight className="h-6 w-6 sm:h-8 sm:w-8 text-green-200" />
+              <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-xs">
                 Current
               </Badge>
             </div>
-            <h3 className="text-sm font-medium text-green-100 mb-2">Current Weight</h3>
-            <div className="text-3xl font-bold mb-1">
+            <h3 className="text-xs sm:text-sm font-medium text-green-100 mb-1 sm:mb-2">Current Weight</h3>
+            <div className="text-2xl sm:text-3xl font-bold mb-1">
               {profile?.weight || "--"} kg
             </div>
-            <p className="text-green-200 text-sm">Track your progress</p>
+            <p className="text-green-200 text-xs sm:text-sm">Track your progress</p>
           </motion.div>
 
           <motion.div
@@ -220,25 +220,25 @@ const Dashboard: React.FC = () => {
         </motion.div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Left Column - Workout & AI */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.4 }}
-            className="lg:col-span-2 space-y-6"
+            className="lg:col-span-2 space-y-4 sm:space-y-6"
           >
             {/* Personalized Workout */}
             <motion.div
               whileHover={{ scale: 1.01 }}
               className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
             >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <div className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
                     Today's Workout
                   </h3>
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 self-start text-xs">
                     AI Generated
                   </Badge>
                 </div>
@@ -246,26 +246,26 @@ const Dashboard: React.FC = () => {
                   <div className="space-y-3">
                     <Skeleton className="h-4 w-3/4" />
                     <Skeleton className="h-4 w-1/2" />
-                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-16 sm:h-20 w-full" />
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-4">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-start gap-3 sm:gap-4">
                       <img
                         src={selectedWorkout.image}
                         alt="Workout"
-                        className="w-20 h-20 rounded-lg object-cover"
+                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover flex-shrink-0"
                       />
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2 text-sm sm:text-base">
                           {selectedWorkout.title}
                         </h4>
-                        <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
+                        <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
                           {selectedWorkout.description}
                         </p>
                         <Button
                           onClick={() => navigate('/workouts')}
-                          className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                          className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white h-8 sm:h-auto text-sm sm:text-base px-3 sm:px-4 touch-manipulation"
                         >
                           Start Workout
                           <ChevronRight className="ml-2 h-4 w-4" />
@@ -351,7 +351,7 @@ const Dashboard: React.FC = () => {
               </h3>
               <div className="space-y-3">
                 <Button
-                  onClick={() => navigate('/workouts/ai')}
+                  onClick={() => navigate('/ai-workouts/generate')}
                   variant="outline"
                   className="w-full justify-start bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/20"
                 >

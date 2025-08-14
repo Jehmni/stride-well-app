@@ -11,6 +11,7 @@ import KeyExercises from "./KeyExercises";
 import { useAuth } from "@/hooks/useAuth";
 import { getUserExerciseCountsRPC } from "@/integrations/supabase/functions";
 import { ExerciseCount } from "./types";
+import { getExerciseIcon } from "@/utils/exerciseIcons";
 
 const ExerciseDashboard = () => {
   const { user } = useAuth();
@@ -141,7 +142,10 @@ const ExerciseDashboard = () => {
                   <SelectContent>
                     {exerciseData.map((exercise) => (
                       <SelectItem key={exercise.exercise_id} value={exercise.exercise_id}>
-                        {exercise.name} ({exercise.count} times)
+                        <div className="flex items-center space-x-2">
+                          <span className="text-lg">{getExerciseIcon(exercise.name)}</span>
+                          <span>{exercise.name} ({exercise.count} times)</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>

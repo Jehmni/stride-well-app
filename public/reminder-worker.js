@@ -146,7 +146,7 @@ const checkReminders = async () => {
             icon: '/favicon.ico',
             badge: '/favicon.ico',
             data: {
-              url: reminder.workout_plan_id ? `/workouts/ai/${reminder.workout_plan_id}` : '/workouts',
+              url: reminder.workout_plan_id ? `/ai-workouts/${reminder.workout_plan_id}` : '/workouts',
               workoutPlanId: reminder.workout_plan_id,
               reminderId: reminder.id
             },
