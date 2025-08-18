@@ -112,7 +112,8 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
     if (!userId) return;
     
     try {
-      const { data, error } = await supabase
+      // First create the workout
+      const { data: workoutData, error: workoutError } = await supabase
         .from('workouts')
         .insert({
           name: newWorkout.name,
@@ -122,12 +123,38 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
         })
         .select();
         
-      if (error) throw error;
+      if (workoutError) throw workoutError;
+      if (!workoutData || workoutData.length === 0) throw new Error("Failed to create workout");
+
+      const createdWorkout = workoutData[0];
       
-      toast.success("Workout created successfully!");
-      if (data && data.length > 0) {
-        onWorkoutCreated(data[0] as UserWorkout);
+      // Then create the workout exercises if any
+      if (workoutExercises.length > 0) {
+        const exerciseInserts = workoutExercises.map((ex, index) => ({
+          workout_id: createdWorkout.id,
+          exercise_id: ex.id,
+          sets: ex.sets || 3,
+          reps: ex.reps || 10,
+          duration: ex.duration || null,
+          rest_time: ex.rest_time || 60,
+          notes: ex.notes || null,
+          order_position: index
+        }));
+
+        const { error: exerciseError } = await supabase
+          .from('workout_exercises')
+          .insert(exerciseInserts);
+          
+        if (exerciseError) {
+          console.error("Error creating workout exercises:", exerciseError);
+          throw exerciseError;
+        }
       }
+      
+      toast.success(`Workout "${newWorkout.name}" created successfully with ${workoutExercises.length} exercises!`);
+      onWorkoutCreated(createdWorkout as UserWorkout);
+      
+      // Reset form
       setShowCreateWorkout(false);
       setNewWorkout({
         name: "",
@@ -135,23 +162,9 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
         dayOfWeek: "0"
       });
       setWorkoutExercises([]);
-
-      for (let i = 0; i < workoutExercises.length; i++) {
-        const ex = workoutExercises[i];
-        await supabase.from('workout_exercises').insert({
-          workout_id: data[0].id,
-          exercise_id: ex.id,
-          sets: ex.sets,
-          reps: ex.reps,
-          weight_kg: ex.weight_kg || null,
-          comments: ex.comments || null,
-          notes: ex.notes,
-          order_in_workout: i
-        });
-      }
     } catch (error: any) {
       console.error("Error creating workout:", error);
-      toast.error("Failed to create workout");
+      toast.error("Failed to create workout: " + (error.message || "Unknown error"));
     }
   };
 

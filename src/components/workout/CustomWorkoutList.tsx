@@ -87,9 +87,9 @@ const CustomWorkoutList: React.FC<CustomWorkoutListProps> = ({
                   key={workout.id}
                   tabIndex={0}
                   aria-label={`Custom workout: ${workout.name}`}
-                  className={`overflow-hidden hover:shadow-lg focus:shadow-lg transition-shadow cursor-pointer group relative outline-none ${
+                  className={`overflow-hidden hover:shadow-lg focus:shadow-lg transition-all duration-200 cursor-pointer group relative outline-none ${
                     isSelected
-                      ? 'border-fitness-primary border-2 ring-2 ring-fitness-primary'
+                      ? 'border-blue-500 border-2 ring-2 ring-blue-200 bg-blue-50/50 dark:bg-blue-900/20'
                       : 'border-gray-200 dark:border-gray-700'
                   }`}
                   onClick={() => onSelectWorkout(workout.id)}
@@ -145,57 +145,31 @@ const CustomWorkoutList: React.FC<CustomWorkoutListProps> = ({
                       </div>
                     </div>
                   </CardContent>
-                                     {isSelected && (
-                     <CardFooter className="p-4 pt-0">
-                       <Button
-                         size="sm"
-                         className="w-full bg-fitness-primary hover:bg-fitness-primary-dark"
-                         onClick={e => {
-                           e.stopPropagation();
-                           handleStartWorkout(workout.id);
-                         }}
-                         aria-label="Start selected workout"
-                       >
-                         <Play className="h-4 w-4 mr-2" />
-                         Start Workout
-                       </Button>
-                     </CardFooter>
-                   )}
+                  
+                  {/* Always show Start button, but make it more prominent when selected */}
+                  <CardFooter className="p-4 pt-0">
+                    <Button
+                      size="sm"
+                      className={`w-full transition-all duration-200 ${
+                        isSelected 
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg transform scale-105' 
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300'
+                      }`}
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleStartWorkout(workout.id);
+                      }}
+                      aria-label="Start this workout"
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      {isSelected ? 'Start This Workout' : 'Start Workout'}
+                    </Button>
+                  </CardFooter>
                 </Card>
               );
             })}
           </div>
         )}
-
-                 {/* Selected Workout Preview */}
-         {selectedWorkoutObj && (
-           <div className="mt-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-             <div className="flex justify-between items-center mb-4">
-               <h3 className="text-lg font-semibold">{selectedWorkoutObj.name}</h3>
-               <Button
-                 variant="outline"
-                 size="sm"
-                 onClick={() => {
-                   // This will trigger the parent to switch to exercises tab
-                   onSelectWorkout(selectedWorkoutObj.id);
-                 }}
-                 aria-label="Edit workout exercises"
-               >
-                 <Calendar className="h-4 w-4 mr-2" />
-                 Edit Exercises
-               </Button>
-             </div>
-             {selectedWorkoutObj.description && (
-               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                 {selectedWorkoutObj.description}
-               </p>
-             )}
-             <div className="flex items-center text-sm text-gray-500">
-               <Calendar className="h-4 w-4 mr-2" />
-               Scheduled for: {getDayName(selectedWorkoutObj.day_of_week)}
-             </div>
-           </div>
-         )}
       </div>
     </TooltipProvider>
   );

@@ -49,7 +49,7 @@ const WorkoutSession: React.FC = () => {
           exercise:exercises(*)
         `)
         .eq('workout_id', workoutId)
-                  .order('order_in_workout', { ascending: true });
+        .order('order_position', { ascending: true });
       
       if (exercisesError) throw exercisesError;
       
@@ -83,9 +83,9 @@ const WorkoutSession: React.FC = () => {
         // Map the data to ensure proper type compatibility
         const mappedExercises = exercisesData.map((exercise: any) => ({
           ...exercise,
-          order_in_workout: exercise.order_in_workout || 0,
-          duration: exercise.duration_seconds || exercise.duration,
-          rest_time: exercise.rest_seconds || exercise.rest_time
+          order_in_workout: exercise.order_position || exercise.order_in_workout || 0,
+          duration: exercise.duration,
+          rest_time: exercise.rest_time
         }));
         setExercises(mappedExercises);
       }
