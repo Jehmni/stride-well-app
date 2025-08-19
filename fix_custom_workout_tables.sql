@@ -51,6 +51,20 @@ BEGIN
     END IF;
 END $$;
 
+-- Add description column if it doesn't exist (required by some parts of the app)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name = 'exercises' 
+        AND column_name = 'description'
+        AND table_schema = 'public'
+    ) THEN
+        ALTER TABLE public.exercises ADD COLUMN description TEXT;
+    END IF;
+END $$;
+
 -- =============================================
 -- CREATE INDEXES
 -- =============================================
@@ -136,8 +150,82 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.workouts TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.workout_exercises TO authenticated;
 
 -- =============================================
+-- FIX EXERCISES TABLE RLS POLICIES
+-- =============================================
+
+-- Enable RLS on exercises table if not already enabled
+ALTER TABLE public.exercises ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing restrictive policies
+DROP POLICY IF EXISTS "Users can view exercises" ON public.exercises;
+DROP POLICY IF EXISTS "Users can insert exercises" ON public.exercises;
+DROP POLICY IF EXISTS "Users can update exercises" ON public.exercises;
+DROP POLICY IF EXISTS "Users can delete exercises" ON public.exercises;
+
+-- Create permissive policies for exercises (exercises should be shared across all users)
+CREATE POLICY "Anyone can view exercises" ON public.exercises
+  FOR SELECT TO authenticated
+  USING (true);
+
+CREATE POLICY "Authenticated users can insert exercises" ON public.exercises
+  FOR INSERT TO authenticated
+  WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can update exercises" ON public.exercises
+  FOR UPDATE TO authenticated
+  USING (true);
+
+CREATE POLICY "Authenticated users can delete exercises" ON public.exercises
+  FOR DELETE TO authenticated
+  USING (true);
+
+-- Grant permissions on exercises table
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.exercises TO authenticated;
+
+-- =============================================
 -- COMMENTS
 -- =============================================
 
 COMMENT ON TABLE public.workouts IS 'Custom workouts created by users';
 COMMENT ON TABLE public.workout_exercises IS 'Exercises within custom workouts with sets, reps, and order';
+
+-- =============================================
+-- INSERT SAMPLE EXERCISES (if table is empty)
+-- =============================================
+
+-- Insert some default exercises if none exist
+INSERT INTO public.exercises (name, description, muscle_group, difficulty, exercise_type, equipment_required)
+SELECT 
+    'Push-ups', 
+    'Classic bodyweight pushing exercise', 
+    'chest', 
+    'Beginner', 
+    'strength',
+    null
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.exercises WHERE name = 'Push-ups'
+);
+
+INSERT INTO public.exercises (name, description, muscle_group, difficulty, exercise_type, equipment_required)
+SELECT 
+    'Squats', 
+    'Basic leg strengthening exercise', 
+    'legs', 
+    'Beginner', 
+    'strength',
+    null
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.exercises WHERE name = 'Squats'
+);
+
+INSERT INTO public.exercises (name, description, muscle_group, difficulty, exercise_type, equipment_required)
+SELECT 
+    'Bicep Curls', 
+    'Isolation exercise for biceps', 
+    'arms', 
+    'Intermediate', 
+    'strength',
+    'dumbbells'
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.exercises WHERE name = 'Bicep Curls'
+);

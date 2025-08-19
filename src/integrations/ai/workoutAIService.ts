@@ -100,7 +100,7 @@ export const generateAIWorkoutPlan = async (userProfile: UserProfile): Promise<W
 
     // Create the workout plan
     console.log("Generating workout plan using AI...");
-    const workoutPlan = await createAIWorkoutPlan(openAIClient, userInfo, availableExercises);
+    const workoutPlan = await createAIWorkoutPlan(openAIClient, userInfo, availableExercises, (userProfile as any).generation_context);
     if (!workoutPlan) {
       console.error("❌ Failed to generate AI workout plan");
       throw new Error("Failed to generate AI workout plan");
@@ -160,11 +160,12 @@ function createUserInfoFromProfile(userProfile: UserProfile): UserFitnessInfo {
 async function createAIWorkoutPlan(
   openAIClient: ReturnType<typeof createOpenAIClient>,
   userInfo: UserFitnessInfo,
-  availableExercises: AvailableExercise[]
+  availableExercises: AvailableExercise[],
+  generationContext?: string
 ): Promise<AIWorkoutResponse | null> {
   try {
     // Create prompt for AI
-    const prompt = createWorkoutPrompt(userInfo, availableExercises);
+    const prompt = createWorkoutPrompt(userInfo, availableExercises, generationContext);
     
     // Set user info in client for mock responses if needed
     if (openAIClient.setUserInfo) {
@@ -246,6 +247,7 @@ async function saveAIWorkoutPlan(
         exercises: processedPlan.exercises as any,
         user_id: userProfile.id,
         ai_generated: true,
+        generation_context: (userProfile as any).generation_context || null,
         created_at: new Date().toISOString()
       })
       .select('*')
@@ -272,7 +274,7 @@ async function saveAIWorkoutPlan(
 /**
  * Create a detailed prompt for the AI based on user info and available exercises
  */
-function createWorkoutPrompt(userInfo: UserFitnessInfo, exercises: AvailableExercise[]): string {
+function createWorkoutPrompt(userInfo: UserFitnessInfo, exercises: AvailableExercise[], generationContext?: string): string {
   // Group exercises by muscle group for easier reference
   const exercisesByMuscle: Record<string, AvailableExercise[]> = {};
   exercises.forEach(ex => {
@@ -296,6 +298,13 @@ function createWorkoutPrompt(userInfo: UserFitnessInfo, exercises: AvailableExer
     - Medical Considerations: ${userInfo.medical_conditions.join(', ') || 'None'}
     - Available Equipment: ${userInfo.equipment_available}
     
+    ${generationContext ? `
+    Additional user context/preferences:
+    """
+    ${generationContext}
+    """
+    ` : ''}
+
     Create a response in JSON format with the following structure:
     {
       "title": "Name of the workout plan",

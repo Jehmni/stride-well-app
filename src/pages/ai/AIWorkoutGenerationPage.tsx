@@ -13,6 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Dumbbell, Clock, Loader2, Brain } from "lucide-react";
 import { generateAIWorkoutPlan } from "@/integrations/ai/workoutAIService";
 import { UserProfile } from "@/models/models";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { motion } from "framer-motion";
 
 const AIWorkoutGenerationPage: React.FC = () => {
   const { user, profile } = useAuth();
@@ -30,6 +32,7 @@ const AIWorkoutGenerationPage: React.FC = () => {
     daysPerWeek: 4,
     focusAreas: "full-body",
     healthConditions: "",
+    generationContext: "",
     useAI: true
   });
 
@@ -71,6 +74,7 @@ const AIWorkoutGenerationPage: React.FC = () => {
         preferred_workout_days: Number(formData.daysPerWeek),
         focus_areas: formData.focusAreas,
         health_conditions: formData.healthConditions,
+        generation_context: formData.generationContext,
       };
 
       toast.info("Generating your personalized workout plan...");
@@ -103,20 +107,28 @@ const AIWorkoutGenerationPage: React.FC = () => {
   return (
     <DashboardLayout title="Generate AI Workout">
       <div className="container mx-auto py-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Brain className="h-8 w-8 text-primary" />
-            Generate Personalized Workout
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Fill in your preferences to generate a customized workout plan tailored to your needs
-          </p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="mb-8 rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-orange-500 p-6 text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)]"
+        >
+          <div className="flex items-center gap-3">
+            <Brain className="h-8 w-8" />
+            <h1 className="text-2xl md:text-3xl font-bold">Generate Personalized Workout</h1>
+          </div>
+          <p className="mt-2 text-white/85">Tell us your goal and preferences. Advanced settings are available but optional.</p>
+        </motion.div>
 
         <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {/* Personal Information Card */}
-            <Card>
+          <Accordion type="multiple" className="mb-8">
+            <AccordionItem value="personal-goals">
+              <AccordionTrigger className="rounded-lg bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950 dark:to-purple-950 px-4 py-3 hover:from-indigo-100 hover:to-purple-100 dark:hover:from-indigo-900 dark:hover:to-purple-900">Personal Info & Goals (optional)</AccordionTrigger>
+              <AccordionContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Personal Information Card */}
+                  <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+            <Card className="border-0 bg-gradient-to-br from-white to-indigo-50 dark:from-gray-900 dark:to-indigo-950 shadow-lg">
               <CardHeader>
                 <CardTitle>Personal Information</CardTitle>
                 <CardDescription>
@@ -132,6 +144,7 @@ const AIWorkoutGenerationPage: React.FC = () => {
                     type="number"
                     value={formData.age}
                     onChange={handleInputChange}
+                    className="focus-visible:ring-2 focus-visible:ring-indigo-400"
                     min={16}
                     max={90}
                   />
@@ -143,7 +156,7 @@ const AIWorkoutGenerationPage: React.FC = () => {
                     value={formData.sex}
                     onValueChange={(value) => handleSelectChange("sex", value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-white/70 dark:bg-gray-900/70">
                       <SelectValue placeholder="Select sex" />
                     </SelectTrigger>
                     <SelectContent>
@@ -162,6 +175,7 @@ const AIWorkoutGenerationPage: React.FC = () => {
                     type="number"
                     value={formData.height}
                     onChange={handleInputChange}
+                    className="focus-visible:ring-2 focus-visible:ring-purple-400"
                     min={100}
                     max={250}
                   />
@@ -175,15 +189,17 @@ const AIWorkoutGenerationPage: React.FC = () => {
                     type="number"
                     value={formData.weight}
                     onChange={handleInputChange}
+                    className="focus-visible:ring-2 focus-visible:ring-orange-400"
                     min={30}
                     max={250}
                   />
                 </div>
               </CardContent>
             </Card>
-
-            {/* Fitness Goals Card */}
-            <Card>
+                  </motion.div>
+                  {/* Fitness Goals Card */}
+                  <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+            <Card className="border-0 bg-gradient-to-br from-white to-fuchsia-50 dark:from-gray-900 dark:to-fuchsia-950 shadow-lg">
               <CardHeader>
                 <CardTitle>Fitness Goals</CardTitle>
                 <CardDescription>
@@ -197,7 +213,7 @@ const AIWorkoutGenerationPage: React.FC = () => {
                     value={formData.fitnessGoal}
                     onValueChange={(value) => handleSelectChange("fitnessGoal", value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-white/70 dark:bg-gray-900/70">
                       <SelectValue placeholder="Select fitness goal" />
                     </SelectTrigger>
                     <SelectContent>
@@ -216,7 +232,7 @@ const AIWorkoutGenerationPage: React.FC = () => {
                     value={formData.experienceLevel}
                     onValueChange={(value) => handleSelectChange("experienceLevel", value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-white/70 dark:bg-gray-900/70">
                       <SelectValue placeholder="Select experience level" />
                     </SelectTrigger>
                     <SelectContent>
@@ -233,7 +249,7 @@ const AIWorkoutGenerationPage: React.FC = () => {
                     value={formData.focusAreas}
                     onValueChange={(value) => handleSelectChange("focusAreas", value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-white/70 dark:bg-gray-900/70">
                       <SelectValue placeholder="Select focus areas" />
                     </SelectTrigger>
                     <SelectContent>
@@ -255,12 +271,178 @@ const AIWorkoutGenerationPage: React.FC = () => {
                     placeholder="Any injuries, limitations, or health conditions? (optional)"
                     value={formData.healthConditions}
                     onChange={handleInputChange}
+                    className="focus-visible:ring-2 focus-visible:ring-pink-400"
                     rows={3}
                   />
                 </div>
               </CardContent>
             </Card>
-          </div>
+                  </motion.div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          
+            <AccordionItem value="prefs-options">
+              <AccordionTrigger className="rounded-lg bg-gradient-to-r from-emerald-50 to-lime-50 dark:from-emerald-950 dark:to-lime-950 px-4 py-3 hover:from-emerald-100 hover:to-lime-100 dark:hover:from-emerald-900 dark:hover:to-lime-900">Preferences & Options (optional)</AccordionTrigger>
+              <AccordionContent>
+                {/* Free-text context for AI */}
+                <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+                <Card className="mb-6 border-0 bg-gradient-to-br from-white to-emerald-50 dark:from-gray-900 dark:to-emerald-950 shadow-lg">
+                  <CardHeader>
+                    <CardTitle>Describe Your Desired Workout</CardTitle>
+                    <CardDescription>
+                      Tell the AI what you want (e.g., "focus on chest and arms, 45 minutes, dumbbells only, push-pull-legs split")
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <Label htmlFor="generationContext">Workout context (optional)</Label>
+                      <Textarea
+                        id="generationContext"
+                        name="generationContext"
+                        placeholder="e.g., 4-day upper/lower split emphasizing chest and biceps; limited to dumbbells and pull-up bar; prefer 8-12 reps"
+                        value={(formData as any).generationContext}
+                        onChange={handleInputChange}
+                        className="focus-visible:ring-2 focus-visible:ring-emerald-400"
+                        rows={4}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+                </motion.div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Workout Preferences Card */}
+                  <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+            <Card className="border-0 bg-gradient-to-br from-white to-sky-50 dark:from-gray-900 dark:to-sky-950 shadow-lg">
+              <CardHeader>
+                <CardTitle>Workout Preferences</CardTitle>
+                <CardDescription>
+                  Customize your workout schedule and environment
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="daysPerWeek">Days per Week</Label>
+                  <Select
+                    value={formData.daysPerWeek.toString()}
+                    onValueChange={(value) => handleSelectChange("daysPerWeek", value)}
+                  >
+                    <SelectTrigger className="bg-white/70 dark:bg-gray-900/70">
+                      <SelectValue placeholder="Select days per week" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="2">2 days</SelectItem>
+                      <SelectItem value="3">3 days</SelectItem>
+                      <SelectItem value="4">4 days</SelectItem>
+                      <SelectItem value="5">5 days</SelectItem>
+                      <SelectItem value="6">6 days</SelectItem>
+                      <SelectItem value="7">7 days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="workoutDuration">Workout Duration (minutes)</Label>
+                  <Select
+                    value={formData.workoutDuration.toString()}
+                    onValueChange={(value) => handleSelectChange("workoutDuration", value)}
+                  >
+                    <SelectTrigger className="bg-white/70 dark:bg-gray-900/70">
+                      <SelectValue placeholder="Select workout duration" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="20">20 minutes</SelectItem>
+                      <SelectItem value="30">30 minutes</SelectItem>
+                      <SelectItem value="45">45 minutes</SelectItem>
+                      <SelectItem value="60">60 minutes</SelectItem>
+                      <SelectItem value="90">90 minutes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="availableEquipment">Available Equipment</Label>
+                  <Select
+                    value={formData.availableEquipment}
+                    onValueChange={(value) => handleSelectChange("availableEquipment", value)}
+                  >
+                    <SelectTrigger className="bg-white/70 dark:bg-gray-900/70">
+                      <SelectValue placeholder="Select available equipment" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Equipment (Bodyweight Only)</SelectItem>
+                      <SelectItem value="minimal">Minimal (Dumbbells, Resistance Bands)</SelectItem>
+                      <SelectItem value="home-gym">Home Gym (Various Equipment)</SelectItem>
+                      <SelectItem value="full-gym">Full Gym Access</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+                  </motion.div>
+
+                  {/* AI Options Card */}
+                  <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+            <Card className="border-0 bg-gradient-to-br from-white to-rose-50 dark:from-gray-900 dark:to-rose-950 shadow-lg">
+              <CardHeader>
+                <CardTitle>Generation Options</CardTitle>
+                <CardDescription>
+                  Configure how your workout plan will be created
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="useAI">Use AI Generation</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Create a more personalized plan using artificial intelligence
+                    </p>
+                  </div>
+                  <Switch
+                    id="useAI"
+                    checked={formData.useAI}
+                    onCheckedChange={(checked) => handleSwitchChange("useAI", checked)}
+                  />
+                </div>
+                
+                <div className="pt-4">
+                  <p className="text-sm text-muted-foreground">
+                    {formData.useAI 
+                      ? "AI-generated workouts are tailored specifically to your unique profile, goals, and preferences using advanced algorithms."
+                      : "Rule-based workouts use predefined templates and are less personalized but still effective for most users."}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+                  </motion.div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+
+          {/* Free-text context for AI */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Describe Your Desired Workout</CardTitle>
+              <CardDescription>
+                Tell the AI what you want (e.g., "focus on chest and arms, 45 minutes, dumbbells only, push-pull-legs split")
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label htmlFor="generationContext">Workout context (optional)</Label>
+                <Textarea
+                  id="generationContext"
+                  name="generationContext"
+                  placeholder="e.g., 4-day upper/lower split emphasizing chest and biceps; limited to dumbbells and pull-up bar; prefer 8-12 reps"
+                  value={(formData as any).generationContext}
+                  onChange={handleInputChange}
+                  rows={4}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {/* Workout Preferences Card */}
@@ -377,7 +559,7 @@ const AIWorkoutGenerationPage: React.FC = () => {
             <Button 
               type="submit" 
               disabled={loading}
-              className="gap-2"
+              className="gap-2 bg-gradient-to-r from-emerald-500 to-lime-500 text-white hover:from-emerald-600 hover:to-lime-600 shadow-lg"
             >
               {loading ? (
                 <>

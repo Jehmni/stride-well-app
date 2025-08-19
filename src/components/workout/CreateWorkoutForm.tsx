@@ -25,6 +25,7 @@ interface CreateWorkoutFormProps {
 
 const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkoutCreated }) => {
   const [showCreateWorkout, setShowCreateWorkout] = useState(false);
+  const [isCreatingExercise, setIsCreatingExercise] = useState(false);
   const [newWorkout, setNewWorkout] = useState<NewWorkoutFormData>({
     name: "",
     description: "",
@@ -40,6 +41,14 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
     exercise_type: "strength",
     equipment_required: "",
   });
+  // Field-level validation errors for the inline form
+  const [newExerciseErrors, setNewExerciseErrors] = useState<{ 
+    name?: string; 
+    muscle_group?: string; 
+    difficulty?: string; 
+    exercise_type?: string; 
+    general?: string;
+  }>({});
 
   useEffect(() => {
     const fetchExercises = async () => {
@@ -65,22 +74,109 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
   };
 
   const handleCreateNewExercise = async () => {
-    if (!newExercise.name) return;
-    const { data, error } = await supabase
-      .from("exercises")
-      .insert(newExercise)
-      .select();
-    if (!error && data && data[0]) {
-      setExercises([...exercises, data[0]]);
-      addExerciseToWorkout(data[0]);
-      setShowNewExercise(false);
-      setNewExercise({
-        name: "",
-        muscle_group: "",
-        difficulty: "Beginner",
-        exercise_type: "strength",
-        equipment_required: "",
-      });
+    // Simple client-side validation before hitting the API
+    const nextErrors: typeof newExerciseErrors = {};
+    if (!newExercise.name.trim()) {
+      nextErrors.name = "Exercise name is required";
+    }
+    if (!newExercise.muscle_group.trim()) {
+      nextErrors.muscle_group = "Muscle group is required";
+    }
+    if (!newExercise.difficulty) {
+      nextErrors.difficulty = "Difficulty is required";
+    }
+    if (!newExercise.exercise_type) {
+      nextErrors.exercise_type = "Exercise type is required";
+    }
+    if (Object.keys(nextErrors).length > 0) {
+      setNewExerciseErrors(nextErrors);
+      toast.error("Please fill in the required fields");
+      return;
+    }
+
+    setIsCreatingExercise(true);
+    try {
+      // Normalize and derive values to satisfy NOT NULL constraints and checks in public.exercises
+      // - difficulty must be one of: 'beginner' | 'intermediate' | 'advanced'
+      const difficultyLower = newExercise.difficulty.toLowerCase();
+      // - muscle_groups is a required text[]; store a single-element array from muscle_group input
+      const muscleGroup = newExercise.muscle_group.trim();
+      // - category is required; map exercise_type to a category. Treat cardio-like types as 'cardio', else 'strength'
+      const typeLower = newExercise.exercise_type.toLowerCase();
+      const category: 'cardio' | 'strength' = ['cardio', 'hiit', 'endurance'].includes(typeLower) ? 'cardio' : 'strength';
+
+      const { data, error } = await supabase
+        .from("exercises")
+        .insert({
+          // Keep legacy singular field for compatibility with existing queries/components
+          name: newExercise.name.trim(),
+          muscle_group: muscleGroup,
+          // Provide required array field and category to satisfy NOT NULL constraints
+          muscle_groups: [muscleGroup.toLowerCase()],
+          category,
+          // Normalize difficulty fields to pass CHECK constraints; keep exercise_type as chosen
+          difficulty: difficultyLower,
+          difficulty_level: difficultyLower,
+          exercise_type: newExercise.exercise_type,
+          // Optional free-text field
+          equipment_required: newExercise.equipment_required.trim() || null
+        })
+        .select();
+
+      if (error) {
+        // Map common database errors to user-friendly messages and inline field errors
+        const friendlyErrors: typeof newExerciseErrors = {};
+        if (error.code === '23502') {
+          // NOT NULL violation: parse column name from message
+          const msg = (error.message || '').toLowerCase();
+          if (msg.includes('muscle_groups')) {
+            friendlyErrors.muscle_group = "Muscle group is required";
+          } else if (msg.includes('category')) {
+            friendlyErrors.exercise_type = "Exercise type/category is required";
+          } else if (msg.includes('difficulty')) {
+            friendlyErrors.difficulty = "Difficulty is required";
+          } else if (msg.includes('name')) {
+            friendlyErrors.name = "Exercise name is required";
+          } else {
+            friendlyErrors.general = "Required field missing. Please complete all required fields.";
+          }
+          toast.error(friendlyErrors.general || "Please complete the highlighted fields");
+          setNewExerciseErrors(friendlyErrors);
+        } else if (error.code === '23514') {
+          // CHECK constraint, e.g. difficulty enum
+          if ((error.message || '').toLowerCase().includes('difficulty')) {
+            friendlyErrors.difficulty = "Choose one: Beginner, Intermediate, Advanced";
+            toast.error("Invalid difficulty. Choose Beginner, Intermediate, or Advanced.");
+            setNewExerciseErrors(friendlyErrors);
+          } else {
+            toast.error("Invalid value provided. Please review your entries.");
+          }
+        } else {
+          toast.error("Failed to create exercise. Please try again.");
+        }
+        return;
+      }
+
+      if (data && data[0]) {
+        // Clear any prior field errors on success
+        setNewExerciseErrors({});
+        setExercises([...exercises, data[0]]);
+        addExerciseToWorkout(data[0]);
+        setShowNewExercise(false);
+        setNewExercise({
+          name: "",
+          muscle_group: "",
+          difficulty: "Beginner",
+          exercise_type: "strength",
+          equipment_required: "",
+        });
+        toast.success(`Exercise "${data[0].name}" created and added to workout!`);
+      }
+    } catch (error: any) {
+      console.error("Error creating exercise:", error);
+      toast.error("Failed to create exercise: " + (error.message || "Unknown error"));
+    } finally {
+      setIsCreatingExercise(false);
     }
   };
 
@@ -138,6 +234,8 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
           duration: ex.duration || null,
           rest_time: ex.rest_time || 60,
           notes: ex.notes || null,
+          // Provide both fields to satisfy mixed schemas where order_in_workout is NOT NULL
+          order_in_workout: index,
           order_position: index
         }));
 
@@ -176,14 +274,16 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
                 New Workout
               </Button>
             </DialogTrigger>
-      <DialogContent>
+      {/* Constrain dialog height and use column layout so footer stays visible and middle scrolls */}
+      <DialogContent className="max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Create New Workout</DialogTitle>
           <DialogDescription>
             Create a custom workout tailored to your fitness goals.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-4">
+        {/* Make the main form area scrollable to avoid buttons going off-screen when many exercises are added */}
+        <div className="space-y-4 py-4 overflow-y-auto pr-2 flex-1">
           <div className="space-y-2">
             <Label htmlFor="name">Workout Name</Label>
             <Input
@@ -245,10 +345,36 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
             </div>
             {showNewExercise && (
               <div className="bg-muted p-3 rounded mb-2 space-y-2">
-                <Input placeholder="Exercise Name" value={newExercise.name} onChange={e => setNewExercise({ ...newExercise, name: e.target.value })} />
-                <Input placeholder="Muscle Group" value={newExercise.muscle_group} onChange={e => setNewExercise({ ...newExercise, muscle_group: e.target.value })} />
-                <Input placeholder="Equipment (optional)" value={newExercise.equipment_required} onChange={e => setNewExercise({ ...newExercise, equipment_required: e.target.value })} />
-                <Select value={newExercise.difficulty} onValueChange={val => setNewExercise({ ...newExercise, difficulty: val })}>
+                <Input 
+                  placeholder="Exercise Name" 
+                  value={newExercise.name} 
+                  onChange={e => {
+                    setNewExercise({ ...newExercise, name: e.target.value });
+                    if (newExerciseErrors.name) setNewExerciseErrors({ ...newExerciseErrors, name: undefined });
+                  }} 
+                />
+                {newExerciseErrors.name && (<div className="text-sm text-red-500">{newExerciseErrors.name}</div>)}
+                <Input 
+                  placeholder="Muscle Group" 
+                  value={newExercise.muscle_group} 
+                  onChange={e => {
+                    setNewExercise({ ...newExercise, muscle_group: e.target.value });
+                    if (newExerciseErrors.muscle_group) setNewExerciseErrors({ ...newExerciseErrors, muscle_group: undefined });
+                  }} 
+                />
+                {newExerciseErrors.muscle_group && (<div className="text-sm text-red-500">{newExerciseErrors.muscle_group}</div>)}
+                <Input 
+                  placeholder="Equipment (optional)" 
+                  value={newExercise.equipment_required} 
+                  onChange={e => setNewExercise({ ...newExercise, equipment_required: e.target.value })} 
+                />
+                <Select 
+                  value={newExercise.difficulty} 
+                  onValueChange={val => {
+                    setNewExercise({ ...newExercise, difficulty: val });
+                    if (newExerciseErrors.difficulty) setNewExerciseErrors({ ...newExerciseErrors, difficulty: undefined });
+                  }}
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Beginner">Beginner</SelectItem>
@@ -256,7 +382,15 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
                     <SelectItem value="Advanced">Advanced</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button type="button" onClick={handleCreateNewExercise}>Add Exercise</Button>
+                {newExerciseErrors.difficulty && (<div className="text-sm text-red-500">{newExerciseErrors.difficulty}</div>)}
+                {newExerciseErrors.general && (<div className="text-sm text-red-500">{newExerciseErrors.general}</div>)}
+                <Button 
+                  type="button" 
+                  onClick={handleCreateNewExercise}
+                  disabled={isCreatingExercise}
+                >
+                  {isCreatingExercise ? "Adding..." : "Add Exercise"}
+                </Button>
               </div>
             )}
             <div className="space-y-2">
@@ -268,7 +402,16 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
                   <span>sets</span>
                   <Input type="number" min={1} className="w-16" value={ex.reps} onChange={e => updateExerciseField(ex.tempId, 'reps', Number(e.target.value))} />
                   <span>reps</span>
-                  <Input type="number" min={0} step="0.1" className="w-20" placeholder="kg" value={ex.weight_kg} onChange={e => updateExerciseField(ex.tempId, 'weight_kg', e.target.value)} />
+                  {/* Weight input (use 'Weight' placeholder to avoid duplicate 'kg' text next to unit label) */}
+                  <Input 
+                    type="number" 
+                    min={0} 
+                    step="0.1" 
+                    className="w-20" 
+                    placeholder="Weight" 
+                    value={ex.weight_kg} 
+                    onChange={e => updateExerciseField(ex.tempId, 'weight_kg', e.target.value)} 
+                  />
                   <span>kg</span>
                   <Input className="w-32" placeholder="Comments" value={ex.comments} onChange={e => updateExerciseField(ex.tempId, 'comments', e.target.value)} />
                   <Button size="icon" variant="ghost" onClick={() => moveExercise(ex.tempId, 'up')} disabled={idx === 0}>↑</Button>
@@ -279,6 +422,7 @@ const CreateWorkoutForm: React.FC<CreateWorkoutFormProps> = ({ userId, onWorkout
             </div>
           </div>
         </div>
+        {/* Footer remains anchored at the bottom of the dialog */}
         <DialogFooter>
           <Button variant="outline" onClick={() => setShowCreateWorkout(false)}>
             Cancel

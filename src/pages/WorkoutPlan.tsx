@@ -117,7 +117,7 @@ const WorkoutPlanPage: React.FC = () => {
   useEffect(() => {
     if (selectedWorkout) {
       fetchWorkoutExercises(selectedWorkout);
-      setActiveTab("exercises");
+      // Keep user in the Custom tab; render selected workout details inline instead of switching tabs
     }
   }, [selectedWorkout]);
 
@@ -771,6 +771,57 @@ const WorkoutPlanPage: React.FC = () => {
                 onDeleteWorkout={handleDeleteWorkout}
                 onWorkoutCreated={handleWorkoutCreated}
               />
+
+              {/* When a workout is selected, show its details within the same tab to avoid context loss */}
+              {selectedWorkoutObj && (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <Card className="shadow-lg border-0">
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        <span>{selectedWorkoutObj.name}</span>
+                        <div className="flex items-center gap-2">
+                          {/* Primary CTA to start workout from the selected details */}
+                          <Button onClick={() => handleStartWorkout(selectedWorkoutObj.id)}>
+                            <Play className="h-4 w-4 mr-2" /> Start Workout
+                          </Button>
+                        </div>
+                      </CardTitle>
+                      {selectedWorkoutObj.description && (
+                        <CardDescription>{selectedWorkoutObj.description}</CardDescription>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      {/* Exercises list for the selected workout; stays in view without navigation */}
+                      {isLoadingExercises ? (
+                        <div className="text-sm text-muted-foreground">Loading exercises…</div>
+                      ) : workoutExercises.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">No exercises added yet.</div>
+                      ) : (
+                        <div className="divide-y rounded-md border">
+                          {workoutExercises.map((ex, idx) => (
+                            <div key={ex.id || idx} className="flex items-center justify-between p-3">
+                              <div className="min-w-0">
+                                {/* Show exercise name and basic metadata; defensive fallbacks for mixed schemas */}
+                                <div className="font-medium truncate">{ex.exercise?.name || 'Exercise'}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {ex.sets ?? 3} sets · {typeof ex.reps === 'number' ? ex.reps : (ex.reps || 10)} reps
+                                  {ex.rest_time ? ` · ${ex.rest_time}s rest` : ''}
+                                </div>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                #{(ex as any).order_in_workout ?? (ex as any).order_position ?? idx}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
             </TabsContent>
 
             {/* Create Workout Tab */}

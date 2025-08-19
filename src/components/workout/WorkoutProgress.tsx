@@ -151,12 +151,13 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
       setSyncStatus('unsynced');
       
       // Try to get remote progress data from the workout_progress table
+      // Use maybeSingle to avoid 406 Not Acceptable when no rows are found
       const { data, error } = await supabase
         .from('workout_progress')
         .select('*')
         .eq('user_id', userId)
         .eq('workout_id', workoutId)
-        .single();
+        .maybeSingle();
       
       if (error && error.code !== 'PGRST116') { // PGRST116 is "No rows returned" - not an error for us
         console.error("Error fetching remote progress:", error);
@@ -344,11 +345,12 @@ const WorkoutProgress: React.FC<WorkoutProgressProps> = ({
         actualWorkoutId = exercises[0].workout_id;
         
         // Check if this is an AI workout plan
+        // Use maybeSingle to avoid 406 when plan is not found
         const { data: workoutPlan } = await supabase
           .from('workout_plans')
           .select('id, ai_generated')
           .eq('id', actualWorkoutId)
-          .single();
+          .maybeSingle();
           
         if (workoutPlan && workoutPlan.ai_generated) {
           console.log("Detected AI workout plan:", workoutPlan.id);

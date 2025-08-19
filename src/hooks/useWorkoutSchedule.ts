@@ -45,7 +45,7 @@ export const useWorkoutSchedule = (userId: string | undefined): WorkoutSchedule 
             name, 
             description, 
             day_of_week,
-            workout_exercises (
+            workout_exercises:workout_exercises!workout_id (
               id
             )
           `)
