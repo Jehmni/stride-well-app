@@ -54,7 +54,6 @@ export interface UserFitnessProfile {
 }
 
 class MealPlanService {
-  private openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
   private openaiModel = import.meta.env.VITE_OPENAI_MODEL || 'gpt-4';
 
   async generateMealPlan(userProfile: UserFitnessProfile): Promise<MealPlan> {
@@ -69,10 +68,15 @@ class MealPlanService {
       const groceryList = this.extractGroceryList(aiMealPlan.meals);
       
       // Save to database using the enhanced_meal_plans table
-      const { data: mealPlan, error } = await supabase
+      // Retrieve current user id safely
+      const userResp = await supabase.auth.getUser();
+      const currentUserId = (userResp as any)?.data?.user?.id || null;
+
+      // Use any on the supabase.from call for enhanced_meal_plans to avoid generated-type mismatches
+      const { data: mealPlan, error } = await (supabase as any)
         .from('enhanced_meal_plans')
         .insert({
-          user_id: (await supabase.auth.getUser()).data.user?.id,
+          user_id: currentUserId,
           week_start_date: this.getWeekStartDate(),
           fitness_goal: userProfile.fitness_goal,
           dietary_preferences: userProfile.dietary_preferences,
@@ -84,8 +88,8 @@ class MealPlanService {
         .single();
 
       if (error) throw error;
-      
-      return mealPlan;
+
+      return mealPlan as MealPlan;
     } catch (error) {
       console.error('Error generating meal plan:', error);
       throw error;
@@ -119,36 +123,45 @@ class MealPlanService {
 
   private async generateAIMealPlan(profile: UserFitnessProfile, dailyCalories: number) {
     const prompt = this.buildMealPlanPrompt(profile, dailyCalories);
-    
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Call local AI proxy server to keep API key server-side
+    const payload = {
+      model: this.openaiModel,
+      messages: [
+        {
+          role: 'system',
+          content: `You are a certified nutritionist and meal planning expert. Create detailed, practical meal plans that align with fitness goals and dietary preferences.`
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 4000
+    };
+
+    // Attach current user id and request server-side persistence if configured
+    const userResp = await supabase.auth.getUser();
+    const currentUserId = (userResp as any)?.data?.user?.id || null;
+
+    const resp = await fetch((import.meta.env.VITE_AI_PROXY_URL || '') + '/api/ai/meal-plan/generate', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: this.openaiModel,
-        messages: [
-          {
-            role: 'system',
-            content: `You are a certified nutritionist and meal planning expert. Create detailed, practical meal plans that align with fitness goals and dietary preferences.`
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 4000
-      })
+      headers: { 'Content-Type': 'application/json', 'X-AI-PROXY-KEY': (import.meta.env.VITE_AI_PROXY_KEY || '') },
+      body: JSON.stringify({ userProfile: profile, openaiPayload: payload, userId: currentUserId, persist: Boolean(import.meta.env.VITE_AI_PROXY_PERSIST) })
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to generate meal plan');
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error(`AI proxy failed: ${err}`);
     }
 
-    const data = await response.json();
-    return JSON.parse(data.choices[0].message.content);
+    const result = await resp.json();
+    // If proxy returns parsed JSON under parsed, use it; otherwise try raw content
+    if (result.parsed) return result.parsed;
+    if (result.raw && result.raw.choices && result.raw.choices[0] && result.raw.choices[0].message) {
+      try { return JSON.parse(result.raw.choices[0].message.content); } catch (e) { return result.raw; }
+    }
+    return result;
   }
 
   private buildMealPlanPrompt(profile: UserFitnessProfile, dailyCalories: number): string {
@@ -331,18 +344,18 @@ Return ONLY a valid JSON object with this structure:
   }
 
   async getUserMealPlans(userId: string): Promise<MealPlan[]> {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('enhanced_meal_plans')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data;
+    return (data as any) as MealPlan[];
   }
 
   async deleteMealPlan(mealPlanId: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('enhanced_meal_plans')
       .delete()
       .eq('id', mealPlanId);
@@ -366,10 +379,10 @@ Return ONLY a valid JSON object with this structure:
           age: data.age || 30,
           weight: data.weight || 70,
           height: data.height || 175,
-          activity_level: data.activity_level || 'moderately_active',
-          fitness_goal: data.fitness_goal || 'maintenance',
-          dietary_preferences: data.dietary_preferences || [],
-          allergies: data.dietary_restrictions || [], // Map dietary_restrictions to allergies
+          activity_level: (data.activity_level as UserFitnessProfile['activity_level']) || 'moderately_active',
+          fitness_goal: (data.fitness_goal as UserFitnessProfile['fitness_goal']) || 'maintenance',
+          dietary_preferences: (data.dietary_preferences as string[]) || [],
+          allergies: (data.dietary_restrictions as string[]) || [], // Map dietary_restrictions to allergies
           budget_per_week: 100 // Default budget since it's not in user_profiles
         };
       }

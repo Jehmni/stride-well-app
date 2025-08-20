@@ -43,9 +43,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import NearbyStores from "@/components/meal/NearbyStores";
 import NutritionLogger from "@/components/nutrition/NutritionLogger";
 import NutritionTargetsModal from "@/components/nutrition/NutritionTargetsModal";
+// Modularized meal components
+import MealCard from '@/components/meal/MealCard';
+import StoreCard from '@/components/meal/StoreCard';
+import MealPlansTab from '@/components/meal/MealPlansTab';
+import AIPlansTab from '@/components/meal/AIPlansTab';
+import ShoppingTab from '@/components/meal/ShoppingTab';
+import NutritionTab from '@/components/meal/NutritionTab';
+import StoresTab from '@/components/meal/StoresTab';
+import useMealPlans from '@/hooks/useMealPlans';
+import useAIMeals from '@/hooks/useAIMeals';
+import useMeals from '@/hooks/useMeals';
 import { useAuth } from "@/hooks/useAuth";
 import { useNutrition } from "@/hooks/useNutrition";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -100,9 +110,24 @@ const MealPlan: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [mealPlans, setMealPlans] = useState<MealPlan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [meals, setMeals] = useState<Meal[]>([]);
+  const { meals, fetchMealsForPlan: fetchMealsForPlanHook, createMeal: createMealHook, deleteMeal: deleteMealHook, setMeals } = useMeals(selectedPlan);
   const [groceryItems, setGroceryItems] = useState<GroceryItem[]>([]);
   const [showSearch, setShowSearch] = useState(false);
+
+  // Hook-backed data and actions
+  const {
+    mealPlans: hookMealPlans,
+    isLoading: hookIsLoading,
+    fetchMealPlans: fetchMealPlansHook,
+    createMealPlan: createMealPlanHook,
+    deleteMealPlan: deleteMealPlanHook
+  } = useMealPlans(profile?.id);
+
+  // useAIMeals is destructured later (with aiUserProfile and loadUserFitnessProfile)
+
+  // Sync mealPlans loading state into local UI state
+  React.useEffect(() => setMealPlans(hookMealPlans as any || []), [hookMealPlans]);
+  React.useEffect(() => setIsLoading(!!hookIsLoading), [hookIsLoading]);
   
   // New plan dialog state
   const [showAddPlan, setShowAddPlan] = useState(false);
@@ -116,239 +141,80 @@ const MealPlan: React.FC = () => {
     dayOfWeek: "any"
   });
 
-  // AI Meal Plan states
-  const [showAIGenerator, setShowAIGenerator] = useState(false);
-  const [aiUserProfile, setAiUserProfile] = useState<UserFitnessProfile>({
-    age: profile?.age || 30,
-    weight: profile?.weight || 70,
-    height: profile?.height || 175,
-    activity_level: 'moderately_active', // Default since profile doesn't have this field
-    fitness_goal: (profile?.fitness_goal as any) || 'maintenance',
-    dietary_preferences: [], // Default since profile doesn't have this field
-    allergies: [], // Default since profile doesn't have this field
-    budget_per_week: 100
-  });
-  const [generatedAIMealPlan, setGeneratedAIMealPlan] = useState<AIMealPlan | null>(null);
-  const [aiMealPlans, setAiMealPlans] = useState<AIMealPlan[]>([]);
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [shoppingList, setShoppingList] = useState<any>(null);
-  const [isGeneratingShoppingList, setIsGeneratingShoppingList] = useState(false);
+  // AI Meal Plan states moved into hook
+  const {
+    aiMealPlans: hookAiMealPlans,
+    generatedAIMealPlan: hookGeneratedAIMealPlan,
+    isGeneratingAI: hookIsGeneratingAI,
+    shoppingList: hookShoppingList,
+    isGeneratingShoppingList: hookIsGeneratingShoppingList,
+    fetchAIMealPlans: fetchAIMealPlansHook,
+    generateAIMealPlan: generateAIMealPlanHook,
+    generateShoppingList: generateShoppingListHook,
+    setGeneratedAIMealPlan: setGeneratedAIMealPlanHook,
+    aiUserProfile,
+    setAiUserProfile,
+    loadUserFitnessProfile
+  } = useAIMeals(user?.id || profile?.id);
 
   useEffect(() => {
     if (profile?.id) {
-      fetchMealPlans();
-      fetchAIMealPlans();
+      // delegate to hooks
+      fetchMealPlansHook();
+      // ensure hook loads/stores the AI profile and plans
       loadUserFitnessProfile();
     }
   }, [profile?.id]);
 
-  // Load user's existing fitness profile for AI meal planning
-  const loadUserFitnessProfile = async () => {
-    if (!user?.id) return;
+  // AI state and profile are managed by useAIMeals hook
 
-    try {
-      const userProfile = await mealPlanService.getUserFitnessProfile(user.id);
-      if (userProfile) {
-        setAiUserProfile(userProfile);
-      } else {
-        // If no profile exists, create a default one based on the current profile
-        const defaultProfile: UserFitnessProfile = {
-          age: profile?.age || 30,
-          weight: profile?.weight || 70,
-          height: profile?.height || 175,
-          activity_level: 'moderately_active', // Default since profile doesn't have this field
-          fitness_goal: (profile?.fitness_goal as any) || 'maintenance',
-          dietary_preferences: [], // Default since profile doesn't have this field
-          allergies: [], // Default since profile doesn't have this field
-          budget_per_week: 100
-        };
-        setAiUserProfile(defaultProfile);
-      }
-    } catch (error) {
-      console.error("Error loading user fitness profile:", error);
-      // Set default profile on error
-      const defaultProfile: UserFitnessProfile = {
-        age: profile?.age || 30,
-        weight: profile?.weight || 70,
-        height: profile?.height || 175,
-        activity_level: 'moderately_active', // Default since profile doesn't have this field
-        fitness_goal: (profile?.fitness_goal as any) || 'maintenance',
-        dietary_preferences: [], // Default since profile doesn't have this field
-        allergies: [], // Default since profile doesn't have this field
-        budget_per_week: 100
-      };
-      setAiUserProfile(defaultProfile);
-    }
-  };
+  // Dialog control for AI generator UI
+  const [showAIGenerator, setShowAIGenerator] = useState(false);
 
   const fetchMealPlans = async () => {
-    if (!profile?.id) return;
-    setIsLoading(true);
-
-    try {
-      const { data, error } = await supabase
-        .from("meal_plans")
-        .select("*")
-        .eq("user_id", profile.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      // Transform the data to match the MealPlan interface
-      const transformedData = (data || []).map((plan: any) => ({
-        id: plan.id,
-        name: plan.name,
-        description: plan.description,
-        daily_calorie_target: plan.daily_calorie_target || plan.calories || 2000,
-        daily_protein_target: plan.daily_protein_target || plan.protein || 150,
-        daily_carbs_target: plan.daily_carbs_target || plan.carbs || 200,
-        daily_fat_target: plan.daily_fat_target || plan.fat || 70,
-        start_date: plan.start_date || plan.created_at,
-        end_date: plan.end_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        is_active: plan.is_active !== false,
-        created_at: plan.created_at,
-        updated_at: plan.updated_at
-      }));
-      setMealPlans(transformedData);
-    } catch (error) {
-      console.error("Error fetching meal plans:", error);
-      toast.error("Failed to load meal plans");
-    } finally {
-      setIsLoading(false);
-    }
+  // implemented in useMealPlans hook
+  await fetchMealPlansHook();
   };
 
   const fetchAIMealPlans = async () => {
-    if (!user?.id) return;
-
-    try {
-      const plans = await mealPlanService.getUserMealPlans(user.id);
-      setAiMealPlans(plans);
-    } catch (error) {
-      console.error("Error fetching AI meal plans:", error);
-    }
+  // implemented in useAIMeals hook
+  await fetchAIMealPlansHook();
   };
 
-  const fetchMealsForPlan = async (planId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("meals")
-        .select("*")
-        .eq("meal_plan_id", planId)
-        .order("meal_type", { ascending: true });
-
-      if (error) throw error;
-      setMeals(data || []);
-    } catch (error) {
-      console.error("Error fetching meals:", error);
-      toast.error("Failed to load meals");
-    }
-  };
+  // meals are managed by useMeals hook (fetchMealsForPlanHook)
 
   const createMealPlan = async () => {
     if (!profile?.id) return;
+    const created = await createMealPlanHook(profile.id, {
+      name: newPlan.name,
+      description: newPlan.description,
+      calories: parseInt(newPlan.calories),
+      protein: parseInt(newPlan.protein),
+      carbs: parseInt(newPlan.carbs),
+      fat: parseInt(newPlan.fat)
+    });
 
-    try {
-      const { data, error } = await supabase
-        .from("meal_plans")
-        .insert({
-          user_id: profile.id,
-          name: newPlan.name,
-          description: newPlan.description,
-          daily_calorie_target: parseInt(newPlan.calories),
-          daily_protein_target: parseInt(newPlan.protein),
-          daily_carbs_target: parseInt(newPlan.carbs),
-          daily_fat_target: parseInt(newPlan.fat),
-          start_date: new Date().toISOString(),
-          end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          is_active: true
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast.success("Meal plan created successfully!");
+    if (created) {
       setShowAddPlan(false);
-      setNewPlan({
-        name: "",
-        description: "",
-        calories: "2000",
-        protein: "150",
-        carbs: "200",
-        fat: "70",
-        dayOfWeek: "any"
-      });
-      fetchMealPlans();
-    } catch (error) {
-      console.error("Error creating meal plan:", error);
-      toast.error("Failed to create meal plan");
+      setNewPlan({ name: '', description: '', calories: '2000', protein: '150', carbs: '200', fat: '70', dayOfWeek: 'any' });
     }
   };
 
-  const createMeal = async () => {
+  const handleCreateMeal = async () => {
     if (!selectedPlan) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("meals")
-        .insert({
-          meal_plan_id: selectedPlan,
-          name: "New Meal",
-          meal_type: "breakfast",
-          calories: 0,
-          protein: 0,
-          carbs: 0,
-          fat: 0
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast.success("Meal added successfully!");
-      fetchMealsForPlan(selectedPlan);
-    } catch (error) {
-      console.error("Error creating meal:", error);
-      toast.error("Failed to create meal");
-    }
+    await createMealHook(selectedPlan);
   };
 
   const deleteMealPlan = async (planId: string) => {
-    try {
-      const { error } = await supabase
-        .from("meal_plans")
-        .delete()
-        .eq("id", planId);
-
-      if (error) throw error;
-
-      toast.success("Meal plan deleted successfully!");
-      fetchMealPlans();
-      if (selectedPlan === planId) {
-        setSelectedPlan(null);
-        setMeals([]);
-      }
-    } catch (error) {
-      console.error("Error deleting meal plan:", error);
-      toast.error("Failed to delete meal plan");
+    await deleteMealPlanHook(planId);
+    if (selectedPlan === planId) {
+      setSelectedPlan(null);
+      setMeals([]);
     }
   };
 
-  const deleteMeal = async (mealId: string) => {
-    try {
-      const { error } = await supabase
-        .from("meals")
-        .delete()
-        .eq("id", mealId);
-
-      if (error) throw error;
-
-      toast.success("Meal deleted successfully!");
-      fetchMealsForPlan(selectedPlan!);
-    } catch (error) {
-      console.error("Error deleting meal:", error);
-      toast.error("Failed to delete meal");
-    }
+  const handleDeleteMeal = async (mealId: string) => {
+    await deleteMealHook(mealId, selectedPlan || undefined);
   };
 
   const toggleGroceryItem = (index: number) => {
@@ -385,46 +251,14 @@ const MealPlan: React.FC = () => {
 
   // AI Meal Plan functions
   const generateAIMealPlan = async () => {
-    if (!user?.id) return;
-
-    setIsGeneratingAI(true);
-    try {
-      // Try to update user profile with current AI profile data
-      try {
-        await mealPlanService.updateUserFitnessProfile(user.id, aiUserProfile);
-      } catch (profileError) {
-        console.warn("Failed to update user profile, continuing with meal plan generation:", profileError);
-        // Continue with meal plan generation even if profile update fails
-      }
-      
-      // Generate the meal plan
-      const mealPlan = await mealPlanService.generateMealPlan(aiUserProfile);
-      setGeneratedAIMealPlan(mealPlan);
-      setAiMealPlans(prev => [mealPlan, ...prev]);
-      toast.success("AI meal plan generated successfully!");
-      setShowAIGenerator(false);
-    } catch (error) {
-      console.error("Error generating AI meal plan:", error);
-      toast.error("Failed to generate AI meal plan. Please try again.");
-    } finally {
-      setIsGeneratingAI(false);
-    }
+    if (!user?.id || !aiUserProfile) return;
+    const plan = await generateAIMealPlanHook(aiUserProfile);
+    if (plan) setShowAIGenerator(false);
   };
 
   const generateShoppingList = async (mealPlanId: string) => {
-    if (!mealPlanId) return;
-
-    setIsGeneratingShoppingList(true);
-    try {
-      const shoppingData = await storeLocatorService.generateShoppingList(mealPlanId);
-      setShoppingList(shoppingData);
-      toast.success("Shopping list generated successfully!");
-    } catch (error) {
-      console.error("Error generating shopping list:", error);
-      toast.error("Failed to generate shopping list. Please try again.");
-    } finally {
-      setIsGeneratingShoppingList(false);
-    }
+  if (!mealPlanId) return;
+  await generateShoppingListHook(mealPlanId);
   };
 
   const handleAIProfileChange = (field: keyof UserFitnessProfile, value: any) => {
@@ -504,72 +338,22 @@ const MealPlan: React.FC = () => {
 
           {/* Traditional Meal Plans Tab */}
           <TabsContent value="meal-plans" className="space-y-6">
-            {isLoading ? (
-              <div className="flex justify-center items-center p-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
-              </div>
-            ) : mealPlans.length === 0 ? (
-              <div className="text-center py-12">
-                <Utensils className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium mb-2">No Meal Plans Yet</h3>
-                <p className="text-gray-500 mb-6">
-                  Create your first meal plan to start tracking your nutrition.
-                </p>
-                <Button onClick={() => setShowAddPlan(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Your First Plan
-                </Button>
-              </div>
-            ) : (
-              <div className="grid gap-6">
-                {mealPlans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className={`p-6 border rounded-lg cursor-pointer transition-all ${
-                      selectedPlan === plan.id
-                        ? "border-green-500 bg-green-50"
-                        : "border-gray-200 hover:border-green-300"
-                    }`}
-                    onClick={() => {
-                      setSelectedPlan(plan.id);
-                      fetchMealsForPlan(plan.id);
-                    }}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2">{plan.name}</h3>
-                        {plan.description && (
-                          <p className="text-gray-600 mb-3">{plan.description}</p>
-                        )}
-                        <div className="flex gap-4 text-sm text-gray-500">
-                          <span>{plan.daily_calorie_target} cal/day</span>
-                          <span>P: {plan.daily_protein_target}g</span>
-                          <span>C: {plan.daily_carbs_target}g</span>
-                          <span>F: {plan.daily_fat_target}g</span>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteMealPlan(plan.id);
-                        }}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <MealPlansTab
+              isLoading={isLoading}
+              mealPlans={mealPlans}
+              selectedPlan={selectedPlan}
+              setSelectedPlan={setSelectedPlan}
+              fetchMealsForPlan={fetchMealsForPlanHook}
+              createMeal={handleCreateMeal}
+              deleteMealPlan={deleteMealPlan}
+            />
 
-            {/* Selected Plan Details */}
+            {/* Selected Plan Details kept here to avoid moving DB interaction right now */}
             {selectedPlan && (
               <div className="border rounded-lg p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Plan Details</h3>
-                  <Button onClick={createMeal} size="sm">
+                  <Button onClick={handleCreateMeal} size="sm">
                     <Plus className="mr-2 h-4 w-4" />
                     Add Meal
                   </Button>
@@ -596,7 +380,7 @@ const MealPlan: React.FC = () => {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => deleteMeal(meal.id)}
+                                onClick={() => handleDeleteMeal(meal.id)}
                               >
                                 Delete
                               </Button>
@@ -613,94 +397,28 @@ const MealPlan: React.FC = () => {
 
           {/* AI Meal Plans Tab */}
           <TabsContent value="ai-plans" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold">AI-Generated Meal Plans</h2>
-                <p className="text-gray-600">
-                  Get personalized meal plans created by AI based on your fitness goals and preferences.
-                </p>
-              </div>
-              <Button onClick={() => setShowAIGenerator(true)}>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Generate New Plan
-              </Button>
-            </div>
+            <AIPlansTab
+              aiMealPlans={hookAiMealPlans}
+              setGeneratedAIMealPlan={setGeneratedAIMealPlanHook}
+              generateShoppingList={generateShoppingList}
+              isGeneratingShoppingList={hookIsGeneratingShoppingList}
+              generatedAIMealPlan={hookGeneratedAIMealPlan}
+            />
 
-            {aiMealPlans.length === 0 ? (
-              <div className="text-center py-12">
-                <Sparkles className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium mb-2">No AI Meal Plans Yet</h3>
-                <p className="text-gray-500 mb-6">
-                  Generate your first AI-powered meal plan tailored to your goals.
-                </p>
-                <Button onClick={() => setShowAIGenerator(true)}>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate AI Meal Plan
-                </Button>
-              </div>
-            ) : (
-              <div className="grid gap-6">
-                {aiMealPlans.map((plan) => (
-                  <Card key={plan.id}>
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="mb-2">
-                            Week of {new Date(plan.week_start_date).toLocaleDateString()}
-                          </CardTitle>
-                          <CardDescription className="mb-2">
-                            {plan.daily_calories} calories/day • {plan.fitness_goal.replace('_', ' ')}
-                          </CardDescription>
-                          <div className="flex gap-2">
-                            {plan.dietary_preferences.map((pref) => (
-                              <Badge key={pref} variant="secondary" className="text-xs">
-                                {pref}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setGeneratedAIMealPlan(plan)}
-                          >
-                            View Plan
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => generateShoppingList(plan.id)}
-                            disabled={isGeneratingShoppingList}
-                          >
-                            {isGeneratingShoppingList ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <ShoppingBag className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
-            )}
-
-            {/* Generated AI Meal Plan Display */}
-            {generatedAIMealPlan && (
+            {/* Generated AI Meal Plan Display kept in parent for now (uses MealCard) */}
+            {hookGeneratedAIMealPlan && (
               <Card>
                 <CardHeader>
                   <div className="flex justify-between items-center">
                     <div>
                       <CardTitle>Your AI-Generated Meal Plan</CardTitle>
                       <CardDescription>
-                        {generatedAIMealPlan.daily_calories} calories/day • {generatedAIMealPlan.fitness_goal.replace('_', ' ')}
+                        {hookGeneratedAIMealPlan.daily_calories} calories/day  {hookGeneratedAIMealPlan.fitness_goal.replace('_', ' ')}
                       </CardDescription>
                     </div>
                     <Button
                       variant="outline"
-                      onClick={() => setGeneratedAIMealPlan(null)}
+                      onClick={() => setGeneratedAIMealPlanHook(null)}
                     >
                       Close
                     </Button>
@@ -708,7 +426,7 @@ const MealPlan: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-6">
-                    {generatedAIMealPlan.meals.map((day, index) => (
+                    {hookGeneratedAIMealPlan.meals.map((day, index) => (
                       <div key={index} className="border rounded p-4">
                         <h4 className="font-semibold mb-3">{day.day}</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -735,114 +453,21 @@ const MealPlan: React.FC = () => {
 
           {/* Shopping List Tab */}
           <TabsContent value="shopping" className="space-y-6">
-            {shoppingList ? (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <ShoppingBag className="mr-2 h-5 w-5" />
-                        Grocery List
-                      </CardTitle>
-                      <CardDescription>
-                        Estimated total: ${shoppingList.estimatedCost}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {shoppingList.groceryItems.map((item: string, index: number) => (
-                          <div key={index} className="flex items-center space-x-2 p-2 rounded border">
-                            <Checkbox />
-                            <span className="flex-1">{item}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <Map className="mr-2 h-5 w-5" />
-                        Nearby Stores
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {shoppingList.storesWithInventory.slice(0, 3).map((store: StoreData) => (
-                        <StoreCard key={store.id} store={store} />
-                      ))}
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <ShoppingBag className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium mb-2">No Shopping List Yet</h3>
-                <p className="text-gray-500 mb-6">
-                  Generate a shopping list from an AI meal plan to see nearby stores and ingredient availability.
-                </p>
-              </div>
-            )}
+            <ShoppingTab shoppingList={shoppingList} />
           </TabsContent>
 
           {/* Nutrition Tab */}
           <TabsContent value="nutrition" className="space-y-6">
-            <div className="grid gap-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-2xl font-bold">Nutrition Tracking</h2>
-                  <p className="text-gray-600">
-                    Log your daily nutrition and track your progress.
-                  </p>
-                </div>
-                <NutritionTargetsModal 
-                  isOpen={false}
-                  onClose={() => {}}
-                  onTargetsUpdated={() => {}}
-                />
-              </div>
-              
-              <div className="grid gap-6">
-                <NutritionLogger />
-              </div>
-            </div>
+            <NutritionTab />
           </TabsContent>
 
           {/* Nearby Stores Tab */}
           <TabsContent value="stores" className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold mb-2">Nearby Stores</h2>
-              <p className="text-gray-600">
-                Find grocery stores near you and check ingredient availability.
-              </p>
+              <p className="text-gray-600">Find grocery stores near you and check ingredient availability.</p>
             </div>
-            {latitude && longitude && !locationLoading ? (
-              <NearbyStores 
-                latitude={latitude}
-                longitude={longitude}
-                radiusInKm={5}
-                ingredients={groceryItems.map(item => item.name)}
-              />
-            ) : locationLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Getting your location...</p>
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Map className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium mb-2">Location Required</h3>
-                <p className="text-gray-500 mb-6">
-                  Please enable location access to find nearby stores.
-                </p>
-                <Button onClick={() => window.location.reload()}>
-                  Try Again
-                </Button>
-              </div>
-            )}
+            <StoresTab latitude={latitude} longitude={longitude} locationLoading={locationLoading} groceryItems={groceryItems.map(i => i.name)} />
           </TabsContent>
         </Tabs>
 
