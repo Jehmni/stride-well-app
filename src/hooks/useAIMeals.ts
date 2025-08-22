@@ -57,7 +57,14 @@ export const useAIMeals = (userId?: string | null) => {
       return mealPlan;
     } catch (error) {
       console.error('Error generating AI meal plan:', error);
-      toast.error('Failed to generate AI meal plan. Please try again.');
+      const message = (error as any)?.message || '';
+      if (typeof message === 'string' && (message.includes('VITE_AI_PROXY_URL') || message.includes('VITE_AI_PROXY_KEY') || message.includes('Missing AI proxy'))) {
+        toast.error('AI is not configured. Please set VITE_AI_PROXY_URL and VITE_AI_PROXY_KEY.');
+      } else if (typeof message === 'string' && message.includes('AI proxy failed')) {
+        toast.error('AI service error. Please try again in a moment.');
+      } else {
+        toast.error('Failed to generate AI meal plan. Please try again.');
+      }
       return null;
     } finally {
       setIsGeneratingAI(false);

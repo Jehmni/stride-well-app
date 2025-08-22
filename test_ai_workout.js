@@ -15,13 +15,16 @@ const testAIWorkout = async () => {
     console.log("⚠️ AI configuration check failed:", error);
   }
   
-  // Test 2: Check if OpenAI API key is available
-  console.log("2. Checking OpenAI API key...");
+  // Test 2: Check if AI proxy or OpenAI API key is available
+  console.log("2. Checking AI configuration (proxy or direct key)...");
+  const proxyUrl = import.meta.env.VITE_AI_PROXY_URL;
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-  if (apiKey && apiKey.startsWith('sk-')) {
-    console.log("✅ OpenAI API key is properly configured");
+  if (proxyUrl) {
+    console.log("✅ AI proxy configured at", proxyUrl);
+  } else if (apiKey && apiKey.startsWith('sk-')) {
+    console.log("✅ OpenAI API key is present (development fallback)");
   } else {
-    console.log("❌ OpenAI API key is missing or invalid");
+    console.log("❌ Neither AI proxy nor OpenAI API key is configured");
   }
   
   // Test 3: Check if Supabase connection is working

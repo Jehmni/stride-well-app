@@ -7,7 +7,7 @@ const app = express();
 app.use(express.json({ limit: '1mb' }));
 app.use(cors());
 
-const apiKey = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY;
+const apiKey = process.env.OPENAI_API_KEY;
 if (!apiKey) {
   console.warn('OPENAI_API_KEY not set — server will fail when trying to call OpenAI');
 }
@@ -19,7 +19,7 @@ const limiter = rateLimit({
 app.use('/api/ai/', limiter);
 
 // Simple shared-secret header protection: set AI_PROXY_KEY in env and pass X-AI-PROXY-KEY header from trusted services
-const proxyKey = process.env.AI_PROXY_KEY || process.env.VITE_AI_PROXY_KEY || '';
+const proxyKey = process.env.AI_PROXY_KEY || '';
 
 app.post('/api/ai/meal-plan/generate', async (req, res) => {
   try {

@@ -8,9 +8,10 @@ interface Props {
   fetchMealsForPlan: (id: string) => void;
   createMeal: () => void;
   deleteMealPlan: (id: string) => void;
+  onEditPlan?: (plan: any) => void;
 }
 
-const MealPlansTab: React.FC<Props> = ({ isLoading, mealPlans, selectedPlan, setSelectedPlan, fetchMealsForPlan, createMeal, deleteMealPlan }) => {
+const MealPlansTab: React.FC<Props> = ({ isLoading, mealPlans, selectedPlan, setSelectedPlan, fetchMealsForPlan, createMeal, deleteMealPlan, onEditPlan }) => {
   return (
     <div>
       {isLoading ? (
@@ -38,7 +39,17 @@ const MealPlansTab: React.FC<Props> = ({ isLoading, mealPlans, selectedPlan, set
                 <div>
                   <h3 className="text-lg font-semibold mb-2">{plan.name}</h3>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); deleteMealPlan(plan.id); }}>Delete</button>
+                <div className="flex gap-2">
+                  {onEditPlan && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onEditPlan(plan); }}
+                      className="px-2 py-1 text-sm rounded border border-green-200 text-green-700 hover:bg-green-50"
+                    >
+                      Edit
+                    </button>
+                  )}
+                  <button onClick={(e) => { e.stopPropagation(); deleteMealPlan(plan.id); }} className="px-2 py-1 text-sm rounded border border-red-200 text-red-700 hover:bg-red-50">Delete</button>
+                </div>
               </div>
             </div>
           ))}

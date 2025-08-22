@@ -8,8 +8,9 @@ Files
 - `server/ai-server.js` - Express-based AI proxy (exports `app` for testing).
 - `server/ai-server-run.js` - CLI runner for the AI proxy (calls `app.listen`).
 
-Environment variables
-- Required for AI proxy: `OPENAI_API_KEY` (or `VITE_OPENAI_API_KEY`) and `AI_PROXY_KEY` (shared secret).
+- Environment variables
+- Required for AI proxy: `OPENAI_API_KEY` (server-only) and `AI_PROXY_KEY` (shared secret).
+- For local development you can set `VITE_AI_PROXY_URL` in the frontend to point to the proxy (e.g. http://localhost:4001).
 - Optional for persistence: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
 - Optional toggles: `VITE_AI_PROXY_PERSIST` (set to `1` to request server-side persistence).
 
@@ -24,6 +25,12 @@ npm install
 
 ```bash
 AI_PROXY_KEY=local-secret OPENAI_API_KEY=sk-xxx node server/ai-server-run.js
+```
+
+Or start both proxy and frontend together from the repo root:
+
+```bash
+npm run dev:all
 ```
 
 3. The proxy listens on port 4001 by default. Use `VITE_AI_PROXY_URL` in the client to point to the proxy.

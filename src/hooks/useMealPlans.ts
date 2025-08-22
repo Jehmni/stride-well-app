@@ -89,6 +89,39 @@ export const useMealPlans = (userId?: string | null) => {
     }
   }, [fetchMealPlans]);
 
+  const updateMealPlan = useCallback(async (
+    planId: string,
+    updates: Partial<{ name: string; description?: string; calories: number; protein: number; carbs: number; fat: number; is_active: boolean }>
+  ) => {
+    try {
+      const payload: any = {};
+      if (updates.name !== undefined) payload.name = updates.name;
+      if (updates.description !== undefined) payload.description = updates.description;
+      if (updates.calories !== undefined) payload.daily_calorie_target = updates.calories;
+      if (updates.protein !== undefined) payload.daily_protein_target = updates.protein;
+      if (updates.carbs !== undefined) payload.daily_carbs_target = updates.carbs;
+      if (updates.fat !== undefined) payload.daily_fat_target = updates.fat;
+      if (updates.is_active !== undefined) payload.is_active = updates.is_active;
+
+      const { data, error } = await supabase
+        .from('meal_plans')
+        .update(payload)
+        .eq('id', planId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success('Meal plan updated');
+      await fetchMealPlans();
+      return data as MealPlanRecord;
+    } catch (error) {
+      console.error('Error updating meal plan:', error);
+      toast.error('Failed to update meal plan');
+      return null;
+    }
+  }, [fetchMealPlans]);
+
   const deleteMealPlan = useCallback(async (planId: string) => {
     try {
       const { error } = await supabase.from('meal_plans').delete().eq('id', planId);
@@ -110,6 +143,7 @@ export const useMealPlans = (userId?: string | null) => {
     isLoading,
     fetchMealPlans,
     createMealPlan,
+    updateMealPlan,
     deleteMealPlan
   };
 };

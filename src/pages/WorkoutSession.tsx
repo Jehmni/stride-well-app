@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { ROUTES } from '@/lib/constants';
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -99,7 +100,7 @@ const WorkoutSession: React.FC = () => {
 
   const handleWorkoutCompleted = () => {
     toast.success("Workout completed! Your progress has been saved.");
-    navigate("/progress");
+  navigate(ROUTES.PROGRESS);
   };
 
   // Format day name
@@ -198,7 +199,7 @@ const WorkoutSession: React.FC = () => {
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Button 
                   variant="default"
-                  onClick={() => navigate("/workout-plan")}
+                  onClick={() => navigate(ROUTES.WORKOUTS)}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
                   <ArrowLeft className="h-4 w-4 mr-2" />
@@ -206,7 +207,7 @@ const WorkoutSession: React.FC = () => {
                 </Button>
                 <Button 
                   variant="outline"
-                  onClick={() => navigate("/dashboard")}
+                  onClick={() => navigate(ROUTES.DASHBOARD)}
                 >
                   Go to Dashboard
                 </Button>

@@ -28,6 +28,7 @@ import {
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
+import { ROUTES } from '@/lib/constants';
 import { getExerciseIcon } from "@/utils/exerciseIcons";
 
 type AIWorkoutPlan = {
@@ -126,7 +127,8 @@ export function AIWorkoutList() {
   const handleStartWorkout = async (planId: string) => {
     const plan = workoutPlans?.find((p) => p.id === planId);
     if (plan && plan.weekly_structure) {
-      navigate("/workout", { state: { workoutPlan: plan } });
+      // Navigate to the AI workout detail route using the canonical ROUTES constant
+      navigate(`${ROUTES.AI_WORKOUTS}/${plan.id}`, { state: { workoutPlan: plan } });
       toast.success("Workout plan loaded!");
     } else {
       toast.error("No workout structure found for this plan");
@@ -170,7 +172,7 @@ export function AIWorkoutList() {
           </p>
           <div className="space-y-4">
             <Button 
-              onClick={() => navigate("/workout/ai")}
+              onClick={() => navigate(ROUTES.AI_WORKOUT_GENERATION)}
               size="lg"
               className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 sm:px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
@@ -226,7 +228,7 @@ export function AIWorkoutList() {
               
               {/* CTA Button - Mobile optimized */}
               <Button 
-                onClick={() => navigate("/ai-workouts/generate")}
+                onClick={() => navigate(ROUTES.AI_WORKOUT_GENERATION)}
                 size="lg"
                 className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 sm:px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-sm sm:text-base"
               >

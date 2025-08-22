@@ -144,9 +144,17 @@ class MealPlanService {
     const userResp = await supabase.auth.getUser();
     const currentUserId = (userResp as any)?.data?.user?.id || null;
 
-    const resp = await fetch((import.meta.env.VITE_AI_PROXY_URL || '') + '/api/ai/meal-plan/generate', {
+    const proxyUrl = (import.meta.env.VITE_AI_PROXY_URL || '').trim();
+    const proxyKey = (import.meta.env.VITE_AI_PROXY_KEY || '').trim();
+
+    if (!proxyUrl || !proxyKey) {
+      const details = `Missing AI proxy configuration. ${!proxyUrl ? 'VITE_AI_PROXY_URL ' : ''}${!proxyKey ? 'VITE_AI_PROXY_KEY' : ''}`.trim();
+      throw new Error(details);
+    }
+
+    const resp = await fetch(proxyUrl + '/api/ai/meal-plan/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-AI-PROXY-KEY': (import.meta.env.VITE_AI_PROXY_KEY || '') },
+      headers: { 'Content-Type': 'application/json', 'X-AI-PROXY-KEY': proxyKey },
       body: JSON.stringify({ userProfile: profile, openaiPayload: payload, userId: currentUserId, persist: Boolean(import.meta.env.VITE_AI_PROXY_PERSIST) })
     });
 

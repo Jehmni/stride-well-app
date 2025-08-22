@@ -69,6 +69,36 @@ export const useMeals = (initialPlanId?: string | null) => {
     }
   }, [fetchMealsForPlan]);
 
+  const updateMeal = useCallback(async (
+    mealId: string,
+    updates: Partial<{
+      name: string;
+      description?: string;
+      meal_type: string;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+    }>,
+    planId?: string
+  ) => {
+    try {
+      const { error } = await supabase
+        .from('meals')
+        .update(updates)
+        .eq('id', mealId);
+
+      if (error) throw error;
+      toast.success('Meal updated successfully!');
+      if (planId) await fetchMealsForPlan(planId);
+      return true;
+    } catch (error) {
+      console.error('Error updating meal:', error);
+      toast.error('Failed to update meal');
+      return false;
+    }
+  }, [fetchMealsForPlan]);
+
   const deleteMeal = useCallback(async (mealId: string, planId?: string) => {
     try {
       const { error } = await supabase
@@ -96,6 +126,7 @@ export const useMeals = (initialPlanId?: string | null) => {
     isLoading,
     fetchMealsForPlan,
     createMeal,
+    updateMeal,
     deleteMeal,
     setMeals
   };
