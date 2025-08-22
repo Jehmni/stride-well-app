@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -21,12 +20,20 @@ import {
   Apple,
   Carrot,
   Fish,
-  Beef
+  Beef,
+  Trash2,
+  Edit,
+  ShoppingCart,
+  MapPin,
+  Calculator,
+  GripVertical,
+  Settings
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -43,9 +50,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import NearbyStores from "@/components/meal/NearbyStores";
 import NutritionLogger from "@/components/nutrition/NutritionLogger";
 import NutritionTargetsModal from "@/components/nutrition/NutritionTargetsModal";
+// Modularized meal components
+import MealCard from '@/components/meal/MealCard';
+import StoreCard from '@/components/meal/StoreCard';
+import MealPlansTab from '@/components/meal/MealPlansTab';
+import AIPlansTab from '@/components/meal/AIPlansTab';
+import ShoppingTab from '@/components/meal/ShoppingTab';
+import NutritionTab from '@/components/meal/NutritionTab';
+import StoresTab from '@/components/meal/StoresTab';
+import useMealPlans from '@/hooks/useMealPlans';
+import useAIMeals from '@/hooks/useAIMeals';
+import useMeals from '@/hooks/useMeals';
 import { useAuth } from "@/hooks/useAuth";
 import { useNutrition } from "@/hooks/useNutrition";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -100,9 +117,25 @@ const MealPlan: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [mealPlans, setMealPlans] = useState<MealPlan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [meals, setMeals] = useState<Meal[]>([]);
+  const { meals, fetchMealsForPlan: fetchMealsForPlanHook, createMeal: createMealHook, deleteMeal: deleteMealHook, updateMeal: updateMealHook, setMeals } = useMeals(selectedPlan);
   const [groceryItems, setGroceryItems] = useState<GroceryItem[]>([]);
   const [showSearch, setShowSearch] = useState(false);
+
+  // Hook-backed data and actions
+  const {
+    mealPlans: hookMealPlans,
+    isLoading: hookIsLoading,
+    fetchMealPlans: fetchMealPlansHook,
+    createMealPlan: createMealPlanHook,
+    deleteMealPlan: deleteMealPlanHook,
+    updateMealPlan: updateMealPlanHook
+  } = useMealPlans(profile?.id);
+
+  // useAIMeals is destructured later (with aiUserProfile and loadUserFitnessProfile)
+
+  // Sync mealPlans loading state into local UI state
+  React.useEffect(() => setMealPlans(hookMealPlans as any || []), [hookMealPlans]);
+  React.useEffect(() => setIsLoading(!!hookIsLoading), [hookIsLoading]);
   
   // New plan dialog state
   const [showAddPlan, setShowAddPlan] = useState(false);
@@ -116,239 +149,193 @@ const MealPlan: React.FC = () => {
     dayOfWeek: "any"
   });
 
-  // AI Meal Plan states
-  const [showAIGenerator, setShowAIGenerator] = useState(false);
-  const [aiUserProfile, setAiUserProfile] = useState<UserFitnessProfile>({
-    age: profile?.age || 30,
-    weight: profile?.weight || 70,
-    height: profile?.height || 175,
-    activity_level: 'moderately_active', // Default since profile doesn't have this field
-    fitness_goal: (profile?.fitness_goal as any) || 'maintenance',
-    dietary_preferences: [], // Default since profile doesn't have this field
-    allergies: [], // Default since profile doesn't have this field
-    budget_per_week: 100
-  });
-  const [generatedAIMealPlan, setGeneratedAIMealPlan] = useState<AIMealPlan | null>(null);
-  const [aiMealPlans, setAiMealPlans] = useState<AIMealPlan[]>([]);
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [shoppingList, setShoppingList] = useState<any>(null);
-  const [isGeneratingShoppingList, setIsGeneratingShoppingList] = useState(false);
+  // AI Meal Plan states moved into hook
+  const {
+    aiMealPlans: hookAiMealPlans,
+    generatedAIMealPlan: hookGeneratedAIMealPlan,
+    isGeneratingAI: hookIsGeneratingAI,
+    shoppingList: hookShoppingList,
+    isGeneratingShoppingList: hookIsGeneratingShoppingList,
+    fetchAIMealPlans: fetchAIMealPlansHook,
+    generateAIMealPlan: generateAIMealPlanHook,
+    generateShoppingList: generateShoppingListHook,
+    setGeneratedAIMealPlan: setGeneratedAIMealPlanHook,
+    aiUserProfile,
+    setAiUserProfile,
+    loadUserFitnessProfile
+  } = useAIMeals(user?.id || profile?.id);
 
   useEffect(() => {
     if (profile?.id) {
-      fetchMealPlans();
-      fetchAIMealPlans();
+      // delegate to hooks
+      fetchMealPlansHook();
+      // ensure hook loads/stores the AI profile and plans
       loadUserFitnessProfile();
     }
   }, [profile?.id]);
 
-  // Load user's existing fitness profile for AI meal planning
-  const loadUserFitnessProfile = async () => {
-    if (!user?.id) return;
+  // AI state and profile are managed by useAIMeals hook
 
-    try {
-      const userProfile = await mealPlanService.getUserFitnessProfile(user.id);
-      if (userProfile) {
-        setAiUserProfile(userProfile);
-      } else {
-        // If no profile exists, create a default one based on the current profile
-        const defaultProfile: UserFitnessProfile = {
-          age: profile?.age || 30,
-          weight: profile?.weight || 70,
-          height: profile?.height || 175,
-          activity_level: 'moderately_active', // Default since profile doesn't have this field
-          fitness_goal: (profile?.fitness_goal as any) || 'maintenance',
-          dietary_preferences: [], // Default since profile doesn't have this field
-          allergies: [], // Default since profile doesn't have this field
-          budget_per_week: 100
-        };
-        setAiUserProfile(defaultProfile);
-      }
-    } catch (error) {
-      console.error("Error loading user fitness profile:", error);
-      // Set default profile on error
-      const defaultProfile: UserFitnessProfile = {
-        age: profile?.age || 30,
-        weight: profile?.weight || 70,
-        height: profile?.height || 175,
-        activity_level: 'moderately_active', // Default since profile doesn't have this field
-        fitness_goal: (profile?.fitness_goal as any) || 'maintenance',
-        dietary_preferences: [], // Default since profile doesn't have this field
-        allergies: [], // Default since profile doesn't have this field
-        budget_per_week: 100
-      };
-      setAiUserProfile(defaultProfile);
+  // Dialog control for AI generator UI
+  const [showAIGenerator, setShowAIGenerator] = useState(false);
+
+  // Edit plan state
+  const [showEditPlan, setShowEditPlan] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<MealPlan | null>(null);
+  const [planForm, setPlanForm] = useState({
+    name: '',
+    description: '',
+    calories: '',
+    protein: '',
+    carbs: '',
+    fat: ''
+  });
+  const [planErrors, setPlanErrors] = useState<{ [k: string]: string | undefined }>({});
+
+  const startEditPlan = (plan: any) => {
+    setEditingPlan(plan);
+    setPlanForm({
+      name: plan.name || '',
+      description: plan.description || '',
+      calories: String(plan.daily_calorie_target ?? ''),
+      protein: String(plan.daily_protein_target ?? ''),
+      carbs: String(plan.daily_carbs_target ?? ''),
+      fat: String(plan.daily_fat_target ?? '')
+    });
+    setPlanErrors({});
+    setShowEditPlan(true);
+  };
+
+  const validatePlanForm = () => {
+    const errors: any = {};
+    if (!planForm.name.trim()) errors.name = 'Name is required';
+    const asNum = (v: string) => (v === '' ? NaN : Number(v));
+    const calories = asNum(planForm.calories);
+    const protein = asNum(planForm.protein);
+    const carbs = asNum(planForm.carbs);
+    const fat = asNum(planForm.fat);
+    if (!Number.isFinite(calories) || calories <= 0) errors.calories = 'Enter a valid number';
+    if (!Number.isFinite(protein) || protein < 0) errors.protein = 'Enter a valid number';
+    if (!Number.isFinite(carbs) || carbs < 0) errors.carbs = 'Enter a valid number';
+    if (!Number.isFinite(fat) || fat < 0) errors.fat = 'Enter a valid number';
+    setPlanErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const savePlanEdits = async () => {
+    if (!editingPlan) return;
+    if (!validatePlanForm()) {
+      toast.error('Please fix form errors');
+      return;
     }
+    const payload = {
+      name: planForm.name.trim(),
+      description: planForm.description.trim(),
+      calories: Number(planForm.calories),
+      protein: Number(planForm.protein),
+      carbs: Number(planForm.carbs),
+      fat: Number(planForm.fat)
+    } as any;
+    const updated = await updateMealPlanHook(editingPlan.id, payload);
+    if (updated) {
+      setShowEditPlan(false);
+      setEditingPlan(null);
+    }
+  };
+
+  // Edit meal state
+  const [editingMealId, setEditingMealId] = useState<string | null>(null);
+  const [mealForm, setMealForm] = useState<{ [k: string]: any }>({});
+  const [mealErrors, setMealErrors] = useState<{ [k: string]: string | undefined }>({});
+
+  const startEditMeal = (meal: any) => {
+    setEditingMealId(meal.id);
+    setMealForm({
+      name: meal.name || '',
+      description: meal.description || '',
+      meal_type: meal.meal_type || 'breakfast',
+      calories: String(meal.calories ?? 0),
+      protein: String(meal.protein ?? 0),
+      carbs: String(meal.carbs ?? 0),
+      fat: String(meal.fat ?? 0)
+    });
+    setMealErrors({});
+  };
+
+  const validateMealForm = () => {
+    const errors: any = {};
+    if (!mealForm.name || !mealForm.name.trim()) errors.name = 'Name is required';
+    const fields = ['calories', 'protein', 'carbs', 'fat'];
+    fields.forEach((f) => {
+      const v = Number(mealForm[f]);
+      if (!Number.isFinite(v) || v < 0) errors[f] = 'Enter a valid number';
+    });
+    setMealErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const saveMealEdits = async (mealId: string) => {
+    if (!selectedPlan) return;
+    if (!validateMealForm()) {
+      toast.error('Please fix meal form errors');
+      return;
+    }
+    const ok = await updateMealHook(mealId, {
+      name: String(mealForm.name).trim(),
+      description: String(mealForm.description || '').trim(),
+      meal_type: String(mealForm.meal_type || 'breakfast'),
+      calories: Number(mealForm.calories),
+      protein: Number(mealForm.protein),
+      carbs: Number(mealForm.carbs),
+      fat: Number(mealForm.fat)
+    }, selectedPlan);
+    if (ok) setEditingMealId(null);
   };
 
   const fetchMealPlans = async () => {
-    if (!profile?.id) return;
-    setIsLoading(true);
-
-    try {
-      const { data, error } = await supabase
-        .from("meal_plans")
-        .select("*")
-        .eq("user_id", profile.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      // Transform the data to match the MealPlan interface
-      const transformedData = (data || []).map((plan: any) => ({
-        id: plan.id,
-        name: plan.name,
-        description: plan.description,
-        daily_calorie_target: plan.daily_calorie_target || plan.calories || 2000,
-        daily_protein_target: plan.daily_protein_target || plan.protein || 150,
-        daily_carbs_target: plan.daily_carbs_target || plan.carbs || 200,
-        daily_fat_target: plan.daily_fat_target || plan.fat || 70,
-        start_date: plan.start_date || plan.created_at,
-        end_date: plan.end_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        is_active: plan.is_active !== false,
-        created_at: plan.created_at,
-        updated_at: plan.updated_at
-      }));
-      setMealPlans(transformedData);
-    } catch (error) {
-      console.error("Error fetching meal plans:", error);
-      toast.error("Failed to load meal plans");
-    } finally {
-      setIsLoading(false);
-    }
+  // implemented in useMealPlans hook
+  await fetchMealPlansHook();
   };
 
   const fetchAIMealPlans = async () => {
-    if (!user?.id) return;
-
-    try {
-      const plans = await mealPlanService.getUserMealPlans(user.id);
-      setAiMealPlans(plans);
-    } catch (error) {
-      console.error("Error fetching AI meal plans:", error);
-    }
+  // implemented in useAIMeals hook
+  await fetchAIMealPlansHook();
   };
 
-  const fetchMealsForPlan = async (planId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("meals")
-        .select("*")
-        .eq("meal_plan_id", planId)
-        .order("meal_type", { ascending: true });
-
-      if (error) throw error;
-      setMeals(data || []);
-    } catch (error) {
-      console.error("Error fetching meals:", error);
-      toast.error("Failed to load meals");
-    }
-  };
+  // meals are managed by useMeals hook (fetchMealsForPlanHook)
 
   const createMealPlan = async () => {
     if (!profile?.id) return;
+    const created = await createMealPlanHook(profile.id, {
+      name: newPlan.name,
+      description: newPlan.description,
+      calories: parseInt(newPlan.calories),
+      protein: parseInt(newPlan.protein),
+      carbs: parseInt(newPlan.carbs),
+      fat: parseInt(newPlan.fat)
+    });
 
-    try {
-      const { data, error } = await supabase
-        .from("meal_plans")
-        .insert({
-          user_id: profile.id,
-          name: newPlan.name,
-          description: newPlan.description,
-          daily_calorie_target: parseInt(newPlan.calories),
-          daily_protein_target: parseInt(newPlan.protein),
-          daily_carbs_target: parseInt(newPlan.carbs),
-          daily_fat_target: parseInt(newPlan.fat),
-          start_date: new Date().toISOString(),
-          end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          is_active: true
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast.success("Meal plan created successfully!");
+    if (created) {
       setShowAddPlan(false);
-      setNewPlan({
-        name: "",
-        description: "",
-        calories: "2000",
-        protein: "150",
-        carbs: "200",
-        fat: "70",
-        dayOfWeek: "any"
-      });
-      fetchMealPlans();
-    } catch (error) {
-      console.error("Error creating meal plan:", error);
-      toast.error("Failed to create meal plan");
+      setNewPlan({ name: '', description: '', calories: '2000', protein: '150', carbs: '200', fat: '70', dayOfWeek: 'any' });
     }
   };
 
-  const createMeal = async () => {
+  const handleCreateMeal = async () => {
     if (!selectedPlan) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("meals")
-        .insert({
-          meal_plan_id: selectedPlan,
-          name: "New Meal",
-          meal_type: "breakfast",
-          calories: 0,
-          protein: 0,
-          carbs: 0,
-          fat: 0
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast.success("Meal added successfully!");
-      fetchMealsForPlan(selectedPlan);
-    } catch (error) {
-      console.error("Error creating meal:", error);
-      toast.error("Failed to create meal");
-    }
+    await createMealHook(selectedPlan);
   };
 
   const deleteMealPlan = async (planId: string) => {
-    try {
-      const { error } = await supabase
-        .from("meal_plans")
-        .delete()
-        .eq("id", planId);
-
-      if (error) throw error;
-
-      toast.success("Meal plan deleted successfully!");
-      fetchMealPlans();
-      if (selectedPlan === planId) {
-        setSelectedPlan(null);
-        setMeals([]);
-      }
-    } catch (error) {
-      console.error("Error deleting meal plan:", error);
-      toast.error("Failed to delete meal plan");
+    await deleteMealPlanHook(planId);
+    if (selectedPlan === planId) {
+      setSelectedPlan(null);
+      setMeals([]);
     }
   };
 
-  const deleteMeal = async (mealId: string) => {
-    try {
-      const { error } = await supabase
-        .from("meals")
-        .delete()
-        .eq("id", mealId);
-
-      if (error) throw error;
-
-      toast.success("Meal deleted successfully!");
-      fetchMealsForPlan(selectedPlan!);
-    } catch (error) {
-      console.error("Error deleting meal:", error);
-      toast.error("Failed to delete meal");
-    }
+  const handleDeleteMeal = async (mealId: string) => {
+    await deleteMealHook(mealId, selectedPlan || undefined);
   };
 
   const toggleGroceryItem = (index: number) => {
@@ -385,46 +372,17 @@ const MealPlan: React.FC = () => {
 
   // AI Meal Plan functions
   const generateAIMealPlan = async () => {
-    if (!user?.id) return;
-
-    setIsGeneratingAI(true);
-    try {
-      // Try to update user profile with current AI profile data
-      try {
-        await mealPlanService.updateUserFitnessProfile(user.id, aiUserProfile);
-      } catch (profileError) {
-        console.warn("Failed to update user profile, continuing with meal plan generation:", profileError);
-        // Continue with meal plan generation even if profile update fails
-      }
-      
-      // Generate the meal plan
-      const mealPlan = await mealPlanService.generateMealPlan(aiUserProfile);
-      setGeneratedAIMealPlan(mealPlan);
-      setAiMealPlans(prev => [mealPlan, ...prev]);
-      toast.success("AI meal plan generated successfully!");
-      setShowAIGenerator(false);
-    } catch (error) {
-      console.error("Error generating AI meal plan:", error);
-      toast.error("Failed to generate AI meal plan. Please try again.");
-    } finally {
-      setIsGeneratingAI(false);
+    if (!user?.id || !aiUserProfile) {
+      toast.error('Please complete your fitness profile first');
+      return;
     }
+    const plan = await generateAIMealPlanHook(aiUserProfile);
+    if (plan) setShowAIGenerator(false);
   };
 
   const generateShoppingList = async (mealPlanId: string) => {
-    if (!mealPlanId) return;
-
-    setIsGeneratingShoppingList(true);
-    try {
-      const shoppingData = await storeLocatorService.generateShoppingList(mealPlanId);
-      setShoppingList(shoppingData);
-      toast.success("Shopping list generated successfully!");
-    } catch (error) {
-      console.error("Error generating shopping list:", error);
-      toast.error("Failed to generate shopping list. Please try again.");
-    } finally {
-      setIsGeneratingShoppingList(false);
-    }
+  if (!mealPlanId) return;
+  await generateShoppingListHook(mealPlanId);
   };
 
   const handleAIProfileChange = (field: keyof UserFitnessProfile, value: any) => {
@@ -435,8 +393,8 @@ const MealPlan: React.FC = () => {
     setAiUserProfile(prev => ({
       ...prev,
       dietary_preferences: checked
-        ? [...prev.dietary_preferences, preference]
-        : prev.dietary_preferences.filter(p => p !== preference)
+        ? [...(prev?.dietary_preferences || []), preference]
+        : (prev?.dietary_preferences || []).filter(p => p !== preference)
     }));
   };
 
@@ -444,6 +402,96 @@ const MealPlan: React.FC = () => {
     'vegetarian', 'vegan', 'gluten-free', 'dairy-free', 
     'keto', 'paleo', 'mediterranean', 'low-carb'
   ];
+
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [bulkEditValues, setBulkEditValues] = useState({
+    calories: '',
+    protein: '',
+    carbs: '',
+    fat: ''
+  });
+  const [draggedMeal, setDraggedMeal] = useState<Meal | null>(null);
+  const [draggedOverMeal, setDraggedOverMeal] = useState<Meal | null>(null);
+
+  const handleBulkEdit = useCallback(async () => {
+    if (!selectedPlan) return;
+    
+    const updates = Object.fromEntries(
+      Object.entries(bulkEditValues)
+        .filter(([_, value]) => value !== '')
+        .map(([key, value]) => [key, parseFloat(value)])
+    );
+
+    if (Object.keys(updates).length === 0) {
+      toast.error('Please enter at least one macro value to update');
+      return;
+    }
+
+    const planMeals = meals.filter(m => m.meal_plan_id === selectedPlan);
+    let successCount = 0;
+
+    for (const meal of planMeals) {
+      const success = await updateMealHook(meal.id, updates);
+      if (success) successCount++;
+    }
+
+    if (successCount > 0) {
+      toast.success(`Updated ${successCount} meals with new macro values`);
+      setShowBulkEdit(false);
+      setBulkEditValues({ calories: '', protein: '', carbs: '', fat: '' });
+    } else {
+      toast.error('Failed to update any meals');
+    }
+  }, [selectedPlan, meals, bulkEditValues, updateMealHook]);
+
+  const handleDragStart = useCallback((e: React.DragEvent, meal: Meal) => {
+    setDraggedMeal(meal);
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, meal: Meal) => {
+    e.preventDefault();
+    if (draggedMeal && draggedMeal.id !== meal.id) {
+      setDraggedOverMeal(meal);
+    }
+  }, [draggedMeal]);
+
+  const handleDragLeave = useCallback(() => {
+    setDraggedOverMeal(null);
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent, targetMeal: Meal) => {
+    e.preventDefault();
+    if (!draggedMeal || !selectedPlan) return;
+
+    const planMeals = meals.filter(m => m.meal_plan_id === selectedPlan);
+    const draggedIndex = planMeals.findIndex(m => m.id === draggedMeal.id);
+    const targetIndex = planMeals.findIndex(m => m.id === targetMeal.id);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    // Reorder meals by meal type to maintain logical grouping
+    const reorderedMeals = [...planMeals];
+    const [removed] = reorderedMeals.splice(draggedIndex, 1);
+    reorderedMeals.splice(targetIndex, 0, removed);
+
+    // Update local state immediately for smooth UX
+    setMeals(prevMeals => {
+      const otherMeals = prevMeals.filter(m => m.meal_plan_id !== selectedPlan);
+      return [...otherMeals, ...reorderedMeals];
+    });
+
+    // Persist the new order (client-side only for now)
+    toast.success('Meal order updated');
+    
+    setDraggedMeal(null);
+    setDraggedOverMeal(null);
+  }, [draggedMeal, selectedPlan, meals, setMeals]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedMeal(null);
+    setDraggedOverMeal(null);
+  }, []);
 
   return (
     <DashboardLayout title="Meal Planning">
@@ -504,75 +552,32 @@ const MealPlan: React.FC = () => {
 
           {/* Traditional Meal Plans Tab */}
           <TabsContent value="meal-plans" className="space-y-6">
-            {isLoading ? (
-              <div className="flex justify-center items-center p-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
-              </div>
-            ) : mealPlans.length === 0 ? (
-              <div className="text-center py-12">
-                <Utensils className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium mb-2">No Meal Plans Yet</h3>
-                <p className="text-gray-500 mb-6">
-                  Create your first meal plan to start tracking your nutrition.
-                </p>
-                <Button onClick={() => setShowAddPlan(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Your First Plan
-                </Button>
-              </div>
-            ) : (
-              <div className="grid gap-6">
-                {mealPlans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className={`p-6 border rounded-lg cursor-pointer transition-all ${
-                      selectedPlan === plan.id
-                        ? "border-green-500 bg-green-50"
-                        : "border-gray-200 hover:border-green-300"
-                    }`}
-                    onClick={() => {
-                      setSelectedPlan(plan.id);
-                      fetchMealsForPlan(plan.id);
-                    }}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2">{plan.name}</h3>
-                        {plan.description && (
-                          <p className="text-gray-600 mb-3">{plan.description}</p>
-                        )}
-                        <div className="flex gap-4 text-sm text-gray-500">
-                          <span>{plan.daily_calorie_target} cal/day</span>
-                          <span>P: {plan.daily_protein_target}g</span>
-                          <span>C: {plan.daily_carbs_target}g</span>
-                          <span>F: {plan.daily_fat_target}g</span>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteMealPlan(plan.id);
-                        }}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <MealPlansTab
+              isLoading={isLoading}
+              mealPlans={mealPlans}
+              selectedPlan={selectedPlan}
+              setSelectedPlan={setSelectedPlan}
+              fetchMealsForPlan={fetchMealsForPlanHook}
+              createMeal={handleCreateMeal}
+              deleteMealPlan={deleteMealPlan}
+              onEditPlan={startEditPlan}
+            />
 
-            {/* Selected Plan Details */}
+            {/* Selected Plan Details kept here to avoid moving DB interaction right now */}
             {selectedPlan && (
               <div className="border rounded-lg p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Plan Details</h3>
-                  <Button onClick={createMeal} size="sm">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Meal
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setShowBulkEdit(true)} size="sm">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Bulk Edit Macros
+                    </Button>
+                    <Button onClick={handleCreateMeal} size="sm">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Meal
+                    </Button>
+                  </div>
                 </div>
                 <div className="grid gap-4">
                   {["breakfast", "lunch", "dinner", "snack"].map((mealType) => (
@@ -583,23 +588,87 @@ const MealPlan: React.FC = () => {
                       ) : (
                         <div className="space-y-2">
                           {getMealsByType(mealType).map((meal) => (
-                            <div
-                              key={meal.id}
-                              className="flex justify-between items-center p-2 bg-gray-50 rounded"
+                            <div 
+                              key={meal.id} 
+                              className={`p-2 bg-gray-50 rounded transition-all duration-200 ${
+                                draggedMeal?.id === meal.id 
+                                  ? 'opacity-50 scale-95' 
+                                  : draggedOverMeal?.id === meal.id 
+                                  ? 'border-2 border-green-500 bg-green-100' 
+                                  : 'border border-transparent hover:border-gray-300'
+                              }`}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, meal)}
+                              onDragOver={(e) => handleDragOver(e, meal)}
+                              onDragLeave={handleDragLeave}
+                              onDrop={(e) => handleDrop(e, meal)}
+                              onDragEnd={handleDragEnd}
                             >
-                              <div>
-                                <p className="font-medium">{meal.name}</p>
-                                <p className="text-sm text-gray-600">
-                                  {meal.calories} cal • P: {meal.protein}g • C: {meal.carbs}g • F: {meal.fat}g
-                                </p>
-                              </div>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => deleteMeal(meal.id)}
-                              >
-                                Delete
-                              </Button>
+                              {editingMealId === meal.id ? (
+                                <div className="grid md:grid-cols-8 gap-2 items-end">
+                                  <div className="md:col-span-2">
+                                    <Label className="text-xs">Name</Label>
+                                    <Input value={mealForm.name} onChange={(e) => setMealForm({ ...mealForm, name: e.target.value })} />
+                                    {mealErrors.name && <p className="text-xs text-red-600 mt-1">{mealErrors.name}</p>}
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <Label className="text-xs">Description</Label>
+                                    <Input value={mealForm.description || ''} onChange={(e) => setMealForm({ ...mealForm, description: e.target.value })} />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Type</Label>
+                                    <Select value={mealForm.meal_type} onValueChange={(value) => setMealForm({ ...mealForm, meal_type: value })}>
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="breakfast">Breakfast</SelectItem>
+                                        <SelectItem value="lunch">Lunch</SelectItem>
+                                        <SelectItem value="dinner">Dinner</SelectItem>
+                                        <SelectItem value="snack">Snack</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Calories</Label>
+                                    <Input type="number" value={mealForm.calories} onChange={(e) => setMealForm({ ...mealForm, calories: e.target.value })} />
+                                    {mealErrors.calories && <p className="text-xs text-red-600 mt-1">{mealErrors.calories}</p>}
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Protein</Label>
+                                    <Input type="number" value={mealForm.protein} onChange={(e) => setMealForm({ ...mealForm, protein: e.target.value })} />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Carbs</Label>
+                                    <Input type="number" value={mealForm.carbs} onChange={(e) => setMealForm({ ...mealForm, carbs: e.target.value })} />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Fat</Label>
+                                    <Input type="number" value={mealForm.fat} onChange={(e) => setMealForm({ ...mealForm, fat: e.target.value })} />
+                                  </div>
+                                  <div className="flex gap-2 justify-end md:col-span-8">
+                                    <Button variant="outline" size="sm" onClick={() => setEditingMealId(null)}>Cancel</Button>
+                                    <Button size="sm" onClick={() => saveMealEdits(meal.id)}>Save</Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex justify-between items-center">
+                                  <div className="flex items-center gap-2">
+                                    <div className="cursor-grab active:cursor-grabbing">
+                                      <GripVertical className="h-4 w-4 text-gray-400" />
+                                    </div>
+                                    <div>
+                                      <p className="font-medium">{meal.name} <span className="ml-2 text-xs text-gray-500 capitalize">({meal.meal_type})</span></p>
+                                      {meal.description && <p className="text-xs text-gray-600 mb-1">{meal.description}</p>}
+                                      <p className="text-sm text-gray-600">{meal.calories} cal • P: {meal.protein}g • C: {meal.carbs}g • F: {meal.fat}g</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => startEditMeal(meal)}>Edit</Button>
+                                    <Button variant="outline" size="sm" onClick={() => handleDeleteMeal(meal.id)}>Delete</Button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -613,94 +682,28 @@ const MealPlan: React.FC = () => {
 
           {/* AI Meal Plans Tab */}
           <TabsContent value="ai-plans" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold">AI-Generated Meal Plans</h2>
-                <p className="text-gray-600">
-                  Get personalized meal plans created by AI based on your fitness goals and preferences.
-                </p>
-              </div>
-              <Button onClick={() => setShowAIGenerator(true)}>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Generate New Plan
-              </Button>
-            </div>
+            <AIPlansTab
+              aiMealPlans={hookAiMealPlans}
+              setGeneratedAIMealPlan={setGeneratedAIMealPlanHook}
+              generateShoppingList={generateShoppingList}
+              isGeneratingShoppingList={hookIsGeneratingShoppingList}
+              generatedAIMealPlan={hookGeneratedAIMealPlan}
+            />
 
-            {aiMealPlans.length === 0 ? (
-              <div className="text-center py-12">
-                <Sparkles className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium mb-2">No AI Meal Plans Yet</h3>
-                <p className="text-gray-500 mb-6">
-                  Generate your first AI-powered meal plan tailored to your goals.
-                </p>
-                <Button onClick={() => setShowAIGenerator(true)}>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate AI Meal Plan
-                </Button>
-              </div>
-            ) : (
-              <div className="grid gap-6">
-                {aiMealPlans.map((plan) => (
-                  <Card key={plan.id}>
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="mb-2">
-                            Week of {new Date(plan.week_start_date).toLocaleDateString()}
-                          </CardTitle>
-                          <CardDescription className="mb-2">
-                            {plan.daily_calories} calories/day • {plan.fitness_goal.replace('_', ' ')}
-                          </CardDescription>
-                          <div className="flex gap-2">
-                            {plan.dietary_preferences.map((pref) => (
-                              <Badge key={pref} variant="secondary" className="text-xs">
-                                {pref}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setGeneratedAIMealPlan(plan)}
-                          >
-                            View Plan
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => generateShoppingList(plan.id)}
-                            disabled={isGeneratingShoppingList}
-                          >
-                            {isGeneratingShoppingList ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <ShoppingBag className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
-            )}
-
-            {/* Generated AI Meal Plan Display */}
-            {generatedAIMealPlan && (
+            {/* Generated AI Meal Plan Display kept in parent for now (uses MealCard) */}
+            {hookGeneratedAIMealPlan && (
               <Card>
                 <CardHeader>
                   <div className="flex justify-between items-center">
                     <div>
                       <CardTitle>Your AI-Generated Meal Plan</CardTitle>
                       <CardDescription>
-                        {generatedAIMealPlan.daily_calories} calories/day • {generatedAIMealPlan.fitness_goal.replace('_', ' ')}
+                        {hookGeneratedAIMealPlan.daily_calories} calories/day  {hookGeneratedAIMealPlan.fitness_goal.replace('_', ' ')}
                       </CardDescription>
                     </div>
                     <Button
                       variant="outline"
-                      onClick={() => setGeneratedAIMealPlan(null)}
+                      onClick={() => setGeneratedAIMealPlanHook(null)}
                     >
                       Close
                     </Button>
@@ -708,7 +711,7 @@ const MealPlan: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-6">
-                    {generatedAIMealPlan.meals.map((day, index) => (
+                    {hookGeneratedAIMealPlan.meals.map((day, index) => (
                       <div key={index} className="border rounded p-4">
                         <h4 className="font-semibold mb-3">{day.day}</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -735,114 +738,21 @@ const MealPlan: React.FC = () => {
 
           {/* Shopping List Tab */}
           <TabsContent value="shopping" className="space-y-6">
-            {shoppingList ? (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <ShoppingBag className="mr-2 h-5 w-5" />
-                        Grocery List
-                      </CardTitle>
-                      <CardDescription>
-                        Estimated total: ${shoppingList.estimatedCost}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {shoppingList.groceryItems.map((item: string, index: number) => (
-                          <div key={index} className="flex items-center space-x-2 p-2 rounded border">
-                            <Checkbox />
-                            <span className="flex-1">{item}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <Map className="mr-2 h-5 w-5" />
-                        Nearby Stores
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {shoppingList.storesWithInventory.slice(0, 3).map((store: StoreData) => (
-                        <StoreCard key={store.id} store={store} />
-                      ))}
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <ShoppingBag className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium mb-2">No Shopping List Yet</h3>
-                <p className="text-gray-500 mb-6">
-                  Generate a shopping list from an AI meal plan to see nearby stores and ingredient availability.
-                </p>
-              </div>
-            )}
+            <ShoppingTab shoppingList={hookShoppingList} />
           </TabsContent>
 
           {/* Nutrition Tab */}
           <TabsContent value="nutrition" className="space-y-6">
-            <div className="grid gap-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-2xl font-bold">Nutrition Tracking</h2>
-                  <p className="text-gray-600">
-                    Log your daily nutrition and track your progress.
-                  </p>
-                </div>
-                <NutritionTargetsModal 
-                  isOpen={false}
-                  onClose={() => {}}
-                  onTargetsUpdated={() => {}}
-                />
-              </div>
-              
-              <div className="grid gap-6">
-                <NutritionLogger />
-              </div>
-            </div>
+            <NutritionTab />
           </TabsContent>
 
           {/* Nearby Stores Tab */}
           <TabsContent value="stores" className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold mb-2">Nearby Stores</h2>
-              <p className="text-gray-600">
-                Find grocery stores near you and check ingredient availability.
-              </p>
+              <p className="text-gray-600">Find grocery stores near you and check ingredient availability.</p>
             </div>
-            {latitude && longitude && !locationLoading ? (
-              <NearbyStores 
-                latitude={latitude}
-                longitude={longitude}
-                radiusInKm={5}
-                ingredients={groceryItems.map(item => item.name)}
-              />
-            ) : locationLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Getting your location...</p>
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Map className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium mb-2">Location Required</h3>
-                <p className="text-gray-500 mb-6">
-                  Please enable location access to find nearby stores.
-                </p>
-                <Button onClick={() => window.location.reload()}>
-                  Try Again
-                </Button>
-              </div>
-            )}
+            <StoresTab latitude={latitude} longitude={longitude} locationLoading={locationLoading} groceryItems={groceryItems.map(i => i.name)} />
           </TabsContent>
         </Tabs>
 
@@ -943,7 +853,7 @@ const MealPlan: React.FC = () => {
                   <Input
                     id="ai-age"
                     type="number"
-                    value={aiUserProfile.age}
+                    value={aiUserProfile?.age || ''}
                     onChange={(e) => handleAIProfileChange('age', parseInt(e.target.value))}
                   />
                 </div>
@@ -952,7 +862,7 @@ const MealPlan: React.FC = () => {
                   <Input
                     id="ai-weight"
                     type="number"
-                    value={aiUserProfile.weight}
+                    value={aiUserProfile?.weight || ''}
                     onChange={(e) => handleAIProfileChange('weight', parseFloat(e.target.value))}
                   />
                 </div>
@@ -961,7 +871,7 @@ const MealPlan: React.FC = () => {
                   <Input
                     id="ai-height"
                     type="number"
-                    value={aiUserProfile.height}
+                    value={aiUserProfile?.height || ''}
                     onChange={(e) => handleAIProfileChange('height', parseInt(e.target.value))}
                   />
                 </div>
@@ -971,7 +881,7 @@ const MealPlan: React.FC = () => {
                 <div className="grid gap-2">
                   <Label>Activity Level</Label>
                   <Select
-                    value={aiUserProfile.activity_level}
+                    value={aiUserProfile?.activity_level || 'moderate'}
                     onValueChange={(value) => handleAIProfileChange('activity_level', value)}
                   >
                     <SelectTrigger>
@@ -988,7 +898,7 @@ const MealPlan: React.FC = () => {
                 <div className="grid gap-2">
                   <Label>Fitness Goal</Label>
                   <Select
-                    value={aiUserProfile.fitness_goal}
+                    value={aiUserProfile?.fitness_goal || 'maintain_weight'}
                     onValueChange={(value) => handleAIProfileChange('fitness_goal', value)}
                   >
                     <SelectTrigger>
@@ -1008,7 +918,7 @@ const MealPlan: React.FC = () => {
                 <Label>Weekly Budget ($)</Label>
                 <Input
                   type="number"
-                  value={aiUserProfile.budget_per_week}
+                  value={aiUserProfile?.budget_per_week || ''}
                   onChange={(e) => handleAIProfileChange('budget_per_week', parseFloat(e.target.value))}
                 />
               </div>
@@ -1020,7 +930,7 @@ const MealPlan: React.FC = () => {
                     <div key={option} className="flex items-center space-x-2">
                       <Checkbox
                         id={`ai-${option}`}
-                        checked={aiUserProfile.dietary_preferences.includes(option)}
+                        checked={aiUserProfile?.dietary_preferences?.includes(option) || false}
                         onCheckedChange={(checked) => handleDietaryPreferenceChange(option, checked as boolean)}
                       />
                       <Label htmlFor={`ai-${option}`} className="text-sm capitalize">
@@ -1037,10 +947,10 @@ const MealPlan: React.FC = () => {
               </Button>
               <Button 
                 onClick={generateAIMealPlan} 
-                disabled={isGeneratingAI}
+                disabled={hookIsGeneratingAI}
                 className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700"
               >
-                {isGeneratingAI ? (
+                {hookIsGeneratingAI ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Generating...
@@ -1055,73 +965,118 @@ const MealPlan: React.FC = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Meal Plan Dialog */}
+        <Dialog open={showEditPlan} onOpenChange={setShowEditPlan}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Edit Meal Plan</DialogTitle>
+              <DialogDescription>Update your plan details and targets.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-name">Plan Name</Label>
+                <Input id="edit-name" value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} />
+                {planErrors.name && <p className="text-xs text-red-600">{planErrors.name}</p>}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-description">Description</Label>
+                <Input id="edit-description" value={planForm.description} onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>Daily Calories</Label>
+                  <Input type="number" value={planForm.calories} onChange={(e) => setPlanForm({ ...planForm, calories: e.target.value })} />
+                  {planErrors.calories && <p className="text-xs text-red-600">{planErrors.calories}</p>}
+                </div>
+                <div className="grid gap-2">
+                  <Label>Protein (g)</Label>
+                  <Input type="number" value={planForm.protein} onChange={(e) => setPlanForm({ ...planForm, protein: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>Carbs (g)</Label>
+                  <Input type="number" value={planForm.carbs} onChange={(e) => setPlanForm({ ...planForm, carbs: e.target.value })} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Fat (g)</Label>
+                  <Input type="number" value={planForm.fat} onChange={(e) => setPlanForm({ ...planForm, fat: e.target.value })} />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowEditPlan(false)}>Cancel</Button>
+              <Button onClick={savePlanEdits}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Edit Macros Dialog */}
+        <Dialog open={showBulkEdit} onOpenChange={setShowBulkEdit}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Bulk Edit Macros</DialogTitle>
+                          <DialogDescription>
+              Update macro values for all meals in the selected plan. Leave fields empty to skip updating that macro.
+            </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="bulk-calories">Calories</Label>
+                  <Input
+                    id="bulk-calories"
+                    type="number"
+                    placeholder="e.g., 500"
+                    value={bulkEditValues.calories}
+                    onChange={(e) => setBulkEditValues(prev => ({ ...prev, calories: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bulk-protein">Protein (g)</Label>
+                  <Input
+                    id="bulk-protein"
+                    type="number"
+                    placeholder="e.g., 25"
+                    value={bulkEditValues.protein}
+                    onChange={(e) => setBulkEditValues(prev => ({ ...prev, protein: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="bulk-carbs">Carbs (g)</Label>
+                  <Input
+                    id="bulk-carbs"
+                    type="number"
+                    placeholder="e.g., 60"
+                    value={bulkEditValues.carbs}
+                    onChange={(e) => setBulkEditValues(prev => ({ ...prev, carbs: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bulk-fat">Fat (g)</Label>
+                  <Input
+                    id="bulk-fat"
+                    type="number"
+                    placeholder="e.g., 20"
+                    value={bulkEditValues.fat}
+                    onChange={(e) => setBulkEditValues(prev => ({ ...prev, fat: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowBulkEdit(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleBulkEdit}>Update All Meals</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
-  );
-};
-
-// Meal Card component for AI meal plans
-interface MealCardProps {
-  meal: any;
-  mealType: string;
-}
-
-const MealCard: React.FC<MealCardProps> = ({ meal, mealType }) => {
-  const mealTypeColors = {
-    'Breakfast': 'bg-yellow-50 text-yellow-600 border-yellow-200',
-    'Lunch': 'bg-blue-50 text-blue-600 border-blue-200',
-    'Dinner': 'bg-purple-50 text-purple-600 border-purple-200'
-  };
-
-  return (
-    <div className={`p-3 rounded-lg border-2 ${mealTypeColors[mealType as keyof typeof mealTypeColors]}`}>
-      <h4 className="font-semibold mb-2">{mealType}</h4>
-      <h5 className="font-medium text-sm mb-1">{meal.name}</h5>
-      <p className="text-xs text-gray-600 mb-2">{meal.description}</p>
-      <div className="flex justify-between text-xs">
-        <span>{meal.calories} cal</span>
-        <span className="flex items-center">
-          <Clock className="w-3 h-3 mr-1" />
-          {meal.prep_time}min
-        </span>
-      </div>
-      <div className="mt-2 text-xs">
-        <span className="bg-white bg-opacity-50 px-2 py-1 rounded">
-          P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fats}g
-        </span>
-      </div>
-    </div>
-  );
-};
-
-// Store Card component for shopping list
-interface StoreCardProps {
-  store: StoreData;
-}
-
-const StoreCard: React.FC<StoreCardProps> = ({ store }) => {
-  const inStockCount = store.inventory.filter(item => item.in_stock).length;
-  const totalItems = store.inventory.length;
-
-  return (
-    <div className="p-3 border rounded-lg">
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <h4 className="font-semibold">{store.name}</h4>
-          <p className="text-xs text-gray-600">{store.address}</p>
-        </div>
-        <Badge variant={inStockCount === totalItems ? 'default' : 'secondary'}>
-          {Math.round(store.distance)}m away
-        </Badge>
-      </div>
-      <div className="flex items-center justify-between text-sm">
-        <span className="flex items-center text-green-600">
-          <Check className="w-4 h-4 mr-1" />
-          {inStockCount}/{totalItems} items
-        </span>
-        <span className="text-gray-500">{store.phone}</span>
-      </div>
-    </div>
   );
 };
 

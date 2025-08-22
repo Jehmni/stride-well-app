@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Dumbbell, Calendar, ListChecks, Play, Brain, Info, Loader2, ArrowLeft, RefreshCw } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 import AIGeneratedNotice from '@/components/common/AIGeneratedNotice';
 import WorkoutWeeklySchedule from '@/components/workout/WorkoutWeeklySchedule';
 import WorkoutExerciseList from '@/components/workout/WorkoutExerciseList';
@@ -81,10 +82,11 @@ const AIWorkoutDetailPage: React.FC = () => {
         // Format exercise data if needed
         let exercises: Exercise[] = [];
         if (data.exercises && Array.isArray(data.exercises) && data.exercises.length > 0) {
-          // Make sure each exercise has an id for tracking
-          exercises = data.exercises.map((ex: any, index: number) => ({
+          // Make sure each exercise has an id for tracking. Use real UUIDs for generated exercises so
+          // server RPCs that expect UUIDs do not receive placeholder strings.
+          exercises = data.exercises.map((ex: any) => ({
             ...ex,
-            id: ex.id || `exercise-${index}-${Date.now()}`
+            id: ex.id || uuidv4()
           }));
         }
         

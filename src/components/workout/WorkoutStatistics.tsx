@@ -130,7 +130,7 @@ const WorkoutStatistics: React.FC<WorkoutStatisticsProps> = ({ onViewAllProgress
               <h4 className="text-sm font-medium text-gray-500">Most Frequent Exercises</h4>
               <ul className="mt-2 space-y-2">
                 {exerciseCounts.slice(0, 5).map((exercise, index) => {
-                  const uniqueKey = exercise.exercise_id || `exercise-${index}-${exercise.name || 'unknown'}`;
+                  const uniqueKey = exercise.exercise_id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `fallback-${index}-${exercise.name || 'unknown'}`);
                   return (
                     <li key={uniqueKey} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       <div className="flex items-center space-x-3">

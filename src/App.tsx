@@ -37,6 +37,17 @@ const Dashboard = withErrorBoundary(() => {
     }
   }, []);
 
+  // If Dashboard loads successfully, clear any previous stored error flag for this origin
+  useEffect(() => {
+    if (!hasError) {
+      try {
+        sessionStorage.removeItem('dashboard_load_error');
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [hasError]);
+
   useEffect(() => {
     // Listen for errors that might indicate Dashboard loading issues
     const handleError = (event: ErrorEvent) => {

@@ -7,21 +7,22 @@ import { supabase } from "./client";
  */
 export const getAIConfig = async (serviceName: string) => {
   try {
-    // Try to get from environment variables first
-    const envApiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    // Prefer an AI proxy configuration (so the client doesn't need the OpenAI secret).
+    const proxyUrl = import.meta.env.VITE_AI_PROXY_URL;
     const envApiUrl = import.meta.env.VITE_OPENAI_API_URL || "https://api.openai.com/v1/chat/completions";
     const envModel = import.meta.env.VITE_OPENAI_MODEL || "gpt-4o";
-    
-    // If environment variables are set, use those
-    if (envApiKey) {
+
+    if (proxyUrl) {
       return {
         service_name: serviceName,
-        api_key: envApiKey,
-        api_endpoint: envApiUrl,
+        api_key: null,
+        api_endpoint: proxyUrl,
         model_name: envModel,
         is_enabled: true
       };
     }
+
+  // Otherwise, get from database
     
     // Otherwise, get from database
     const { data, error } = await supabase
@@ -48,6 +49,8 @@ export const getAIConfig = async (serviceName: string) => {
  * @returns True if AI is available, false otherwise
  */
 export const isAIAvailable = async (serviceName: string): Promise<boolean> => {
+  const proxyUrl = import.meta.env.VITE_AI_PROXY_URL;
+  if (proxyUrl) return true;
   const config = await getAIConfig(serviceName);
   return Boolean(config?.api_key && config?.is_enabled);
 };

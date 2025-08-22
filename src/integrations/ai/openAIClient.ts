@@ -23,21 +23,25 @@ export class OpenAIClient {
   private apiKey: string;
   private model: string;
   private userInfo: any = null; // Store user info for mock responses
+  private proxyUrl: string | null = null;
 
   constructor(config: AIConfig) {
-    // Always use the standard OpenAI endpoint
-    this.apiEndpoint = "https://api.openai.com/v1/chat/completions";
-    this.apiKey = config.api_key || import.meta.env.VITE_OPENAI_API_KEY || '';
-    this.model = import.meta.env.VITE_OPENAI_MODEL || config.model_name || "gpt-4o"; // Use model from env or config
+  // Prefer the AI proxy when configured. This ensures the OpenAI key stays server-side.
+  this.proxyUrl = import.meta.env.VITE_AI_PROXY_URL || null;
+  this.apiEndpoint = this.proxyUrl ? `${this.proxyUrl.replace(/\/$/, '')}/api/ai` : "https://api.openai.com/v1/chat/completions";
+
+  // The client should not have the OpenAI secret. We do not read VITE_OPENAI_API_KEY in source to avoid leaking keys.
+  this.apiKey = config.api_key || '';
+  this.model = import.meta.env.VITE_OPENAI_MODEL || config.model_name || "gpt-4o"; // Use model from env or config
     
     console.log("OpenAI Client initialized:");
     console.log("- Endpoint:", this.apiEndpoint);
     console.log("- API Key length:", this.apiKey.length);
     console.log("- Model:", this.model);
     
-    // Check if API key is properly configured
-    if (!this.apiKey || this.apiKey.length < 10 || this.apiKey.startsWith('sk-example')) {
-      console.warn('OpenAI API key not properly configured. AI features will use fallback responses.');
+    // If no server-side proxy and no API key is available, we'll fall back to mock responses.
+    if (!this.proxyUrl && (!this.apiKey || this.apiKey.length < 10)) {
+      console.warn('No AI proxy configured and no API key provided. AI features will use fallback responses.');
     }
   }
   
@@ -56,15 +60,44 @@ export class OpenAIClient {
    * @param temperature Temperature setting for creativity (0-1)
    * @returns The API response or null if failed
    */  async createChatCompletion(systemPrompt: string, userPrompt: string): Promise<OpenAIResponse | null> {
-    // Check if API key is properly configured
-    if (!this.apiKey || this.apiKey.length < 10 || this.apiKey.startsWith('sk-example')) {
+  // If we have a proxy URL configured, call the proxy endpoint which handles server-side OpenAI requests.
+  if (this.proxyUrl) {
+      try {
+    const response = await fetch(`${this.apiEndpoint}/meal-plan/generate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            // If the client needs to include a lightweight key, it may be provided via VITE_AI_PROXY_KEY
+      ...(import.meta.env.VITE_AI_PROXY_KEY ? { 'X-AI-PROXY-KEY': import.meta.env.VITE_AI_PROXY_KEY } : {})
+          },
+          body: JSON.stringify({ systemPrompt, userPrompt })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`AI proxy error (${response.status}):`, errorText);
+          console.warn("Falling back to mock response due to proxy error.");
+          return this.generateMockResponse(userPrompt);
+        }
+
+        const json = await response.json();
+        // The proxy returns the OpenAI-like payload at json.raw or the parsed object at json.parsed
+        return json.raw || json;
+      } catch (error) {
+        console.error("Error calling AI proxy:", error);
+        console.warn("Falling back to mock response due to network error.");
+        return this.generateMockResponse(userPrompt);
+      }
+    }
+
+  // No proxy configured — fall back to calling OpenAI directly (dev only)
+  if (!this.apiKey || this.apiKey.length < 10) {
       console.warn("OpenAI API key not properly configured. Using fallback mock response.");
-      // Return a mock response for development/demo purposes
       return this.generateMockResponse(userPrompt);
     }
-    
+
     try {
-      // Make the API request
+      // Make the API request directly to OpenAI (developer fallback)
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
         headers: {
